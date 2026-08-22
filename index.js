@@ -9,7 +9,8 @@ import makeWASocket, {
   useMultiFileAuthState,
   fetchLatestBaileysVersion,
   delay,
-  DisconnectReason
+  DisconnectReason,
+  Browsers
 } from '@whiskeysockets/baileys';
 import pino from 'pino';
 import NodeCache from 'node-cache';
@@ -339,7 +340,7 @@ async function startPairSocket(phone, sessionDir) {
     logger: pino({ level: 'silent' }),
     printQRInTerminal: false,
     auth: state,
-    browser: ['Ubuntu', 'Chrome', '20.0.04'],
+    browser: Browsers.macOS('Desktop'),
     msgRetryCounterCache,
     generateHighQualityLinkPreview: false,
     syncFullHistory: false,
@@ -549,7 +550,7 @@ app.post('/api/qr-start', requireAccessCode, async (req, res) => {
       logger: pino({ level: 'silent' }),
       printQRInTerminal: false,
       auth: state,
-      browser: ['Ubuntu', 'Chrome', '20.0.04'],
+      browser: Browsers.macOS('Desktop'),
       msgRetryCounterCache,
       generateHighQualityLinkPreview: false,
       syncFullHistory: false,
@@ -611,12 +612,82 @@ app.post('/api/qr-start', requireAccessCode, async (req, res) => {
 
       } else if (connection === 'close') {
         const code = lastDisconnect?.error?.output?.statusCode;
-        console.log(`[QR CLOSED] session=${sessionId} code=${code}`);
+        const reason = lastDisconnect?.error?.message || 'unknown';
+        console.log(`[QR CLOSED] session=${sessionId} code=${code} reason=${reason}`);
+
+        const session = qrSessions.get(sessionId);
+        if (!session) return;
+
         if (code === DisconnectReason.loggedOut || code === 401) {
-          const session = qrSessions.get(sessionId);
-          if (session) session.error = 'Session expired. Please refresh the QR code.';
+          session.error = 'Session expired. Please refresh and try again.';
           qrSessions.delete(sessionId);
           try { fs.rmSync(sessionDir, { recursive: true, force: true }); } catch {}
+        } else if (code === 515) {
+          // 515 = Restart Required — auto-retry the QR socket once
+          console.log(`[QR] Code 515 restart required for session ${sessionId}, retrying...`);
+          session.error = null;
+          session.qrDataUrl = null;
+          try {
+            sock?.ws?.close();
+          } catch {}
+          // brief pause then reconnect same session
+          setTimeout(async () => {
+            try {
+              const newSess = qrSessions.get(sessionId);
+              if (!newSess) return;
+              const { state: s2, saveCreds: sc2 } = await useMultiFileAuthState(sessionDir);
+              const { version: v2 } = await fetchLatestBaileysVersion();
+              const sock2 = makeWASocket({
+                version: v2,
+                logger: pino({ level: 'silent' }),
+                printQRInTerminal: false,
+                auth: s2,
+                browser: Browsers.macOS('Desktop'),
+                msgRetryCounterCache,
+                generateHighQualityLinkPreview: false,
+                syncFullHistory: false,
+                markOnlineOnConnect: false,
+                connectTimeoutMs: 120000,
+                keepAliveIntervalMs: 15000,
+              });
+              newSess.sock = sock2;
+              sock2.ev.on('creds.update', sc2);
+              sock2.ev.on('connection.update', async (u2) => {
+                if (u2.qr) {
+                  try {
+                    const dataUrl = await QRCode.toDataURL(u2.qr, { width: 280, margin: 2 });
+                    const s = qrSessions.get(sessionId);
+                    if (s) { s.qrDataUrl = dataUrl; s.error = null; }
+                  } catch {}
+                }
+                if (u2.connection === 'open') {
+                  const rawId = sock2.user?.id || '';
+                  const phone2 = rawId.split(':')[0].replace(/[^0-9]/g, '') || `user_${Date.now()}`;
+                  const s = qrSessions.get(sessionId);
+                  if (s) { s.linked = true; s.phone = phone2; }
+                  try {
+                    await delay(3000);
+                    promoteToPermanentSession(phone2, sessionDir);
+                    const userJid = rawId.includes(':') ? `${rawId.split(':')[0]}@s.whatsapp.net` : rawId;
+                    await sock2.sendMessage(userJid, {
+                      text: `✅ *CypherX Bot Connected via QR!* 🐉\n\n*Phone:* +${phone2}\n🤖 Hosted & Active on Multi-User Cloud!`
+                    });
+                  } catch {} finally {
+                    await delay(4000);
+                    try { sock2?.ws?.close(); } catch {}
+                    try { fs.rmSync(sessionDir, { recursive: true, force: true }); } catch {}
+                    qrSessions.delete(sessionId);
+                  }
+                }
+              });
+            } catch (retryErr) {
+              console.error('[QR 515 Retry Error]:', retryErr.message);
+              const s = qrSessions.get(sessionId);
+              if (s) s.error = 'Connection failed. Click Refresh QR to try again.';
+            }
+          }, 2000);
+        } else {
+          if (session) session.error = `Connection closed (code ${code}). Click Refresh QR to try again.`;
         }
       }
     });
