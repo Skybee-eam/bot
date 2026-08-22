@@ -4,11 +4,7 @@ const ytdl = require("@distube/ytdl-core");
 const scraper = require("@vreden/youtube_scraper");
 const fs = require("fs");
 const path = require("path");
-
-const tmpDir = path.join(__dirname, "..", "tmp");
-if (!fs.existsSync(tmpDir)) {
-    try { fs.mkdirSync(tmpDir, { recursive: true }); } catch {}
-}
+const { convertVideoToMP4, tmpDir } = require("../src/Core/mediaConverter");
 
 // OMDb key pool
 const OMDB_KEYS = ["trilogy", "7a3f8a92", "b8b387c9"];
@@ -26,71 +22,79 @@ async function fetchMovieInfo(title) {
     return null;
 }
 
-// Stream a YouTube video to disk and return the file path
-async function streamVideoToDisk(videoUrl, filePath, quality) {
+/**
+ * Stream a YouTube video to disk using ytdl-core (best quality for full movies).
+ * Returns the output file path.
+ */
+async function streamVideoToDisk(videoUrl, filePath) {
     return new Promise((resolve, reject) => {
+        // Use lowest quality to keep file manageable for WhatsApp
         const stream = ytdl(videoUrl, {
-            filter: "videoandaudio",
-            quality: quality || "lowest",
+            filter: format =>
+                format.container === "mp4" &&
+                format.hasVideo &&
+                format.hasAudio &&
+                (format.qualityLabel === "360p" || format.qualityLabel === "240p"),
             requestOptions: {
-                headers: {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-                }
+                headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" }
             }
         });
 
+        let gotData = false;
         const fileStream = fs.createWriteStream(filePath);
-        let downloaded = 0;
 
-        stream.on("data", chunk => {
-            downloaded += chunk.length;
+        stream.on("data", () => { gotData = true; });
+        stream.pipe(fileStream);
+        fileStream.on("finish", () => resolve(filePath));
+
+        stream.on("error", (err) => {
+            // If filtered stream has no formats, try without filter
+            if (!gotData) {
+                const fallbackStream = ytdl(videoUrl, {
+                    filter: "videoandaudio",
+                    quality: "lowest",
+                    requestOptions: {
+                        headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" }
+                    }
+                });
+                const fallbackFile = fs.createWriteStream(filePath);
+                fallbackStream.pipe(fallbackFile);
+                fallbackFile.on("finish", () => resolve(filePath));
+                fallbackStream.on("error", reject);
+            } else {
+                reject(err);
+            }
         });
 
-        stream.pipe(fileStream);
-
-        fileStream.on("finish", () => resolve(filePath));
         fileStream.on("error", reject);
-        stream.on("error", reject);
-
-        // Safety timeout for very large files — 10 minutes
-        setTimeout(() => reject(new Error("Download timeout (10 min)")), 10 * 60 * 1000);
+        setTimeout(() => reject(new Error("Download timeout")), 12 * 60 * 1000);
     });
 }
 
-// Search for a full movie on YouTube
+/**
+ * Search YouTube for a FULL movie (>45 min duration).
+ */
 async function findFullMovieVideo(movieTitle, year) {
     const queries = [
-        `${movieTitle} ${year || ""} full movie free`,
+        `"${movieTitle}" ${year || ""} full movie free`,
         `${movieTitle} full movie english`,
-        `${movieTitle} full movie HD`,
-        `${movieTitle} complete film`
+        `${movieTitle} complete film free`
     ];
 
     for (const query of queries) {
         try {
             const result = await yts(query);
-            if (!result.videos) continue;
-
-            // Filter: must be at least 60 minutes long (full movie) and most views
-            const candidates = result.videos.filter(v => v.seconds > 3600);
-            if (candidates.length > 0) {
-                // Sort by views, pick most viewed
-                candidates.sort((a, b) => (b.views || 0) - (a.views || 0));
-                return candidates[0];
-            }
-
-            // Fallback: look for anything over 45 minutes
-            const medCandidates = result.videos.filter(v => v.seconds > 2700);
-            if (medCandidates.length > 0) {
-                medCandidates.sort((a, b) => (b.views || 0) - (a.views || 0));
-                return medCandidates[0];
-            }
+            if (!result.videos?.length) continue;
+            // Must be >45 minutes
+            const candidates = result.videos
+                .filter(v => v.seconds > 2700)
+                .sort((a, b) => (b.views || 0) - (a.views || 0));
+            if (candidates.length) return candidates[0];
         } catch {}
     }
     return null;
 }
 
-// Format file size
 function formatSize(bytes) {
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -101,18 +105,17 @@ module.exports = {
     name: "movie",
     alias: ["film", "cinema", "imdb", "movieinfo", "moviedl"],
     category: "download",
-    description: "Search & download full movies, or get detailed movie information",
+    description: "Download full movies (iOS + Android compatible) or get movie info",
     async execute(client, m, { text, prefix, command, reply }) {
-        let tempFile = null;
+        const tempFiles = [];
 
         try {
             if (!text) {
                 return reply(
                     `🎬 *RED DRAGON CINEMA HUB*\n\n` +
-                    `*Commands:*\n` +
-                    `• *${prefix}movie <title>* ➔ Download FULL movie video\n` +
-                    `• *${prefix}movieinfo <title>* ➔ Movie details, rating & cast\n\n` +
-                    `*Example:* \`${prefix}movie Inception\``
+                    `• *${prefix}movie <title>* — Download FULL movie\n` +
+                    `• *${prefix}movieinfo <title>* — Movie details & IMDb info\n\n` +
+                    `Example: \`${prefix}movie Inception\``
                 );
             }
 
@@ -120,18 +123,18 @@ module.exports = {
 
             const isInfoOnly = command === "movieinfo" || command === "imdb";
 
-            // 1. Fetch Movie Data from OMDb
+            // ── 1. Fetch OMDb movie info ─────────────────────────────
             const movie = await fetchMovieInfo(text);
-
             let movieCaption = "";
             let posterUrl = "";
 
             if (movie) {
-                posterUrl = movie.Poster && movie.Poster !== "N/A" ? movie.Poster : "";
+                posterUrl = movie.Poster !== "N/A" ? movie.Poster : "";
+                const rtRating = movie.Ratings?.find(r => r.Source === "Rotten Tomatoes")?.Value || "N/A";
                 movieCaption =
 `🎬 *${movie.Title.toUpperCase()} (${movie.Year})*
 
-⭐ *IMDb:* ${movie.imdbRating}/10  |  🍅 *RT:* ${movie.Ratings?.find(r => r.Source === "Rotten Tomatoes")?.Value || "N/A"}
+⭐ *IMDb:* ${movie.imdbRating}/10  |  🍅 *RT:* ${rtRating}
 🎭 *Genre:* ${movie.Genre}
 ⏱️ *Runtime:* ${movie.Runtime}
 📅 *Released:* ${movie.Released}
@@ -146,14 +149,11 @@ _${movie.Plot || "No plot available."}_
 🐉 *RED DRAGON CINEMA STUDIO*`;
             }
 
-            // Info-only mode
+            // ── Info-only mode ───────────────────────────────────────
             if (isInfoOnly) {
-                if (!movie) return reply(`❌ *Movie "${text}" not found.*`);
+                if (!movie) return reply(`❌ *Movie "${text}" not found in database.*`);
                 if (posterUrl) {
-                    await client.sendMessage(m.chat, {
-                        image: { url: posterUrl },
-                        caption: movieCaption
-                    }, { quoted: m });
+                    await client.sendMessage(m.chat, { image: { url: posterUrl }, caption: movieCaption }, { quoted: m });
                 } else {
                     await reply(movieCaption);
                 }
@@ -161,87 +161,98 @@ _${movie.Plot || "No plot available."}_
                 return;
             }
 
-            // 2. Send movie info card while searching for the full video
-            if (movie && posterUrl) {
-                await client.sendMessage(m.chat, {
-                    image: { url: posterUrl },
-                    caption: movieCaption + "\n\n_🔍 Searching for full movie stream..._"
-                }, { quoted: m });
-            } else if (movie) {
-                await reply(movieCaption + "\n\n_🔍 Searching for full movie stream..._");
+            // ── 2. Show movie info card first ─────────────────────────
+            if (movie) {
+                const infoText = movieCaption + "\n\n_🔍 Searching for full movie..._";
+                if (posterUrl) {
+                    await client.sendMessage(m.chat, { image: { url: posterUrl }, caption: infoText }, { quoted: m });
+                } else {
+                    await reply(infoText);
+                }
             }
 
             await client.sendMessage(m.chat, { react: { text: "⏳", key: m.key } });
 
-            // 3. Find full movie video on YouTube
-            const movieTitle = movie ? movie.Title : text;
-            const movieYear = movie ? movie.Year : null;
+            const movieTitle = movie?.Title || text;
+            const movieYear = movie?.Year || null;
 
-            await reply(`🔍 *Searching for full movie: "${movieTitle}"...*\n_This may take a moment_`);
-
+            // ── 3. Find full movie on YouTube ─────────────────────────
             const fullVideo = await findFullMovieVideo(movieTitle, movieYear);
 
             if (!fullVideo) {
                 return reply(
-                    `❌ *Full movie not found publicly on YouTube.*\n\n` +
-                    `_Try:_ \`${prefix}movieinfo ${text}\` _to get movie details only._`
+                    `❌ *No public full-length movie found for "${movieTitle}" on YouTube.*\n\n` +
+                    `_Try: \`${prefix}movieinfo ${text}\` for movie details._`
                 );
             }
 
-            // 4. Show what we found and confirm downloading
             const durationMin = Math.round(fullVideo.seconds / 60);
             await client.sendMessage(m.chat, {
                 text:
-                    `🎬 *Found Full Movie!*\n\n` +
-                    `📽️ *${fullVideo.title}*\n` +
+                    `🎬 *Found:* ${fullVideo.title}\n` +
                     `⏱️ *Duration:* ${fullVideo.timestamp} (${durationMin} min)\n` +
                     `👁️ *Views:* ${(fullVideo.views || 0).toLocaleString()}\n\n` +
-                    `⬇️ _Streaming at lowest quality (360p) for WhatsApp delivery..._\n` +
-                    `_Large file — may take 2–5 minutes depending on movie length_`
+                    `⬇️ _Downloading & converting to H.264/AAC (iOS + Android compatible)..._\n` +
+                    `_This may take 3–8 minutes for a full movie — please wait_`
             }, { quoted: m });
 
-            // 5. Stream the full movie to disk via ytdl-core
+            // ── 4. Download raw video to disk ─────────────────────────
             const safeTitle = (movieTitle || "movie").replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 40);
-            tempFile = path.join(tmpDir, `movie_${Date.now()}_${safeTitle}.mp4`);
+            const rawPath = path.join(tmpDir, `movie_raw_${Date.now()}_${safeTitle}.mp4`);
+            tempFiles.push(rawPath);
 
             try {
-                await streamVideoToDisk(fullVideo.url, tempFile, "lowest");
+                await streamVideoToDisk(fullVideo.url, rawPath);
             } catch (streamErr) {
-                console.log("[Movie] ytdl stream failed, trying scraper:", streamErr.message);
-                // Fallback: try vreden scraper at 360p
+                console.log("[Movie] ytdl failed, trying scraper:", streamErr.message);
+                // Fallback: vreden scraper
                 const scrapRes = await scraper.ytmp4(fullVideo.url, "360");
                 if (scrapRes?.download?.url) {
                     const r = await axios.get(scrapRes.download.url, {
                         responseType: "arraybuffer",
                         timeout: 120000,
-                        maxContentLength: 200 * 1024 * 1024,
+                        maxContentLength: 500 * 1024 * 1024,
                         headers: { "User-Agent": "Mozilla/5.0" }
                     });
-                    fs.writeFileSync(tempFile, Buffer.from(r.data));
+                    fs.writeFileSync(rawPath, Buffer.from(r.data));
                 } else {
-                    throw new Error("All download methods failed for this movie.");
+                    throw new Error("All download methods exhausted for this movie.");
                 }
             }
 
-            // 6. Check file size
-            const stats = fs.statSync(tempFile);
-            const sizeBytes = stats.size;
-            const sizeMB = sizeBytes / (1024 * 1024);
+            const rawSize = fs.statSync(rawPath).size;
+            console.log(`[Movie] Raw download: ${formatSize(rawSize)} for "${movieTitle}"`);
 
-            console.log(`[Movie] Downloaded: ${formatSize(sizeBytes)} for "${movieTitle}"`);
+            // ── 5. Convert to H.264 + AAC in MP4 (WhatsApp compatible) ─
+            await client.sendMessage(m.chat, {
+                text: `🔄 _Converting to iOS/Android compatible format (H.264 + AAC)..._\n_Size: ${formatSize(rawSize)} — almost done!_`
+            }, { quoted: m });
 
-            // 7. Send as VIDEO if ≤80MB, otherwise send as DOCUMENT
+            let finalPath = rawPath;
+            try {
+                // Scale to 480p, CRF 28, veryfast preset — good quality, smaller file
+                finalPath = await convertVideoToMP4(rawPath, { crf: "28", preset: "veryfast", scale: "480:-2" });
+                tempFiles.push(finalPath);
+            } catch (convErr) {
+                console.log("[Movie] ffmpeg convert failed, sending raw:", convErr.message);
+                finalPath = rawPath; // send as-is
+            }
+
+            const finalSize = fs.statSync(finalPath).size;
+            const finalSizeMB = finalSize / (1024 * 1024);
+            console.log(`[Movie] Final size: ${formatSize(finalSize)} for "${movieTitle}"`);
+
             const filmCaption =
                 `🎬 *${movieTitle}${movieYear ? ` (${movieYear})` : ""}*\n` +
                 (movie ? `⭐ *IMDb:* ${movie.imdbRating}/10 • 🎭 ${movie.Genre}\n` : "") +
-                `⏱️ *Duration:* ${fullVideo.timestamp}\n` +
-                `📦 *File Size:* ${formatSize(sizeBytes)}\n\n` +
-                `🐉 *Downloaded by RED DRAGON OFC*`;
+                `⏱️ *Duration:* ${fullVideo.timestamp} (${durationMin} min)\n` +
+                `📦 *Size:* ${formatSize(finalSize)}\n\n` +
+                `🐉 *RED DRAGON OFC — H.264/AAC*`;
 
-            const fileData = fs.readFileSync(tempFile);
+            const fileData = fs.readFileSync(finalPath);
 
-            if (sizeMB <= 80) {
-                // Send as playable video message
+            if (finalSizeMB <= 90) {
+                // ≤90 MB → send as inline playable video
                 await client.sendMessage(m.chat, {
                     video: fileData,
                     caption: filmCaption,
@@ -249,12 +260,12 @@ _${movie.Plot || "No plot available."}_
                     fileName: `${safeTitle}.mp4`
                 }, { quoted: m });
             } else {
-                // Send as document — no size limit for playback, user opens with phone player
+                // >90 MB → send as document (user taps to play with phone's video player)
                 await client.sendMessage(m.chat, {
                     document: fileData,
                     mimetype: "video/mp4",
                     fileName: `${safeTitle}.mp4`,
-                    caption: filmCaption + "\n\n_📂 Sent as file — tap to download & play with video player_"
+                    caption: filmCaption + "\n\n📂 _Tap to download → open with Video Player_"
                 }, { quoted: m });
             }
 
@@ -262,10 +273,10 @@ _${movie.Plot || "No plot available."}_
 
         } catch (error) {
             console.error("[Movie Plugin Error]:", error.message);
-            reply(`❌ *Movie download failed:* ${error.message}\n\n_Try \`.movieinfo ${text}\` for movie details only._`);
+            reply(`❌ *Movie failed:* ${error.message}\n\nTry \`.movieinfo ${text}\` for movie details.`);
         } finally {
-            if (tempFile && fs.existsSync(tempFile)) {
-                try { fs.unlinkSync(tempFile); } catch {}
+            for (const f of tempFiles) {
+                try { if (fs.existsSync(f)) fs.unlinkSync(f); } catch {}
             }
         }
     }

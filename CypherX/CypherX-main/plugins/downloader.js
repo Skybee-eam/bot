@@ -3,11 +3,7 @@ const axios = require('axios');
 const scraper = require('@vreden/youtube_scraper');
 const fs = require('fs');
 const path = require('path');
-
-const tmpDir = path.join(__dirname, "..", "tmp");
-if (!fs.existsSync(tmpDir)) {
-    try { fs.mkdirSync(tmpDir, { recursive: true }); } catch {}
-}
+const { convertVideoToMP4, tmpDir } = require('../src/Core/mediaConverter');
 
 module.exports = {
     name: "downloader",
@@ -144,15 +140,29 @@ module.exports = {
             });
 
             const safeTitle = (videoTitle || 'video').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 30);
-            tempFile = path.join(tmpDir, `video_${Date.now()}_${safeTitle}.mp4`);
-            fs.writeFileSync(tempFile, Buffer.from(videoBufferRes.data));
+            const rawPath = path.join(tmpDir, `video_raw_${Date.now()}_${safeTitle}.mp4`);
+            fs.writeFileSync(rawPath, Buffer.from(videoBufferRes.data));
+            tempFile = rawPath;
+
+            // Convert to H.264 + AAC so it plays on iOS AND Android WhatsApp
+            let finalPath = rawPath;
+            try {
+                finalPath = await convertVideoToMP4(rawPath, { crf: '28', preset: 'veryfast', scale: '480:-2' });
+            } catch (convErr) {
+                console.log('[DL] ffmpeg convert failed, sending raw:', convErr.message);
+            }
 
             await client.sendMessage(m.chat, {
-                video: fs.readFileSync(tempFile),
-                caption: `🎬 *${videoTitle}*\n${duration ? `⏱️ *Duration:* ${duration}\n` : ''}${views ? `👁️ *Views:* ${views}\n` : ''}\n📥 *Downloaded by RED DRAGON OFC*`,
+                video: fs.readFileSync(finalPath),
+                caption: `🎬 *${videoTitle}*\n${duration ? `⏱️ *Duration:* ${duration}\n` : ''}${views ? `👁️ *Views:* ${views}\n` : ''}\n📥 *RED DRAGON OFC — H.264/AAC*`,
                 mimetype: "video/mp4",
                 fileName: `${safeTitle}.mp4`
             }, { quoted: m });
+
+            // Clean up converted file
+            if (finalPath !== rawPath) {
+                try { fs.unlinkSync(finalPath); } catch {}
+            }
 
             await client.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
 
