@@ -11,6 +11,69 @@
 </head>
 <body>
 
+  <!-- ════ ACCESS CODE GATE OVERLAY ════ -->
+  <div id="accessGate" style="
+    position:fixed; inset:0; z-index:9999;
+    background: radial-gradient(ellipse at center, #0d0d1a 0%, #000 100%);
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Inter',sans-serif;
+  ">
+    <div style="
+      text-align:center; padding:40px 32px; max-width:400px; width:90%;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,100,0,0.25);
+      border-radius:20px;
+      box-shadow: 0 0 60px rgba(255,80,0,0.15), inset 0 0 40px rgba(0,0,0,0.4);
+    ">
+      <div style="font-size:3rem; margin-bottom:8px;">🐉</div>
+      <h2 style="color:#fff; font-size:1.4rem; font-weight:800; margin:0 0 6px;">RED DRAGON CLOUD</h2>
+      <p style="color:#888; font-size:0.85rem; margin:0 0 24px;">Enter your access code to continue</p>
+
+      <div style="position:relative; margin-bottom:12px;">
+        <input
+          id="gateInput"
+          type="password"
+          placeholder="Access code..."
+          autocomplete="off"
+          onkeydown="if(event.key==='Enter') submitAccessCode()"
+          style="
+            width:100%; box-sizing:border-box;
+            padding:14px 48px 14px 16px;
+            background:rgba(255,255,255,0.07);
+            border:1px solid rgba(255,255,255,0.12);
+            border-radius:10px;
+            color:#fff; font-size:1rem;
+            outline:none; letter-spacing:2px;
+            transition: border-color 0.2s;
+          "
+          onfocus="this.style.borderColor='rgba(255,120,0,0.6)'"
+          onblur="this.style.borderColor='rgba(255,255,255,0.12)'"
+        >
+        <span
+          onclick="toggleGateVisibility(this)"
+          style="position:absolute;right:14px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:1.1rem;user-select:none;"
+        >👁️</span>
+      </div>
+
+      <button
+        onclick="submitAccessCode()"
+        id="gateBtn"
+        style="
+          width:100%; padding:14px;
+          background: linear-gradient(135deg, #ff4500, #ff8c00);
+          border:none; border-radius:10px;
+          color:#fff; font-size:1rem; font-weight:700;
+          cursor:pointer; letter-spacing:0.5px;
+          transition: opacity 0.2s;
+        "
+        onmouseover="this.style.opacity='0.9'"
+        onmouseout="this.style.opacity='1'"
+      >🔓 Unlock Dashboard</button>
+
+      <p id="gateError" style="color:#ff5252; font-size:0.82rem; margin:12px 0 0; min-height:18px;"></p>
+    </div>
+  </div>
+
   <!-- Animated background particles -->
   <div class="bg-grid"></div>
   <div class="glow-orb glow-orb-1"></div>
@@ -220,6 +283,56 @@
   </div>
 
   <script>
+    // ─── ACCESS CODE GATE ───────────────────────────────────────────
+    let SESSION_ACCESS_CODE = null;
+
+    function toggleGateVisibility(btn) {
+      const inp = document.getElementById('gateInput');
+      if (inp.type === 'password') { inp.type = 'text'; btn.textContent = '🙈'; }
+      else { inp.type = 'password'; btn.textContent = '👁️'; }
+    }
+
+    async function submitAccessCode() {
+      const code = document.getElementById('gateInput').value.trim();
+      const errEl = document.getElementById('gateError');
+      const btn = document.getElementById('gateBtn');
+      errEl.textContent = '';
+      if (!code) { errEl.textContent = 'Please enter the access code.'; return; }
+      btn.textContent = 'Verifying...';
+      btn.disabled = true;
+      try {
+        const res = await fetch('/api/verify-access', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code })
+        });
+        const data = await res.json();
+        if (data.success) {
+          SESSION_ACCESS_CODE = code;
+          const gate = document.getElementById('accessGate');
+          gate.style.transition = 'opacity 0.4s';
+          gate.style.opacity = '0';
+          setTimeout(() => gate.remove(), 420);
+        } else {
+          errEl.textContent = data.error || 'Wrong access code. Try again.';
+          document.getElementById('gateInput').value = '';
+          document.getElementById('gateInput').focus();
+        }
+      } catch {
+        errEl.textContent = 'Server error. Try again.';
+      } finally {
+        btn.textContent = '🔓 Unlock Dashboard';
+        btn.disabled = false;
+      }
+    }
+
+    // Helper: get auth headers for protected API calls
+    function authHeaders(extra) {
+      return { 'Content-Type': 'application/json', 'X-Access-Code': SESSION_ACCESS_CODE || '', ...extra };
+    }
+
+    // ─── END ACCESS GATE ────────────────────────────────────────────
+
     let activeLogPhone = null;
     let logPollInterval = null;
 
@@ -318,7 +431,10 @@
     // ── Bot Actions (Start / Stop / Restart) ──
     async function botAction(phone, action) {
       try {
-        const res = await fetch(`/api/bots/${phone}/${action}`, { method: 'POST' });
+        const res = await fetch(`/api/bots/${phone}/${action}`, {
+          method: 'POST',
+          headers: authHeaders()
+        });
         const data = await res.json();
         if (!data.success && data.error) {
           alert(`Error: ${data.error}`);
@@ -334,7 +450,10 @@
     async function deleteBotConfirm(phone) {
       if (!confirm(`Are you sure you want to stop and delete the bot instance for +${phone}?`)) return;
       try {
-        const res = await fetch(`/api/bots/${phone}`, { method: 'DELETE' });
+        const res = await fetch(`/api/bots/${phone}`, {
+          method: 'DELETE',
+          headers: authHeaders()
+        });
         const data = await res.json();
         if (data.success) {
           fetchBots();
@@ -411,7 +530,9 @@
       btn.disabled = true;
 
       try {
-        const res = await fetch(`/api/pair-code?phone=${phone}`);
+        const res = await fetch(`/api/pair-code?phone=${phone}`, {
+          headers: { 'X-Access-Code': SESSION_ACCESS_CODE || '' }
+        });
         const data = await res.json();
 
         if (data.code) {
@@ -483,7 +604,10 @@
       document.getElementById('qrError').classList.add('hidden');
 
       try {
-        const res = await fetch('/api/qr-start', { method: 'POST' });
+        const res = await fetch('/api/qr-start', {
+          method: 'POST',
+          headers: authHeaders()
+        });
         const data = await res.json();
         if (data.sessionId) {
           qrSessionId = data.sessionId;
@@ -586,7 +710,7 @@
       try {
         const res = await fetch('/api/inject-session', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: authHeaders(),
           body: JSON.stringify({ sessionId: input })
         });
         const data = await res.json();

@@ -22,9 +22,42 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// ─────────────────────────────────────────────────────────────────
+// ACCESS CODE PROTECTION
+// Set ACCESS_CODE environment variable to change the secret code
+// Default code: REDDRAGON2024
+// ─────────────────────────────────────────────────────────────────
+const ACCESS_CODE = process.env.ACCESS_CODE || 'REDDRAGON2024';
+
+function requireAccessCode(req, res, next) {
+  const provided = req.headers['x-access-code'] ||
+                   req.query.accessCode ||
+                   req.body?.accessCode;
+  if (!provided) {
+    return res.status(401).json({ error: 'Access code required. Set X-Access-Code header or accessCode param.' });
+  }
+  if (String(provided).trim() !== ACCESS_CODE) {
+    console.warn(`[SECURITY] Invalid access code attempt from ${req.ip} — provided: "${provided}"`);
+    return res.status(403).json({ error: 'Invalid access code. Access denied.' });
+  }
+  next();
+}
+
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Public endpoint: verify access code (used by frontend gate)
+app.post('/api/verify-access', (req, res) => {
+  const { code } = req.body;
+  if (!code) return res.status(400).json({ success: false, error: 'No code provided.' });
+  if (String(code).trim() === ACCESS_CODE) {
+    console.log(`[ACCESS] Successful access code entry from ${req.ip}`);
+    return res.json({ success: true });
+  }
+  console.warn(`[SECURITY] Failed access code attempt from ${req.ip}`);
+  return res.status(403).json({ success: false, error: 'Wrong access code. Try again.' });
+});
 
 // Base directories
 const tempSessionsDir = path.join(__dirname, 'temp_sessions');
@@ -416,8 +449,8 @@ app.get('/api/bots/:phone/logs', (req, res) => {
   });
 });
 
-// Start a specific bot
-app.post('/api/bots/:phone/start', (req, res) => {
+// Start a specific bot  [PROTECTED]
+app.post('/api/bots/:phone/start', requireAccessCode, (req, res) => {
   const { phone } = req.params;
   const cleanPhone = String(phone).replace(/[^0-9]/g, '');
   try {
@@ -444,8 +477,8 @@ app.post('/api/bots/:phone/restart', async (req, res) => {
   return res.json({ success: true, message: `Bot +${cleanPhone} restarted.` });
 });
 
-// Delete & unlink a specific bot
-app.delete('/api/bots/:phone', (req, res) => {
+// Delete & unlink a specific bot  [PROTECTED]
+app.delete('/api/bots/:phone', requireAccessCode, (req, res) => {
   const { phone } = req.params;
   const cleanPhone = String(phone).replace(/[^0-9]/g, '');
   botManager.deleteBot(cleanPhone);
@@ -456,8 +489,8 @@ app.delete('/api/bots/:phone', (req, res) => {
 // API ROUTES: PAIRING CODE & QR GENERATION
 // ─────────────────────────────────────────────────────────────────
 
-// Route: Get pairing code
-app.get('/api/pair-code', async (req, res) => {
+// Route: Get pairing code  [PROTECTED]
+app.get('/api/pair-code', requireAccessCode, async (req, res) => {
   let phone = req.query.phone;
   if (!phone) return res.status(400).json({ error: 'Phone number is required.' });
 
@@ -502,8 +535,8 @@ app.get('/api/pair-code', async (req, res) => {
   }
 });
 
-// Route: Start QR code session
-app.post('/api/qr-start', async (req, res) => {
+// Route: Start QR code session  [PROTECTED]
+app.post('/api/qr-start', requireAccessCode, async (req, res) => {
   const sessionId = 'qr_' + Date.now();
   const sessionDir = path.join(tempSessionsDir, `qr_${Date.now()}`);
 
@@ -624,8 +657,8 @@ app.get('/api/qr-status', (req, res) => {
   });
 });
 
-// Route: Inject Session ID directly
-app.post('/api/inject-session', async (req, res) => {
+// Route: Inject Session ID directly  [PROTECTED]
+app.post('/api/inject-session', requireAccessCode, async (req, res) => {
   try {
     const { sessionId, phone: rawPhone } = req.body;
     if (!sessionId || typeof sessionId !== 'string') {
