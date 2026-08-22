@@ -167,11 +167,11 @@ async function serializeMessage(Cypher, m) {
   m.msg = m.message[m.mtype];
   m.id = m.key.id;
   m.isBaileys = m.id.startsWith('BAE5') && m.id.length === 16;
-  m.chat = m.key.remoteJid;
+  m.isGroup = m.key.remoteJid.endsWith('@g.us');
+  m.chat = m.isGroup ? m.key.remoteJid : jidNormalizedUser(m.key.remoteJid);
   m.fromMe = m.key.fromMe;
-  m.isGroup = m.chat.endsWith('@g.us');
   m.sender = jidNormalizedUser(
-    m.fromMe ? Cypher.user.id : (m.isGroup ? m.key.participant : m.chat)
+    m.fromMe ? Cypher.user.id : (m.isGroup ? m.key.participant : m.key.remoteJid)
   );
   m.pushName = m.pushName || '';
 
@@ -211,12 +211,12 @@ async function serializeMessage(Cypher, m) {
 
   // Check admin & owner status
   const botNumber = jidNormalizedUser(Cypher.user.id);
-  m.isOwner = m.sender === botNumber ||
-              (global.ownerNumber && global.ownerNumber.includes(m.sender.split('@')[0])) ||
-              m.fromMe;
+  m.isOwner = m.fromMe ||
+              m.sender === botNumber ||
+              (global.ownerNumber && global.ownerNumber.includes(m.sender.split('@')[0]));
 
   m.reply = (text, options = {}) => {
-    return Cypher.sendMessage(m.chat, { text: String(text), ...options }, { quoted: m });
+    return Cypher.sendMessage(m.chat, { text: String(text), ...options }, m.fromMe ? {} : { quoted: m });
   };
 
   return m;

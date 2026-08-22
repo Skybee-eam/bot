@@ -191,18 +191,8 @@ module.exports = {
 🐉 *RED DRAGON OFC • CYPHER-X BOT ENGINE*`;
 
             await client.sendMessage(m.chat, {
-                text: fullText,
-                contextInfo: {
-                    externalAdReply: {
-                        title: "🐉 RED DRAGON / CYPHER-X BOT",
-                        body: `${totalCmdCount} Commands Active • ${uptime} Uptime`,
-                        thumbnailUrl: "https://i.imgur.com/2wzL9Zc.png",
-                        sourceUrl: "https://github.com/Skybee-eam/bot",
-                        mediaType: 1,
-                        renderLargerThumbnail: true
-                    }
-                }
-            }, { quoted: m });
+                text: fullText
+            }, m.fromMe ? {} : { quoted: m });
 
         } catch (error) {
             console.error('[Menu Plugin Error]:', error);
