@@ -11,7 +11,9 @@ const {
   downloadContentFromMessage,
   proto,
   jidNormalizedUser,
-  getContentType
+  getContentType,
+  makeCacheableSignalKeyStore,
+  Browsers
 } = require('@whiskeysockets/baileys');
 const pino = require('pino');
 const fs = require('fs');
@@ -26,7 +28,6 @@ const { loadDatabase, saveDatabase } = require('./src/Core/database');
 const pluginManager = require('./src/Core/executor');
 
 let retryCount = 0;
-const MAX_RETRIES = 10;
 let isStarting = false;
 
 // Retry counter cache & message store for session decryption & retries
@@ -193,15 +194,19 @@ async function startCypherBot() {
 
   const Cypher = makeWASocket({
     version,
-    auth: state,
-    browser: ['Ubuntu', 'Chrome', '20.0.04'],
+    auth: {
+      creds: state.creds,
+      keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' }))
+    },
+    browser: Browsers.macOS('Desktop'),
     logger: pino({ level: 'silent' }),
     printQRInTerminal: false,
-    generateHighQualityLinkPreview: false,
+    generateHighQualityLinkPreview: true,
     syncFullHistory: false,
     markOnlineOnConnect: true,
     connectTimeoutMs: 60000,
-    keepAliveIntervalMs: 15000,
+    defaultQueryTimeoutMs: 0,
+    keepAliveIntervalMs: 25000,
     msgRetryCounterCache,
     getMessage: async (key) => {
       if (messageStore.has(key.id)) {
@@ -262,21 +267,15 @@ async function startCypherBot() {
       const reason = lastDisconnect?.error?.message || 'Unknown';
       console.log(`[CYPHER-X] Connection closed (code=${code}, reason=${reason})`);
 
-      if (code === DisconnectReason.loggedOut || code === 401 || code === 403) {
-        console.log('[CYPHER-X] Session logged out or rejected. Please re-link WhatsApp from the web panel.');
+      if (code === DisconnectReason.loggedOut) {
+        console.log('[CYPHER-X] Session logged out. Please re-link WhatsApp from the web panel.');
         process.exit(0);
         return;
       }
 
-      if (retryCount >= MAX_RETRIES) {
-        console.log(`[CYPHER-X] Max reconnect attempts (${MAX_RETRIES}) reached. Halting.`);
-        process.exit(1);
-        return;
-      }
-
       retryCount++;
-      const delayTime = Math.min(retryCount * 3000, 15000);
-      console.log(`[CYPHER-X] Reconnecting in ${delayTime / 1000}s... (Attempt ${retryCount}/${MAX_RETRIES})`);
+      const delayTime = Math.min(retryCount * 2000, 10000);
+      console.log(`[CYPHER-X] Reconnecting in ${delayTime / 1000}s... (Attempt #${retryCount})`);
       setTimeout(() => startCypherBot(), delayTime);
     }
   });
