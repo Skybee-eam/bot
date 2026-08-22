@@ -34,26 +34,29 @@ module.exports = {
                 caption: infoText
             }, { quoted: m });
 
-            // Fetch MP3 download URL from public APIs
+            // Multi-Engine API Chain for YouTube MP3
             let downloadUrl = null;
             const apiEndpoints = [
+                `https://api.vreden.web.id/api/ytmp3?url=${encodeURIComponent(video.url)}`,
                 `https://api.siputzx.my.id/api/d/ytmp3?url=${encodeURIComponent(video.url)}`,
-                `https://api.vreden.my.id/api/ytmp3?url=${encodeURIComponent(video.url)}`,
-                `https://bk9.fun/download/ytmp3?url=${encodeURIComponent(video.url)}`
+                `https://api.agatz.xyz/api/ytmp3?url=${encodeURIComponent(video.url)}`,
+                `https://api.ryzendesu.vip/api/downloader/ytmp3?url=${encodeURIComponent(video.url)}`
             ];
 
             for (const endpoint of apiEndpoints) {
                 try {
-                    const res = await axios.get(endpoint, { timeout: 15000 });
-                    if (res.data?.data?.dl || res.data?.result?.download?.url || res.data?.BK9?.downloadUrl || res.data?.result?.dl) {
-                        downloadUrl = res.data?.data?.dl || res.data?.result?.download?.url || res.data?.BK9?.downloadUrl || res.data?.result?.dl;
-                        break;
-                    }
+                    const res = await axios.get(endpoint, {
+                        headers: { 'User-Agent': 'Mozilla/5.0' },
+                        timeout: 15000
+                    });
+                    const d = res.data;
+                    downloadUrl = d?.data?.dl || d?.result?.download?.url || d?.result?.dl || d?.data?.download?.url || d?.url;
+                    if (downloadUrl) break;
                 } catch {}
             }
 
             if (!downloadUrl) {
-                return reply("❌ *Failed to fetch audio stream from servers. Please try again.*");
+                return reply("❌ *Failed to fetch audio stream from servers. Please try again with another song or URL.*");
             }
 
             // Send audio file
