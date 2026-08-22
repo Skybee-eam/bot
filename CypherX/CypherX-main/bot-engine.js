@@ -213,13 +213,26 @@ async function startCypherBot() {
   // 2. Load all plugins (both src/Plugins and root plugins/)
   await pluginManager.loadAllPlugins();
 
-  // 3. Find valid auth directory
-  let authDir = path.join(__dirname, 'session');
-  if (!fs.existsSync(path.join(authDir, 'creds.json'))) {
-    authDir = path.join(__dirname, 'src', 'Session');
+// Parse CLI arguments (e.g. --session <path> or --id <phone>)
+function getArg(name) {
+  const idx = process.argv.indexOf(`--${name}`);
+  if (idx !== -1 && process.argv[idx + 1]) {
+    return process.argv[idx + 1];
   }
+  const flag = process.argv.find(a => a.startsWith(`--${name}=`));
+  if (flag) {
+    return flag.split('=')[1];
+  }
+  return null;
+}
+
+  // 3. Find valid auth directory
+  const cliSession = getArg('session') || process.env.BOT_SESSION_DIR;
+  let authDir = cliSession ? path.resolve(cliSession) : path.join(__dirname, 'session');
   if (!fs.existsSync(path.join(authDir, 'creds.json'))) {
-    authDir = path.join(__dirname, 'session');
+    if (fs.existsSync(path.join(__dirname, 'src', 'Session', 'creds.json'))) {
+      authDir = path.join(__dirname, 'src', 'Session');
+    }
   }
 
   console.log(`[CYPHER-X] Using session directory: ${authDir}`);

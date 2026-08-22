@@ -14,6 +14,7 @@
   },
   "author": "Tylor",
   "dependencies": {
+    "@babel/runtime": "^8.0.0",
     "@distube/ytdl-core": "^4.16.12",
     "@whiskeysockets/baileys": "https://github.com/Dark-Xploit/Baileys/archive/refs/tags/v1.8.0.tar.gz",
     "acrcloud": "^1.4.0",

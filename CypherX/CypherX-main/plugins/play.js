@@ -1,91 +1,110 @@
-const yts = require('yt-search');
-const axios = require('axios');
+const yts = require("yt-search");
+const axios = require("axios");
+
+// Helper function with multiple API server fallbacks
+async function getAudioDownloadUrl(videoUrl) {
+    const servers = [
+        // Server 1 (DavidCyril Tech API)
+        async () => {
+            const res = await axios.get(`https://api.davidcyriltech.my.id/download/ytmp3?url=${encodeURIComponent(videoUrl)}`, { timeout: 10000 });
+            return res.data?.result?.download_url || res.data?.result?.url || null;
+        },
+        // Server 2 (Vreden API)
+        async () => {
+            const res = await axios.get(`https://api.vreden.my.id/api/ytmp3?url=${encodeURIComponent(videoUrl)}`, { timeout: 10000 });
+            return res.data?.result?.download?.url || res.data?.result?.url || null;
+        },
+        // Server 3 (Siputzx API)
+        async () => {
+            const res = await axios.get(`https://api.siputzx.my.id/api/d/ytmp3?url=${encodeURIComponent(videoUrl)}`, { timeout: 10000 });
+            return res.data?.data?.dl || res.data?.result?.download_url || null;
+        },
+        // Server 4 (Gifted API)
+        async () => {
+            const res = await axios.get(`https://api.giftedtech.web.id/api/download/ytmp3?apikey=gifted&url=${encodeURIComponent(videoUrl)}`, { timeout: 10000 });
+            return res.data?.result?.download_url || null;
+        }
+    ];
+
+    for (const fetchServer of servers) {
+        try {
+            const downloadUrl = await fetchServer();
+            if (downloadUrl) return downloadUrl;
+        } catch (e) {
+            // Continue to next server if one fails
+            continue;
+        }
+    }
+    return null;
+}
 
 module.exports = {
     name: "play",
-    alias: ["ytmp3", "song", "music", "audio"],
-    category: "download",
-    description: "Searches YouTube via yt-search, extracts audio stream, and delivers as MP3 with interactive player preview",
-    async execute(client, m, { text, prefix, command, reply }) {
+    alias: ["song", "music", "ytplay"],
+    category: "downloader",
+    description: "Search and download audio from YouTube with multi-server fallback",
+    async execute(client, m, { text }) {
+        if (!text) {
+            return m.reply("Please provide a song title or YouTube link.\n*Example:* `.play Shape of You`");
+        }
+
         try {
-            if (!text) {
-                return reply(`⚠️ *Please provide a song title or YouTube link, e.g.:*\n${prefix}${command} Alan Walker Faded`);
+            await m.reply("🔍 *Searching YouTube...*");
+
+            let videoUrl = text;
+            let videoInfo = null;
+
+            if (!text.includes("youtube.com") && !text.includes("youtu.be")) {
+                const search = await yts(text);
+                const video = search.videos[0];
+                if (!video) return m.reply("No results found for that query.");
+                
+                videoUrl = video.url;
+                videoInfo = video;
+            } else {
+                const search = await yts(text);
+                videoInfo = search.videos[0] || {
+                    title: "YouTube Audio",
+                    author: { name: "YouTube" },
+                    timestamp: "N/A",
+                    thumbnail: "https://i.imgur.com/2wzL9Zc.png",
+                    url: text
+                };
             }
 
-            await client.sendMessage(m.chat, { react: { text: "🔍", key: m.key } });
-
-            // 1. YouTube Query Search (yt-search)
-            const search = await yts(text);
-            const video = search.videos && search.videos[0];
-            if (!video) {
-                return reply("❌ *No YouTube tracks found matching your query.*");
-            }
-
-            // 2. Preview & Status Dispatch Card
-            const previewCard = `╭━━━〔 🎵 *YOUTUBE MUSIC* 〕━━━╮\n` +
-                                `┃ 📌 *Title:* ${video.title}\n` +
-                                `┃ 👤 *Artist:* ${video.author.name}\n` +
-                                `┃ ⏱️ *Duration:* ${video.timestamp}\n` +
-                                `┃ 👁️ *Views:* ${video.views ? video.views.toLocaleString() : 'N/A'}\n` +
-                                `┃ 🔗 *URL:* ${video.url}\n` +
-                                `╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯\n\n` +
-                                `⏳ *Downloading audio stream, please wait...*`;
-
+            // Send track info
             await client.sendMessage(m.chat, {
-                image: { url: video.thumbnail },
-                caption: previewCard
+                image: { url: videoInfo.thumbnail },
+                caption: `🎵 *Title:* ${videoInfo.title}\n👤 *Artist:* ${videoInfo.author.name}\n⏱️ *Duration:* ${videoInfo.timestamp}\n🔗 *Link:* ${videoInfo.url}\n\n_⏳ Downloading audio stream, please wait..._`
             }, { quoted: m });
 
-            await client.sendMessage(m.chat, { react: { text: "⏳", key: m.key } });
-
-            // 3. Stream Extraction via Downloader APIs (Multi-Engine Chain)
-            let downloadUrl = null;
-            const extractionApis = [
-                `https://api.vreden.web.id/api/ytmp3?url=${encodeURIComponent(video.url)}`,
-                `https://api.siputzx.my.id/api/d/ytmp3?url=${encodeURIComponent(video.url)}`,
-                `https://api.giftedtech.web.id/api/download/ytmp3?apikey=gifted&url=${encodeURIComponent(video.url)}`,
-                `https://api.agatz.xyz/api/ytmp3?url=${encodeURIComponent(video.url)}`,
-                `https://api.ryzendesu.vip/api/downloader/ytmp3?url=${encodeURIComponent(video.url)}`
-            ];
-
-            for (const apiUrl of extractionApis) {
-                try {
-                    const response = await axios.get(apiUrl, {
-                        headers: { 'User-Agent': 'Mozilla/5.0' },
-                        timeout: 15000
-                    });
-                    const data = response.data;
-                    downloadUrl = data?.data?.dl || data?.result?.download?.url || data?.result?.dl || data?.data?.download?.url || data?.download_url || data?.url;
-                    if (downloadUrl) break;
-                } catch {}
-            }
+            // Fetch stream link across fallback servers
+            const downloadUrl = await getAudioDownloadUrl(videoUrl);
 
             if (!downloadUrl) {
-                return reply("❌ *Failed to decrypt YouTube audio stream from servers. Please try another song or link.*");
+                return m.reply("❌ *All audio download servers are currently busy or unavailable. Please try again shortly.*");
             }
 
-            // 4. Audio Encoding & WhatsApp Dispatch (Baileys Player Widget)
+            // Dispatch audio file
             await client.sendMessage(m.chat, {
                 audio: { url: downloadUrl },
                 mimetype: "audio/mp4",
-                fileName: `${video.title}.mp3`,
+                fileName: `${videoInfo.title}.mp3`,
                 contextInfo: {
                     externalAdReply: {
-                        title: video.title,
-                        body: video.author.name,
-                        thumbnailUrl: video.thumbnail,
-                        sourceUrl: video.url,
+                        title: videoInfo.title,
+                        body: videoInfo.author.name,
+                        thumbnailUrl: videoInfo.thumbnail,
+                        sourceUrl: videoInfo.url,
                         mediaType: 2,
                         renderLargerThumbnail: true
                     }
                 }
             }, { quoted: m });
 
-            await client.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
-
         } catch (error) {
-            console.error('[Play Plugin Error]:', error);
-            reply(`❌ *Failed to play audio:* ${error.message}`);
+            console.error("Play Execution Error:", error);
+            await m.reply("❌ An error occurred while processing the command.");
         }
     }
 };

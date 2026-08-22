@@ -3,6 +3,7 @@ import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
+import os from 'os';
 import { spawn } from 'child_process';
 import makeWASocket, {
   useMultiFileAuthState,
@@ -13,6 +14,7 @@ import makeWASocket, {
 import pino from 'pino';
 import NodeCache from 'node-cache';
 import QRCode from 'qrcode';
+import firebaseSync from './firebaseSync.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -24,141 +26,278 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Ensure temp_sessions directory exists
+// Base directories
 const tempSessionsDir = path.join(__dirname, 'temp_sessions');
 if (!fs.existsSync(tempSessionsDir)) {
   fs.mkdirSync(tempSessionsDir, { recursive: true });
 }
 
-// Keep active sockets alive so they don't get garbage collected
-const activeSockets = new Map();
+const multiSessionsDir = path.join(__dirname, 'sessions');
+if (!fs.existsSync(multiSessionsDir)) {
+  fs.mkdirSync(multiSessionsDir, { recursive: true });
+}
+
+const BOT_DIR   = path.join(__dirname, 'CypherX', 'CypherX-main');
+const BOT_ENTRY = path.join(BOT_DIR, 'bot-engine.js');
+
+// Multi-session active pairing sockets & retry cache
+const activePairSockets = new Map();
+const qrSessions = new Map();
 const msgRetryCounterCache = new NodeCache();
 
-// QR code sessions: sessionId -> { qrDataUrl, linked, sock, sessionDir }
-const qrSessions = new Map();
-
 // ─────────────────────────────────────────────────────────────────
-// BOT CONFIGURATION
-// The real bot lives at this path. Session is injected here after
-// pairing, and the bot is launched as a child process.
+// MULTI-TENANT BOT MANAGER
+// Manages multiple independent WhatsApp Bot child processes
 // ─────────────────────────────────────────────────────────────────
-const BOT_DIR     = path.join(__dirname, 'CypherX', 'CypherX-main');
-const BOT_SESSION_DIR = path.join(BOT_DIR, 'session');
-const BOT_SRC_SESSION_DIR = path.join(BOT_DIR, 'src', 'Session');
-const BOT_ENTRY   = path.join(BOT_DIR, 'bot-engine.js'); // full plugin engine
-
-// External E: drive path for backup synchronization
-const EXT_BOT_DIR = path.normalize('E:/Software/Ai Bot/Dark-Xploit-CypherX-6507e50');
-const EXT_BOT_SESSION = path.join(EXT_BOT_DIR, 'session');
-
-// Track the running bot process
-let botProcess = null;
-let botStatus  = 'stopped'; // 'stopped' | 'running' | 'error'
-let botLog     = [];        // last 50 log lines
-
-function appendBotLog(line) {
-  botLog.push(line);
-  if (botLog.length > 50) botLog.shift();
-  process.stdout.write('[BOT] ' + line + '\n');
-}
-
-/**
- * Launch the bot as a child process.
- * Resolves when the process successfully starts (not when it exits).
- */
-function launchBot() {
-  if (botProcess) {
-    appendBotLog('Bot already running (PID ' + botProcess.pid + ')');
-    return;
+class MultiBotManager {
+  constructor() {
+    /** @type {Map<string, { phone: string, process: any, status: 'running'|'stopped'|'error', logs: string[], startedAt: Date|null, sessionDir: string }>} */
+    this.bots = new Map();
+    this.serverStartedAt = new Date();
   }
 
-  const credsPath1 = path.join(BOT_SESSION_DIR, 'creds.json');
-  const credsPath2 = path.join(BOT_SRC_SESSION_DIR, 'creds.json');
-  if (!fs.existsSync(credsPath1) && !fs.existsSync(credsPath2)) {
-    botStatus = 'error';
-    appendBotLog('ERROR: No session credentials found. Link WhatsApp first.');
-    return;
+  getOrCreate(phone, sessionDir) {
+    const cleanPhone = String(phone).replace(/[^0-9]/g, '');
+    if (!this.bots.has(cleanPhone)) {
+      this.bots.set(cleanPhone, {
+        phone: cleanPhone,
+        process: null,
+        status: 'stopped',
+        logs: [],
+        startedAt: null,
+        sessionDir: sessionDir || path.join(multiSessionsDir, cleanPhone)
+      });
+    }
+    return this.bots.get(cleanPhone);
   }
 
-  botStatus = 'running';
-  appendBotLog(`Launching CypherX Plugin Engine (17 Plugins, 475 Commands)...`);
+  appendLog(phone, line) {
+    const cleanPhone = String(phone).replace(/[^0-9]/g, '');
+    const bot = this.getOrCreate(cleanPhone);
+    const timestamp = new Date().toLocaleTimeString();
+    const formatted = `[${timestamp}] ${line}`;
+    bot.logs.push(formatted);
+    if (bot.logs.length > 100) bot.logs.shift();
+    process.stdout.write(`[BOT ${cleanPhone}] ${line}\n`);
+  }
 
-  botProcess = spawn('node', [BOT_ENTRY], {
-    cwd: BOT_DIR,
-    stdio: ['ignore', 'pipe', 'pipe'],
-    env: { ...process.env, FORCE_COLOR: '0' },
-  });
+  startBot(phone) {
+    const cleanPhone = String(phone).replace(/[^0-9]/g, '');
+    const sessionDir = path.join(multiSessionsDir, cleanPhone);
+    const credsPath = path.join(sessionDir, 'creds.json');
 
-  botProcess.stdout.on('data', d => appendBotLog(d.toString().trim()));
-  botProcess.stderr.on('data', d => appendBotLog('ERR: ' + d.toString().trim()));
-
-  botProcess.on('exit', (code, signal) => {
-    botStatus = code === 0 ? 'stopped' : 'error';
-    appendBotLog(`Bot exited: code=${code} signal=${signal}`);
-    botProcess = null;
-  });
-
-  botProcess.on('error', (err) => {
-    botStatus = 'error';
-    appendBotLog('Failed to start: ' + err.message);
-    botProcess = null;
-  });
-}
-
-function stopBot() {
-  if (!botProcess) return;
-  botProcess.kill('SIGTERM');
-  botProcess = null;
-  botStatus = 'stopped';
-  appendBotLog('Bot stopped by user.');
-}
-
-/**
- * Injects a temp session folder into the bot session directory,
- * then auto-launches the bot.
- */
-function injectBotSession(sourceDir) {
-  try {
-    // 1. Sync to CypherX session & src/Session
-    if (fs.existsSync(BOT_SESSION_DIR)) {
-      fs.rmSync(BOT_SESSION_DIR, { recursive: true, force: true });
+    if (!fs.existsSync(credsPath)) {
+      throw new Error(`No credentials found for +${cleanPhone}`);
     }
-    fs.mkdirSync(BOT_SESSION_DIR, { recursive: true });
-    fs.cpSync(sourceDir, BOT_SESSION_DIR, { recursive: true });
 
-    if (fs.existsSync(BOT_SRC_SESSION_DIR)) {
-      fs.rmSync(BOT_SRC_SESSION_DIR, { recursive: true, force: true });
+    const bot = this.getOrCreate(cleanPhone, sessionDir);
+    if (bot.process && bot.status === 'running') {
+      this.appendLog(cleanPhone, `Bot is already running (PID: ${bot.process.pid})`);
+      return bot;
     }
-    fs.mkdirSync(BOT_SRC_SESSION_DIR, { recursive: true });
-    fs.cpSync(sourceDir, BOT_SRC_SESSION_DIR, { recursive: true });
 
-    // 2. Sync to E: drive directory as well
+    bot.status = 'running';
+    bot.startedAt = new Date();
+    this.appendLog(cleanPhone, `Starting CypherX Bot Engine for +${cleanPhone}...`);
+
     try {
-      if (fs.existsSync(EXT_BOT_DIR)) {
-        if (fs.existsSync(EXT_BOT_SESSION)) {
-          fs.rmSync(EXT_BOT_SESSION, { recursive: true, force: true });
-        }
-        fs.mkdirSync(EXT_BOT_SESSION, { recursive: true });
-        fs.cpSync(sourceDir, EXT_BOT_SESSION, { recursive: true });
-      }
-    } catch {}
+      const proc = spawn('node', [BOT_ENTRY, '--session', sessionDir, '--phone', cleanPhone], {
+        cwd: BOT_DIR,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env: { ...process.env, BOT_SESSION_DIR: sessionDir, FORCE_COLOR: '0' },
+      });
 
-    console.log(`[BOT] Session injected into ${BOT_SESSION_DIR} and ${BOT_SRC_SESSION_DIR}`);
-    // Auto-start the bot after a short delay
-    setTimeout(() => launchBot(), 2000);
-  } catch (err) {
-    console.error('[BOT] Error injecting session:', err);
+      bot.process = proc;
+
+      proc.stdout.on('data', d => {
+        const text = d.toString().trim();
+        if (text) this.appendLog(cleanPhone, text);
+      });
+
+      proc.stderr.on('data', d => {
+        const text = d.toString().trim();
+        if (text) this.appendLog(cleanPhone, `ERR: ${text}`);
+      });
+
+      proc.on('exit', (code, signal) => {
+        bot.status = code === 0 ? 'stopped' : 'error';
+        this.appendLog(cleanPhone, `Bot exited (code=${code}, signal=${signal})`);
+        bot.process = null;
+      });
+
+      proc.on('error', (err) => {
+        bot.status = 'error';
+        this.appendLog(cleanPhone, `Failed to launch bot process: ${err.message}`);
+        bot.process = null;
+      });
+
+      return bot;
+    } catch (err) {
+      bot.status = 'error';
+      this.appendLog(cleanPhone, `Startup error: ${err.message}`);
+      throw err;
+    }
+  }
+
+  stopBot(phone) {
+    const cleanPhone = String(phone).replace(/[^0-9]/g, '');
+    const bot = this.bots.get(cleanPhone);
+    if (!bot || !bot.process) {
+      if (bot) bot.status = 'stopped';
+      return;
+    }
+
+    try {
+      bot.process.kill('SIGTERM');
+    } catch {}
+    bot.process = null;
+    bot.status = 'stopped';
+    this.appendLog(cleanPhone, 'Bot stopped by user.');
+  }
+
+  restartBot(phone) {
+    this.stopBot(phone);
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        try {
+          const b = this.startBot(phone);
+          resolve(b);
+        } catch (e) {
+          resolve(null);
+        }
+      }, 1500);
+    });
+  }
+
+  deleteBot(phone) {
+    const cleanPhone = String(phone).replace(/[^0-9]/g, '');
+    this.stopBot(cleanPhone);
+    const sessionDir = path.join(multiSessionsDir, cleanPhone);
+    try {
+      if (fs.existsSync(sessionDir)) {
+        fs.rmSync(sessionDir, { recursive: true, force: true });
+      }
+    } catch (err) {
+      console.error(`[MANAGER] Error deleting session dir for ${cleanPhone}:`, err);
+    }
+    this.bots.delete(cleanPhone);
+    firebaseSync.deleteSessionFromCloud(cleanPhone).catch(() => {});
+  }
+
+  // Scan sessions directory and auto-start all registered bot instances
+  async initAllSessions() {
+    console.log('[MANAGER] Checking Firebase Cloud & local sessions...');
+    try {
+      await firebaseSync.restoreSessionsFromCloud(multiSessionsDir);
+    } catch (e) {
+      console.log('[FIREBASE] Cloud sync note:', e.message);
+    }
+
+    if (!fs.existsSync(multiSessionsDir)) return;
+    const entries = fs.readdirSync(multiSessionsDir, { withFileTypes: true });
+
+    for (const ent of entries) {
+      if (ent.isDirectory()) {
+        const phone = ent.name;
+        if (!phone || phone.trim() === '') continue;
+        const sessionPath = path.join(multiSessionsDir, phone);
+        if (fs.existsSync(path.join(sessionPath, 'creds.json'))) {
+          console.log(`[MANAGER] Auto-loading registered session: +${phone}`);
+          this.getOrCreate(phone, sessionPath);
+          try {
+            this.startBot(phone);
+            // Backup session to Firebase
+            firebaseSync.saveSessionToCloud(phone, sessionPath).catch(() => {});
+          } catch (e) {
+            console.error(`[MANAGER] Failed to auto-start +${phone}:`, e.message);
+          }
+        }
+      }
+    }
+  }
+
+  listBots() {
+    const list = [];
+    // Ensure all directories in sessions/ are reflected in the list
+    if (fs.existsSync(multiSessionsDir)) {
+      const dirs = fs.readdirSync(multiSessionsDir, { withFileTypes: true });
+      for (const d of dirs) {
+        if (d.isDirectory() && fs.existsSync(path.join(multiSessionsDir, d.name, 'creds.json'))) {
+          this.getOrCreate(d.name, path.join(multiSessionsDir, d.name));
+        }
+      }
+    }
+
+    for (const [phone, b] of this.bots.entries()) {
+      if (!phone || phone.trim() === '') continue;
+      let userName = '';
+      try {
+        const credPath = path.join(multiSessionsDir, phone, 'creds.json');
+        if (fs.existsSync(credPath)) {
+          const creds = JSON.parse(fs.readFileSync(credPath, 'utf8'));
+          userName = creds.me?.name || creds.pushName || '';
+        }
+      } catch {}
+
+      list.push({
+        phone: b.phone,
+        name: userName,
+        status: b.status,
+        startedAt: b.startedAt,
+        uptime: b.startedAt && b.status === 'running' ? Math.floor((Date.now() - new Date(b.startedAt).getTime()) / 1000) : 0,
+        logCount: b.logs.length,
+        hasCreds: fs.existsSync(path.join(multiSessionsDir, phone, 'creds.json'))
+      });
+    }
+    return list;
   }
 }
 
-function cleanupSocket(phone, sessionDir, sock) {
+const botManager = new MultiBotManager();
+
+// ─────────────────────────────────────────────────────────────────
+// SESSION PAIRING HELPERS
+// ─────────────────────────────────────────────────────────────────
+
+function cleanupPairSocket(phone, sessionDir, sock) {
   try { sock?.ws?.close(); } catch {}
   try { fs.rmSync(sessionDir, { recursive: true, force: true }); } catch {}
-  activeSockets.delete(phone);
-  console.log(`[CLEANUP] Session cleaned up for ${phone}`);
+  activePairSockets.delete(phone);
 }
 
-async function startSocket(phone, sessionDir) {
+// Promote temp pairing session to permanent multi-user session and launch bot
+function promoteToPermanentSession(phone, sourceDir) {
+  const cleanPhone = String(phone).replace(/[^0-9]/g, '');
+  const targetDir = path.join(multiSessionsDir, cleanPhone);
+
+  try {
+    if (fs.existsSync(targetDir)) {
+      fs.rmSync(targetDir, { recursive: true, force: true });
+    }
+    fs.mkdirSync(targetDir, { recursive: true });
+    fs.cpSync(sourceDir, targetDir, { recursive: true });
+    console.log(`[MULTI-SESSION] Saved permanent credentials to ${targetDir}`);
+
+    // Upload session to Firebase Cloud
+    firebaseSync.saveSessionToCloud(cleanPhone, targetDir).catch(() => {});
+
+    // Start user's isolated bot process
+    setTimeout(() => {
+      try {
+        botManager.startBot(cleanPhone);
+      } catch (err) {
+        console.error(`[MULTI-SESSION] Error auto-launching bot for +${cleanPhone}:`, err);
+      }
+    }, 2000);
+
+    return targetDir;
+  } catch (err) {
+    console.error(`[MULTI-SESSION] Error promoting session for +${cleanPhone}:`, err);
+    throw err;
+  }
+}
+
+async function startPairSocket(phone, sessionDir) {
   const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
   const { version } = await fetchLatestBaileysVersion();
 
@@ -176,51 +315,49 @@ async function startSocket(phone, sessionDir) {
     keepAliveIntervalMs: 10000,
   });
 
-  activeSockets.set(phone, { sock, sessionDir });
+  activePairSockets.set(phone, { sock, sessionDir });
   sock.ev.on('creds.update', saveCreds);
 
   sock.ev.on('connection.update', async (update) => {
     const { connection, lastDisconnect } = update;
 
     if (connection === 'open') {
-      console.log(`[CONNECTED] Successfully linked WhatsApp for ${phone}`);
+      console.log(`[PAIR LINKED] Successfully connected WhatsApp for +${phone}`);
       try {
         await delay(3000);
         const credsPath = path.join(sessionDir, 'creds.json');
         if (!fs.existsSync(credsPath)) return;
 
-        // Inject the full session folder into CypherX bot
-        injectBotSession(sessionDir);
+        // Save to permanent sessions and start individual bot instance
+        promoteToPermanentSession(phone, sessionDir);
 
-        // Notify the user via WhatsApp
+        // Notify the user on WhatsApp
         const rawId = sock.user?.id || '';
         const userJid = rawId.includes(':') ? `${rawId.split(':')[0]}@s.whatsapp.net` : rawId;
         await sock.sendMessage(userJid, {
-          text: `✅ *CypherX Bot Connected!* ✅\n\n` +
-                `Your WhatsApp has been linked directly — no session ID needed!\n\n` +
-                `🤖 The bot is now active and will respond to your messages shortly.`
+          text: `✅ *CypherX Bot Connected!* 🐉\n\n` +
+                `*Phone:* +${phone}\n` +
+                `*Status:* Active & Hosted on Multi-User Cloud\n\n` +
+                `🤖 Your bot is now active and ready to process commands!`
         });
-        console.log(`[SUCCESS] Bot credentials injected and user notified for ${phone}`);
       } catch (e) {
-        console.error('[ERROR] Bot injection failed:', e);
+        console.error('[ERROR] Post-pairing error:', e);
       } finally {
-        await delay(5000);
-        cleanupSocket(phone, sessionDir, sock);
+        await delay(4000);
+        cleanupPairSocket(phone, sessionDir, sock);
       }
 
     } else if (connection === 'close') {
       const code = lastDisconnect?.error?.output?.statusCode;
       if (code === DisconnectReason.loggedOut || code === 401) {
-        console.log(`[LOGGED OUT] ${phone}`);
-        cleanupSocket(phone, sessionDir, sock);
+        console.log(`[PAIR LOGGED OUT] +${phone}`);
+        cleanupPairSocket(phone, sessionDir, sock);
       } else {
-        console.log(`[DISCONNECTED] phone=${phone} statusCode=${code}`);
-        if (sock.authState.creds.registered && activeSockets.has(phone)) {
-          console.log(`[RECONNECTING] Already paired, reconnecting...`);
-          startSocket(phone, sessionDir);
+        console.log(`[PAIR DISCONNECTED] +${phone}, code=${code}`);
+        if (sock.authState?.creds?.registered && activePairSockets.has(phone)) {
+          startPairSocket(phone, sessionDir);
         } else {
-          console.log(`[ABORT] Pairing dropped before completion. Cleaning up.`);
-          cleanupSocket(phone, sessionDir, sock);
+          cleanupPairSocket(phone, sessionDir, sock);
         }
       }
     }
@@ -229,60 +366,146 @@ async function startSocket(phone, sessionDir) {
   return sock;
 }
 
-// ─────────────────────────────────────────────
-// ROUTE: Get pairing code (standard WhatsApp link)
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────
+// API ROUTES: MULTI-BOT DASHBOARD & CONTROLS
+// ─────────────────────────────────────────────────────────────────
+
+// List all hosted bots
+app.get('/api/bots', (req, res) => {
+  const bots = botManager.listBots();
+  return res.json({ success: true, bots });
+});
+
+// System statistics
+app.get('/api/system-stats', (req, res) => {
+  const bots = botManager.listBots();
+  const running = bots.filter(b => b.status === 'running').length;
+  const stopped = bots.filter(b => b.status === 'stopped').length;
+  const error = bots.filter(b => b.status === 'error').length;
+
+  const totalMem = (os.totalmem() / (1024 * 1024 * 1024)).toFixed(1);
+  const freeMem = (os.freemem() / (1024 * 1024 * 1024)).toFixed(1);
+  const usedMem = (totalMem - freeMem).toFixed(1);
+  const procMemMb = (process.memoryUsage().rss / (1024 * 1024)).toFixed(0);
+
+  return res.json({
+    success: true,
+    totalBots: bots.length,
+    runningBots: running,
+    stoppedBots: stopped,
+    errorBots: error,
+    uptime: Math.floor((Date.now() - botManager.serverStartedAt.getTime()) / 1000),
+    botMemory: `${procMemMb} MB`,
+    memory: { total: `${totalMem} GB`, used: `${usedMem} GB`, free: `${freeMem} GB` }
+  });
+});
+
+// Get logs for a specific bot
+app.get('/api/bots/:phone/logs', (req, res) => {
+  const { phone } = req.params;
+  const cleanPhone = String(phone).replace(/[^0-9]/g, '');
+  const bot = botManager.bots.get(cleanPhone);
+  if (!bot) {
+    return res.status(404).json({ success: false, error: 'Bot instance not found.' });
+  }
+  return res.json({
+    success: true,
+    phone: cleanPhone,
+    status: bot.status,
+    logs: bot.logs
+  });
+});
+
+// Start a specific bot
+app.post('/api/bots/:phone/start', (req, res) => {
+  const { phone } = req.params;
+  const cleanPhone = String(phone).replace(/[^0-9]/g, '');
+  try {
+    const bot = botManager.startBot(cleanPhone);
+    return res.json({ success: true, message: `Bot +${cleanPhone} started.`, status: bot.status });
+  } catch (err) {
+    return res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+// Stop a specific bot
+app.post('/api/bots/:phone/stop', (req, res) => {
+  const { phone } = req.params;
+  const cleanPhone = String(phone).replace(/[^0-9]/g, '');
+  botManager.stopBot(cleanPhone);
+  return res.json({ success: true, message: `Bot +${cleanPhone} stopped.` });
+});
+
+// Restart a specific bot
+app.post('/api/bots/:phone/restart', async (req, res) => {
+  const { phone } = req.params;
+  const cleanPhone = String(phone).replace(/[^0-9]/g, '');
+  await botManager.restartBot(cleanPhone);
+  return res.json({ success: true, message: `Bot +${cleanPhone} restarted.` });
+});
+
+// Delete & unlink a specific bot
+app.delete('/api/bots/:phone', (req, res) => {
+  const { phone } = req.params;
+  const cleanPhone = String(phone).replace(/[^0-9]/g, '');
+  botManager.deleteBot(cleanPhone);
+  return res.json({ success: true, message: `Bot +${cleanPhone} session unlinked and deleted.` });
+});
+
+// ─────────────────────────────────────────────────────────────────
+// API ROUTES: PAIRING CODE & QR GENERATION
+// ─────────────────────────────────────────────────────────────────
+
+// Route: Get pairing code
 app.get('/api/pair-code', async (req, res) => {
   let phone = req.query.phone;
   if (!phone) return res.status(400).json({ error: 'Phone number is required.' });
 
   phone = phone.replace(/[^0-9]/g, '');
-  console.log(`[PAIR REQUEST] Phone: ${phone}`);
+  console.log(`[PAIR REQUEST] Multi-Host pairing request for +${phone}`);
 
-  if (activeSockets.has(phone)) {
-    const old = activeSockets.get(phone);
-    cleanupSocket(phone, old.sessionDir, old.sock);
+  if (activePairSockets.has(phone)) {
+    const old = activePairSockets.get(phone);
+    cleanupPairSocket(phone, old.sessionDir, old.sock);
     await delay(1000);
   }
 
-  const sessionDir = path.join(tempSessionsDir, `session_${phone}_${Date.now()}`);
+  const sessionDir = path.join(tempSessionsDir, `pair_${phone}_${Date.now()}`);
 
   try {
-    const sock = await startSocket(phone, sessionDir);
+    const sock = await startPairSocket(phone, sessionDir);
     await delay(2000);
 
     if (!sock.authState.creds.registered) {
       let code = await sock.requestPairingCode(phone);
       code = code?.match(/.{1,4}/g)?.join('-') || code;
-      console.log(`[CODE] ${phone} → ${code}`);
+      console.log(`[CODE GENERATED] +${phone} → ${code}`);
 
-      // Auto-cleanup after 3 minutes if code not entered
+      // Auto-cleanup after 3 minutes if pairing code not entered
       setTimeout(() => {
-        if (activeSockets.has(phone)) {
-          console.log(`[TIMEOUT] Cleaning up ${phone} due to inactivity`);
-          cleanupSocket(phone, sessionDir, sock);
+        if (activePairSockets.has(phone)) {
+          console.log(`[TIMEOUT] Cleaning up pending pair socket for +${phone}`);
+          cleanupPairSocket(phone, sessionDir, sock);
         }
       }, 180000);
 
-      return res.json({ success: true, code });
+      return res.json({ success: true, code, phone });
     } else {
-      cleanupSocket(phone, sessionDir, sock);
+      cleanupPairSocket(phone, sessionDir, sock);
       return res.status(400).json({ error: 'Device is already registered.' });
     }
   } catch (err) {
     console.error('[ERROR] pair-code route:', err);
     try { fs.rmSync(sessionDir, { recursive: true, force: true }); } catch {}
-    activeSockets.delete(phone);
-    return res.status(500).json({ error: 'Failed to generate code.' });
+    activePairSockets.delete(phone);
+    return res.status(500).json({ error: 'Failed to generate pairing code.' });
   }
 });
 
-// ─────────────────────────────────────
-// ROUTE: Start QR code session
-// ─────────────────────────────────────
+// Route: Start QR code session
 app.post('/api/qr-start', async (req, res) => {
   const sessionId = 'qr_' + Date.now();
-  const sessionDir = path.join(tempSessionsDir, `qr_session_${Date.now()}`);
+  const sessionDir = path.join(tempSessionsDir, `qr_${Date.now()}`);
 
   try {
     const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
@@ -300,16 +523,14 @@ app.post('/api/qr-start', async (req, res) => {
       markOnlineOnConnect: false,
       connectTimeoutMs: 120000,
       keepAliveIntervalMs: 15000,
-      retryRequestDelayMs: 500,
     });
 
-    qrSessions.set(sessionId, { qrDataUrl: null, linked: false, sock, sessionDir, error: null });
+    qrSessions.set(sessionId, { qrDataUrl: null, linked: false, phone: null, sock, sessionDir, error: null });
     sock.ev.on('creds.update', saveCreds);
 
     sock.ev.on('connection.update', async (update) => {
-      const { connection, qr, lastDisconnect, isNewLogin } = update;
+      const { connection, qr, lastDisconnect } = update;
 
-      // Capture QR as data URL every time a new QR is emitted
       if (qr) {
         try {
           const dataUrl = await QRCode.toDataURL(qr, {
@@ -320,64 +541,52 @@ app.post('/api/qr-start', async (req, res) => {
           const session = qrSessions.get(sessionId);
           if (session) {
             session.qrDataUrl = dataUrl;
-            session.error = null; // clear any previous error
+            session.error = null;
           }
-          console.log(`[QR] New QR generated for session ${sessionId}`);
         } catch (e) {
-          console.error('[QR] Failed to generate QR data URL:', e);
+          console.error('[QR] QR conversion error:', e);
         }
       }
 
       if (connection === 'open') {
-        console.log(`[QR] Successfully linked via QR for session ${sessionId}`);
+        const rawId = sock.user?.id || '';
+        const phone = rawId.split(':')[0].replace(/[^0-9]/g, '') || `user_${Date.now()}`;
+        console.log(`[QR LINKED] Connected via QR for user +${phone}`);
+
         const session = qrSessions.get(sessionId);
-        if (session) session.linked = true;
+        if (session) {
+          session.linked = true;
+          session.phone = phone;
+        }
 
         try {
           await delay(3000);
-          injectBotSession(sessionDir);
+          promoteToPermanentSession(phone, sessionDir);
 
-          const rawId = sock.user?.id || '';
           const userJid = rawId.includes(':') ? `${rawId.split(':')[0]}@s.whatsapp.net` : rawId;
           await sock.sendMessage(userJid, {
-            text: `✅ *CypherX Bot Connected via QR!* ✅\n\nYour WhatsApp has been linked — the bot is now active!`
+            text: `✅ *CypherX Bot Connected via QR!* 🐉\n\n*Phone:* +${phone}\n🤖 Hosted & Active on Multi-User Cloud!`
           });
         } catch (e) {
-          console.error('[QR] Post-link error:', e);
+          console.error('[QR] Post-link save error:', e);
         } finally {
-          await delay(5000);
+          await delay(4000);
           try { sock?.ws?.close(); } catch {}
           try { fs.rmSync(sessionDir, { recursive: true, force: true }); } catch {}
           qrSessions.delete(sessionId);
         }
 
       } else if (connection === 'close') {
-        const errOutput = lastDisconnect?.error?.output;
-        const code = errOutput?.statusCode;
-        const reason = lastDisconnect?.error?.message || 'Unknown';
-        console.log(`[QR] Connection closed for ${sessionId}: code=${code} reason=${reason}`);
-
-        // 515 = restart required (WhatsApp asks client to reconnect after scan)
-        // 428 = connection replaced (another device took over)
-        // 401 = logged out
+        const code = lastDisconnect?.error?.output?.statusCode;
+        console.log(`[QR CLOSED] session=${sessionId} code=${code}`);
         if (code === DisconnectReason.loggedOut || code === 401) {
           const session = qrSessions.get(sessionId);
-          if (session) session.error = 'Session expired. Please refresh the QR.';
+          if (session) session.error = 'Session expired. Please refresh the QR code.';
           qrSessions.delete(sessionId);
           try { fs.rmSync(sessionDir, { recursive: true, force: true }); } catch {}
-        } else if (code === 515) {
-          // WhatsApp wants a restart — reconnect to complete pairing
-          console.log(`[QR] Reconnecting for session ${sessionId} (code 515)...`);
-          startSocket(sessionId, sessionDir).catch(console.error);
-        } else {
-          // For other codes (e.g. 408 timeout, network error): keep session alive so QR re-shows
-          console.log(`[QR] Non-fatal close for ${sessionId}, keeping session alive.`);
-          const session = qrSessions.get(sessionId);
-          if (session) session.error = `Connection issue (${code || reason}). Scan again or refresh.`;
         }
       }
     });
-
 
     // Auto-cleanup after 2 minutes if nobody scans
     setTimeout(() => {
@@ -386,7 +595,6 @@ app.post('/api/qr-start', async (req, res) => {
         try { s.sock?.ws?.close(); } catch {}
         try { fs.rmSync(s.sessionDir, { recursive: true, force: true }); } catch {}
         qrSessions.delete(sessionId);
-        console.log(`[QR] Session ${sessionId} timed out.`);
       }
     }, 120000);
 
@@ -398,120 +606,91 @@ app.post('/api/qr-start', async (req, res) => {
   }
 });
 
-// ─────────────────────────────────────
-// ROUTE: Poll QR status
-// ─────────────────────────────────────
+// Route: Poll QR status
 app.get('/api/qr-status', (req, res) => {
   const { sessionId } = req.query;
   if (!sessionId) return res.status(400).json({ error: 'sessionId is required.' });
 
   const session = qrSessions.get(sessionId);
   if (!session) {
-    // Session may have been cleaned up after linking
-    return res.json({ linked: false, qr: null, error: 'Session expired or not found.' });
+    return res.json({ linked: false, qr: null, error: 'Session expired or closed.' });
   }
 
   return res.json({
     linked: session.linked,
+    phone: session.phone,
     qr: session.qrDataUrl || null,
     error: session.error || null,
   });
 });
 
-
-// ─────────────────────────────────────────────
-// ROUTE: Inject session directly from RED-DRAGON~... session ID
-// ─────────────────────────────────────────────
+// Route: Inject Session ID directly
 app.post('/api/inject-session', async (req, res) => {
   try {
-    const { sessionId } = req.body;
+    const { sessionId, phone: rawPhone } = req.body;
     if (!sessionId || typeof sessionId !== 'string') {
-      return res.status(400).json({ error: 'sessionId is required.' });
+      return res.status(400).json({ error: 'Session ID string is required.' });
     }
 
-    // Support both raw base64 and RED-DRAGON~base64 format
     const base64 = sessionId.includes('~') ? sessionId.split('~')[1] : sessionId;
-
     let credsJson;
     try {
       const decoded = Buffer.from(base64.trim(), 'base64').toString('utf-8');
-      credsJson = JSON.parse(decoded); // validate it's valid JSON
+      credsJson = JSON.parse(decoded);
     } catch {
-      return res.status(400).json({ error: 'Invalid session ID. Could not decode credentials.' });
+      return res.status(400).json({ error: 'Invalid base64 session credentials.' });
     }
 
-    // Write creds.json directly into bot session folder
-    if (fs.existsSync(BOT_SESSION_DIR)) {
-      fs.rmSync(BOT_SESSION_DIR, { recursive: true, force: true });
+    // Determine phone number from creds or input
+    let phone = rawPhone ? String(rawPhone).replace(/[^0-9]/g, '') : '';
+    if (!phone && credsJson.me?.id) {
+      phone = credsJson.me.id.split(':')[0].replace(/[^0-9]/g, '');
     }
-    fs.mkdirSync(BOT_SESSION_DIR, { recursive: true });
-    const credsPath = path.join(BOT_SESSION_DIR, 'creds.json');
-    fs.writeFileSync(credsPath, JSON.stringify(credsJson, null, 2));
+    if (!phone) {
+      phone = `user_${Date.now()}`;
+    }
 
-    console.log(`[INJECT] Session ID injected into bot session folder.`);
-    // Auto-launch bot
-    setTimeout(() => launchBot(), 1500);
-    return res.json({ success: true, message: 'Session injected! Bot is starting up now...' });
+    const userSessionDir = path.join(multiSessionsDir, phone);
+    if (fs.existsSync(userSessionDir)) {
+      fs.rmSync(userSessionDir, { recursive: true, force: true });
+    }
+    fs.mkdirSync(userSessionDir, { recursive: true });
+    fs.writeFileSync(path.join(userSessionDir, 'creds.json'), JSON.stringify(credsJson, null, 2));
+
+    console.log(`[INJECT] Injected credentials for +${phone}`);
+    botManager.startBot(phone);
+
+    return res.json({
+      success: true,
+      message: `Session credentials saved. Bot +${phone} is starting!`,
+      phone
+    });
   } catch (err) {
-    console.error('[ERROR] inject-session route:', err);
-    return res.status(500).json({ error: 'Failed to inject session.' });
+    console.error('[INJECT] Error:', err);
+    return res.status(500).json({ error: 'Failed to inject session: ' + err.message });
   }
 });
 
-// ─────────────────────────────────────────────
-// ROUTE: Check if bot session exists
-// ─────────────────────────────────────────────
-app.get('/api/session-status', (req, res) => {
-  const credsPath = path.join(BOT_SESSION_DIR, 'creds.json');
-  const linked = fs.existsSync(credsPath);
-  let phone = null;
-  if (linked) {
-    try {
-      const creds = JSON.parse(fs.readFileSync(credsPath, 'utf-8'));
-      phone = creds?.me?.id?.split(':')[0] || null;
-    } catch {}
-  }
-  return res.json({ linked, phone });
-});
-
-// ─────────────────────────────────────────────
-// ROUTE: Bot process status
-// ─────────────────────────────────────────────
-app.get('/api/bot-status', (req, res) => {
-  return res.json({
-    status: botStatus,
-    pid: botProcess?.pid || null,
-    log: botLog.slice(-20), // last 20 lines
-  });
-});
-
-// ─────────────────────────────────────────────
-// ROUTE: Start bot manually
-// ─────────────────────────────────────────────
-app.post('/api/bot-start', (req, res) => {
-  if (botProcess) {
-    return res.json({ success: false, message: 'Bot is already running.' });
-  }
-  launchBot();
-  return res.json({ success: true, message: 'Bot launched.' });
-});
-
-// ─────────────────────────────────────────────
-// ROUTE: Stop bot
-// ─────────────────────────────────────────────
-app.post('/api/bot-stop', (req, res) => {
-  stopBot();
-  return res.json({ success: true, message: 'Bot stopped.' });
-});
-
+// ─────────────────────────────────────────────────────────────────
+// SERVER INITIALIZATION
+// ─────────────────────────────────────────────────────────────────
 const server = app.listen(PORT, () => {
-  console.log(`✅ Server is running at http://localhost:${PORT}`);
+  console.log(`\n=================================================`);
+  console.log(`🚀 CypherX Multi-User WhatsApp Bot Host Running!`);
+  console.log(`🌐 Dashboard URL: http://localhost:${PORT}`);
+  console.log(`📦 Sessions Storage: ${multiSessionsDir}`);
+  console.log(`=================================================\n`);
+
+  // Initialize and auto-boot all existing user sessions
+  botManager.initAllSessions();
 });
 
 server.on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
-    console.error(`\n[ERROR] Port ${PORT} is already in use. Kill the old process first.\n`);
+    console.error(`\n[ERROR] Port ${PORT} is already in use. Kill the old process first:`);
+    console.error(`Windows: Stop-Process -Name node -Force  (or taskkill /F /IM node.exe)\n`);
   } else {
-    console.error('[ERROR] Server:', err);
+    console.error('[SERVER ERROR]', err);
   }
+  process.exit(1);
 });

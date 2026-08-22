@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RED DRAGON OFC — WhatsApp Bot</title>
-  <meta name="description" content="RED DRAGON OFC — Link your WhatsApp directly to the bot. Fast, secure, and instant connection.">
+  <title>RED DRAGON OFC — Multi-User WhatsApp Bot Host</title>
+  <meta name="description" content="RED DRAGON OFC Multi-Tenant Cloud — Connect and host multiple WhatsApp bots simultaneously. Fast, isolated, and instant connection.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
@@ -22,11 +22,17 @@
     <header class="site-header">
       <div class="logo-badge">
         <span class="logo-icon">🐉</span>
-        <span class="logo-text">RED DRAGON <span class="logo-ofc">OFC</span></span>
+        <span class="logo-text">RED DRAGON <span class="logo-ofc">CLOUD</span></span>
       </div>
-      <div class="status-pill" id="statusPill">
-        <span class="status-dot" id="statusDot"></span>
-        <span id="statusText">Checking...</span>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div class="status-pill" style="border-color: rgba(255,160,0,0.35); background: rgba(255,160,0,0.08);">
+          <span style="font-size:0.8rem;">☁️</span>
+          <span style="color:#ffb74d;">Firebase chapters-eam</span>
+        </div>
+        <div class="status-pill" id="statusPill">
+          <span class="status-dot dot-online" id="statusDot"></span>
+          <span id="statusText">Multi-Host Active</span>
+        </div>
       </div>
     </header>
 
@@ -35,11 +41,36 @@
       <div class="hero-avatar">
         <img src="https://i.ibb.co/vz1yW9s/dragon.png" alt="RED DRAGON Bot" onerror="this.style.display='none'">
       </div>
-      <h1 class="hero-title">Connect Your <span class="text-fire">WhatsApp</span></h1>
-      <p class="hero-sub">Link your WhatsApp directly to the bot — no session file hassle. Choose your method below.</p>
+      <h1 class="hero-title">Multi-User <span class="text-fire">WhatsApp Cloud</span></h1>
+      <p class="hero-sub">Connect multiple accounts simultaneously. Each user gets an independent, isolated CypherX Bot instance.</p>
     </section>
 
-    <!-- Method cards -->
+    <!-- Cluster Metrics Grid -->
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-icon">📦</div>
+        <div>
+          <div class="metric-value" id="metricTotalBots">0</div>
+          <div class="metric-label">Total Hosted Bots</div>
+        </div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-icon">⚡</div>
+        <div>
+          <div class="metric-value" id="metricRunningBots" style="color:#4ade80;">0</div>
+          <div class="metric-label">Active Running</div>
+        </div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-icon">🧠</div>
+        <div>
+          <div class="metric-value" id="metricRam">--</div>
+          <div class="metric-label">RAM Usage</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Method cards (Connect New Bot) -->
     <div class="method-grid">
 
       <!-- Card 1: Pairing Code -->
@@ -47,16 +78,16 @@
         <div class="card-badge">Recommended</div>
         <div class="card-icon">📱</div>
         <h2 class="card-title">Pairing Code</h2>
-        <p class="card-desc">Generate a 8-digit pairing code and enter it in WhatsApp → Linked Devices. The bot links automatically.</p>
+        <p class="card-desc">Generate an 8-digit pairing code for your number and link in WhatsApp → Linked Devices.</p>
         <button class="btn btn-primary" onclick="openModal('pairModal')">Get Pairing Code</button>
       </div>
 
       <!-- Card 2: QR Code -->
       <div class="method-card" id="qrCard">
-        <div class="card-badge card-badge-qr">Easiest</div>
+        <div class="card-badge card-badge-qr">Instant</div>
         <div class="card-icon">📷</div>
         <h2 class="card-title">QR Code</h2>
-        <p class="card-desc">Scan the QR code with your phone — just like adding a new linked device in WhatsApp. No phone number needed.</p>
+        <p class="card-desc">Scan the live QR code directly from your phone. Perfect for quick one-tap linking.</p>
         <button class="btn btn-qr" onclick="openQrModal()">Scan QR Code</button>
       </div>
 
@@ -65,42 +96,36 @@
         <div class="card-badge card-badge-alt">Advanced</div>
         <div class="card-icon">🔑</div>
         <h2 class="card-title">Session ID</h2>
-        <p class="card-desc">Already have a <code>RED-DRAGON~...</code> session ID? Paste it here to link the bot instantly without scanning.</p>
+        <p class="card-desc">Have a <code>RED-DRAGON~...</code> session string? Paste it here to launch an instant instance.</p>
         <button class="btn btn-secondary" onclick="openModal('sessionModal')">Paste Session ID</button>
       </div>
 
     </div>
 
-    <!-- ═══ Bot Control Panel ═══ -->
-    <section class="bot-panel" id="botPanel">
-      <div class="bot-panel-header">
-        <div class="bot-panel-title">
-          <span class="bot-panel-icon">🤖</span>
-          <div>
-            <h2 class="bot-title">Bot Control Panel</h2>
-            <p class="bot-subtitle" id="botSubtitle">Dark-Xploit CypherX</p>
-          </div>
+    <!-- ═══ Multi-Bot Management Hub ═══ -->
+    <section class="bot-hub">
+      <div class="bot-hub-header">
+        <div class="bot-hub-title">
+          <span>🤖 Hosted Bot Instances</span>
+          <span class="bot-status-badge badge-running" id="activeBadge">0 Online</span>
         </div>
-        <div class="bot-status-badge" id="botStatusBadge">
-          <span class="bot-status-dot" id="botStatusDot"></span>
-          <span id="botStatusText">Checking...</span>
-        </div>
+        <button class="btn-mini btn-mini-restart" onclick="fetchBots()" style="padding: 8px 16px; border-radius: 999px;">
+          🔄 Refresh Instances
+        </button>
       </div>
 
-      <div class="bot-controls">
-        <button class="btn btn-primary" id="botStartBtn" onclick="botStart()" disabled>▶ Start Bot</button>
-        <button class="btn btn-stop" id="botStopBtn" onclick="botStop()" disabled>■ Stop Bot</button>
-      </div>
-
-      <div class="bot-log-wrap">
-        <div class="bot-log-label">📋 Live Log</div>
-        <div class="bot-log" id="botLog"><span class="log-placeholder">Waiting for bot activity...</span></div>
+      <div class="bot-grid" id="botGrid">
+        <div class="empty-bots">
+          <div class="empty-bots-icon">🚀</div>
+          <p><strong>No active bots linked yet.</strong></p>
+          <p style="font-size:0.8rem; margin-top:4px;">Use Pairing Code or QR Code above to connect the first WhatsApp account!</p>
+        </div>
       </div>
     </section>
 
     <footer class="site-footer">
-      <p>Powered by <span class="text-fire">RED DRAGON OFC</span> • WhatsApp Bot Technology</p>
-      <a href="https://whatsapp.com/channel/your-channel-id" target="_blank" class="footer-link">Support Channel ↗</a>
+      <p>Powered by <span class="text-fire">RED DRAGON OFC</span> • Multi-Tenant WhatsApp Engine</p>
+      <a href="https://whatsapp.com" target="_blank" class="footer-link">Support & Documentation ↗</a>
     </footer>
 
   </div>
@@ -111,16 +136,15 @@
       <button class="modal-close" onclick="closeModal('pairModal')">✕</button>
       <div class="modal-icon">📱</div>
       <h2 class="modal-title">Get Pairing Code</h2>
-      <p class="modal-desc">Enter your phone number with country code (no + or spaces).</p>
-      <p class="modal-desc" style="font-size:0.8rem; color:#888;">Example: <code style="color:#ff4d4d;">2348012345678</code></p>
+      <p class="modal-desc">Enter your WhatsApp phone number with country code (e.g. 234... or 1...).</p>
 
-      <input type="tel" id="phoneInput" class="modal-input" placeholder="e.g. 2348012345678" maxlength="15">
+      <input type="tel" id="phoneInput" class="modal-input" placeholder="e.g. 2348012345678" maxlength="16">
       <button class="btn btn-primary btn-full" id="pairBtn" onclick="getPairCode()">Generate Code</button>
 
       <div id="codeResult" class="code-result hidden">
-        <p class="code-label">Tap to copy your code:</p>
+        <p class="code-label">Tap to copy your pairing code:</p>
         <div class="code-display" id="pairCode" onclick="copyCode()">--------</div>
-        <p class="code-hint">Open WhatsApp → <strong>Linked Devices</strong> → <strong>Link a Device</strong> → enter this code</p>
+        <p class="code-hint">Open WhatsApp → <strong>Linked Devices</strong> → <strong>Link with phone number</strong> → enter code</p>
         <div class="code-timer" id="codeTimer">⏳ Expires in <strong id="timerCount">3:00</strong></div>
       </div>
 
@@ -134,27 +158,26 @@
     <div class="modal-box modal-box-qr">
       <button class="modal-close" onclick="closeQrModal()">✕</button>
       <div class="modal-icon">📷</div>
-      <h2 class="modal-title">Scan to Link WhatsApp</h2>
-      <p class="modal-desc">Open WhatsApp → <strong style="color:#ccc">Linked Devices</strong> → <strong style="color:#ccc">Link a Device</strong>, then scan this QR.</p>
+      <h2 class="modal-title">Scan QR Code</h2>
+      <p class="modal-desc">Open WhatsApp → <strong style="color:#ccc">Linked Devices</strong> → <strong style="color:#ccc">Link a Device</strong>, then scan.</p>
 
       <div class="qr-wrapper" id="qrWrapper">
         <div class="qr-loading" id="qrLoading">
           <div class="qr-spinner"></div>
-          <p>Generating QR Code…</p>
+          <p>Generating Dynamic QR...</p>
         </div>
         <img class="qr-image hidden" id="qrImage" alt="WhatsApp QR Code">
         <div class="qr-success hidden" id="qrLinked">
           <div style="font-size:3rem;">✅</div>
           <p style="color:#4ade80;font-weight:700;margin-top:10px;">WhatsApp Linked!</p>
-          <p style="color:#888;font-size:0.82rem;margin-top:6px;">The bot is now connected.</p>
+          <p style="color:#888;font-size:0.82rem;margin-top:6px;">Your bot instance is now starting.</p>
         </div>
       </div>
 
       <div class="qr-timer-bar" id="qrTimerBar"></div>
-      <div class="code-timer" id="qrTimerText" style="margin-top:8px;">⏳ QR expires in <strong id="qrTimerCount">0:55</strong></div>
+      <div class="code-timer" id="qrTimerText" style="margin-top:8px;">⏳ QR refreshes in <strong id="qrTimerCount">0:55</strong></div>
 
       <button class="btn btn-primary btn-full" id="qrRefreshBtn" onclick="startQrSession()" style="margin-top:16px;">🔄 Refresh QR</button>
-
       <div id="qrError" class="alert-error hidden"></div>
     </div>
   </div>
@@ -164,158 +187,331 @@
     <div class="modal-box">
       <button class="modal-close" onclick="closeModal('sessionModal')">✕</button>
       <div class="modal-icon">🔑</div>
-      <h2 class="modal-title">Inject Session ID</h2>
-      <p class="modal-desc">Paste your full session ID below. It should start with <code style="color:#ff4d4d;">RED-DRAGON~</code></p>
+      <h2 class="modal-title">Inject Session Credentials</h2>
+      <p class="modal-desc">Paste your session ID starting with <code style="color:#ff4d4d;">RED-DRAGON~</code> or raw base64.</p>
 
       <textarea id="sessionInput" class="modal-textarea" placeholder="RED-DRAGON~eyJub2lzZUtleSI6..."></textarea>
-      <button class="btn btn-primary btn-full" id="sessionBtn" onclick="injectSession()">Link Bot Now</button>
+      <button class="btn btn-primary btn-full" id="sessionBtn" onclick="injectSession()">Host Bot Instance</button>
 
       <div id="sessionError" class="alert-error hidden"></div>
       <div id="sessionSuccess" class="alert-success hidden"></div>
     </div>
   </div>
 
-  <script>
-    // ── Bot Control Panel ──
-    let botPollInterval = null;
+  <!-- ═══════ MODAL: Live Logs Viewer ═══════ -->
+  <div class="modal-overlay" id="logsModal" onclick="closeOnOverlay(event, 'logsModal')">
+    <div class="modal-box modal-box-log">
+      <button class="modal-close" onclick="closeModal('logsModal')">✕</button>
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:1.3rem;">📋</span>
+          <h2 class="modal-title" style="margin:0;" id="logsTitle">Bot Console</h2>
+        </div>
+        <span class="bot-status-badge badge-running" id="logsStatusBadge">Running</span>
+      </div>
 
-    async function refreshBotStatus() {
+      <div class="log-modal-content" id="logContent">Loading live console logs...</div>
+
+      <div style="display:flex; gap:10px; justify-content:flex-end;">
+        <button class="btn-mini btn-mini-restart" onclick="copyLogs()">📋 Copy Logs</button>
+        <button class="btn-mini btn-mini-stop" onclick="closeModal('logsModal')">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let activeLogPhone = null;
+    let logPollInterval = null;
+
+    // ── Helper: Format seconds to readable uptime ──
+    function formatUptime(seconds) {
+      if (!seconds || seconds <= 0) return 'Just now';
+      const d = Math.floor(seconds / 86400);
+      const h = Math.floor((seconds % 86400) / 3600);
+      const m = Math.floor((seconds % 3600) / 60);
+      const s = seconds % 60;
+      if (d > 0) return `${d}d ${h}h`;
+      if (h > 0) return `${h}h ${m}m`;
+      if (m > 0) return `${m}m ${s}s`;
+      return `${s}s`;
+    }
+
+    // ── Fetch Cluster Metrics & System Stats ──
+    async function fetchSystemStats() {
       try {
-        const res = await fetch('/api/bot-status');
+        const res = await fetch('/api/system-stats');
         const data = await res.json();
-        const dot  = document.getElementById('botStatusDot');
-        const text = document.getElementById('botStatusText');
-        const badge = document.getElementById('botStatusBadge');
-        const startBtn = document.getElementById('botStartBtn');
-        const stopBtn  = document.getElementById('botStopBtn');
-        const subtitle = document.getElementById('botSubtitle');
+        if (data.success) {
+          document.getElementById('metricTotalBots').textContent = data.totalBots;
+          document.getElementById('metricRunningBots').textContent = data.runningBots;
+          document.getElementById('metricRam').textContent = data.botMemory ? `${data.botMemory}` : `${data.memory.used} / ${data.memory.total}`;
+          document.getElementById('activeBadge').textContent = `${data.runningBots} Online`;
+        }
+      } catch (err) {}
+    }
+
+    // ── Fetch & Render Multi-Bot Hub ──
+    async function fetchBots() {
+      try {
+        const res = await fetch('/api/bots');
+        const data = await res.json();
+        const grid = document.getElementById('botGrid');
+
+        if (!data.bots || data.bots.length === 0) {
+          grid.innerHTML = `
+            <div class="empty-bots">
+              <div class="empty-bots-icon">🚀</div>
+              <p><strong>No active bots linked yet.</strong></p>
+              <p style="font-size:0.8rem; margin-top:4px;">Use Pairing Code or QR Code above to connect the first WhatsApp account!</p>
+            </div>
+          `;
+          return;
+        }
+
+        grid.innerHTML = data.bots.map(bot => {
+          const isRunning = bot.status === 'running';
+          const isError = bot.status === 'error';
+          const badgeClass = isRunning ? 'badge-running' : (isError ? 'badge-error' : 'badge-stopped');
+          const dotClass = isRunning ? 'bot-dot-running' : (isError ? 'bot-dot-error' : 'bot-dot-stopped');
+          const statusLabel = isRunning ? 'Online' : (isError ? 'Error' : 'Stopped');
+          const uptimeText = isRunning ? `Uptime: ${formatUptime(bot.uptime)}` : 'Offline';
+
+          return `
+            <div class="bot-card" id="card-${bot.phone}">
+              <div class="bot-card-top">
+                <div class="bot-card-user">
+                  <div class="bot-card-avatar">🤖</div>
+                  <div>
+                    <div class="bot-card-phone">${bot.name ? bot.name : '+' + bot.phone}</div>
+                    <div class="bot-card-sub">${bot.name ? '+' + bot.phone + ' • ' : ''}CypherX Bot</div>
+                  </div>
+                </div>
+                <div class="bot-status-badge ${badgeClass}">
+                  <span class="bot-status-dot ${dotClass}"></span>
+                  <span>${statusLabel}</span>
+                </div>
+              </div>
+
+              <div class="bot-card-meta">
+                <span>⏱️ ${uptimeText}</span>
+                <span>📋 ${bot.logCount || 0} events</span>
+              </div>
+
+              <div class="bot-card-actions">
+                ${isRunning 
+                  ? `<button class="btn-mini btn-mini-stop" onclick="botAction('${bot.phone}', 'stop')">■ Stop</button>`
+                  : `<button class="btn-mini btn-mini-start" onclick="botAction('${bot.phone}', 'start')">▶ Start</button>`
+                }
+                <button class="btn-mini btn-mini-restart" onclick="botAction('${bot.phone}', 'restart')">🔄 Restart</button>
+                <button class="btn-mini btn-mini-log" onclick="openLogsModal('${bot.phone}')">📋 Logs</button>
+                <button class="btn-mini btn-mini-del" title="Delete & Unlink" onclick="deleteBotConfirm('${bot.phone}')">🗑️</button>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+      } catch (err) {
+        console.error('Error fetching bots:', err);
+      }
+    }
+
+    // ── Bot Actions (Start / Stop / Restart) ──
+    async function botAction(phone, action) {
+      try {
+        const res = await fetch(`/api/bots/${phone}/${action}`, { method: 'POST' });
+        const data = await res.json();
+        if (!data.success && data.error) {
+          alert(`Error: ${data.error}`);
+        }
+        fetchBots();
+        fetchSystemStats();
+      } catch (err) {
+        alert('Could not reach server.');
+      }
+    }
+
+    // ── Delete / Unlink Bot ──
+    async function deleteBotConfirm(phone) {
+      if (!confirm(`Are you sure you want to stop and delete the bot instance for +${phone}?`)) return;
+      try {
+        const res = await fetch(`/api/bots/${phone}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) {
+          fetchBots();
+          fetchSystemStats();
+        }
+      } catch (err) {
+        alert('Failed to delete instance.');
+      }
+    }
+
+    // ── Live Logs Modal ──
+    function openLogsModal(phone) {
+      activeLogPhone = phone;
+      document.getElementById('logsTitle').textContent = `+${phone} Console`;
+      openModal('logsModal');
+      fetchLogs();
+      if (logPollInterval) clearInterval(logPollInterval);
+      logPollInterval = setInterval(fetchLogs, 2000);
+    }
+
+    async function fetchLogs() {
+      if (!activeLogPhone) return;
+      try {
+        const res = await fetch(`/api/bots/${activeLogPhone}/logs`);
+        const data = await res.json();
+        const content = document.getElementById('logContent');
+        const badge = document.getElementById('logsStatusBadge');
 
         if (data.status === 'running') {
-          dot.className = 'bot-status-dot bot-dot-running';
-          text.textContent = `Running${data.pid ? ' · PID ' + data.pid : ''}`;
           badge.className = 'bot-status-badge badge-running';
-          startBtn.disabled = true;
-          stopBtn.disabled = false;
-          subtitle.textContent = 'Dark-Xploit CypherX · Active';
+          badge.textContent = 'Running';
         } else if (data.status === 'error') {
-          dot.className = 'bot-status-dot bot-dot-error';
-          text.textContent = 'Error';
           badge.className = 'bot-status-badge badge-error';
-          startBtn.disabled = false;
-          stopBtn.disabled = true;
-          subtitle.textContent = 'Dark-Xploit CypherX · Error — check log';
+          badge.textContent = 'Error';
         } else {
-          dot.className = 'bot-status-dot bot-dot-stopped';
-          text.textContent = 'Stopped';
           badge.className = 'bot-status-badge badge-stopped';
-          startBtn.disabled = false;
-          stopBtn.disabled = true;
-          subtitle.textContent = 'Dark-Xploit CypherX · Not running';
+          badge.textContent = 'Stopped';
         }
 
-        // Update log
-        if (data.log && data.log.length > 0) {
-          const logEl = document.getElementById('botLog');
-          logEl.innerHTML = data.log.map(l =>
-            `<span class="log-line${l.startsWith('ERR') ? ' log-err' : ''}">` +
-            escapeHtml(l) + '</span>'
-          ).join('');
-          logEl.scrollTop = logEl.scrollHeight;
+        if (data.logs && data.logs.length > 0) {
+          content.textContent = data.logs.join('\n');
+          content.scrollTop = content.scrollHeight;
+        } else {
+          content.textContent = 'No logs available yet for this bot instance.';
         }
-      } catch { /* server may be restarting */ }
+      } catch (err) {}
     }
 
-    async function botStart() {
-      document.getElementById('botStartBtn').disabled = true;
+    function copyLogs() {
+      const text = document.getElementById('logContent').textContent;
+      navigator.clipboard.writeText(text).then(() => alert('Logs copied to clipboard!'));
+    }
+
+    // ── Pairing Code Flow ──
+    let timerInterval = null;
+
+    async function getPairCode() {
+      const phone = document.getElementById('phoneInput').value.replace(/[^0-9]/g, '');
+      const btn = document.getElementById('pairBtn');
+      const errBox = document.getElementById('pairError');
+      const successBox = document.getElementById('pairSuccess');
+      const codeResult = document.getElementById('codeResult');
+
+      errBox.classList.add('hidden');
+      successBox.classList.add('hidden');
+
+      if (!phone || phone.length < 7) {
+        errBox.textContent = 'Please enter a valid phone number with country code.';
+        errBox.classList.remove('hidden');
+        return;
+      }
+
+      btn.textContent = 'Generating...';
+      btn.disabled = true;
+
       try {
-        const res = await fetch('/api/bot-start', { method: 'POST' });
+        const res = await fetch(`/api/pair-code?phone=${phone}`);
         const data = await res.json();
-        if (!data.success) alert(data.message);
-      } catch { alert('Cannot reach server.'); }
-      refreshBotStatus();
+
+        if (data.code) {
+          document.getElementById('pairCode').textContent = data.code;
+          codeResult.classList.remove('hidden');
+          startTimer(180);
+          fetchBots();
+          fetchSystemStats();
+        } else {
+          errBox.textContent = data.error || 'Failed to generate code. Try again.';
+          errBox.classList.remove('hidden');
+        }
+      } catch {
+        errBox.textContent = 'Cannot reach server.';
+        errBox.classList.remove('hidden');
+      } finally {
+        btn.textContent = 'Regenerate Code';
+        btn.disabled = false;
+      }
     }
 
-    async function botStop() {
-      document.getElementById('botStopBtn').disabled = true;
-      try { await fetch('/api/bot-stop', { method: 'POST' }); } catch {}
-      refreshBotStatus();
+    function copyCode() {
+      const code = document.getElementById('pairCode').textContent.trim();
+      if (!code || code === '--------') return;
+      navigator.clipboard.writeText(code).then(() => {
+        const box = document.getElementById('pairSuccess');
+        box.textContent = '✓ Pairing code copied to clipboard!';
+        box.classList.remove('hidden');
+        setTimeout(() => box.classList.add('hidden'), 3000);
+      });
     }
 
-    function escapeHtml(s) {
-      return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    function startTimer(seconds) {
+      clearInterval(timerInterval);
+      let s = seconds;
+      const el = document.getElementById('timerCount');
+      timerInterval = setInterval(() => {
+        s--;
+        const m = Math.floor(s / 60);
+        const sec = String(s % 60).padStart(2, '0');
+        el.textContent = `${m}:${sec}`;
+        if (s <= 0) {
+          clearInterval(timerInterval);
+          el.textContent = 'Expired';
+        }
+      }, 1000);
     }
 
-    // Poll bot status every 3 seconds
-    refreshBotStatus();
-    setInterval(refreshBotStatus, 3000);
-
-    // ── QR Code flow ──
+    // ── QR Code Flow ──
+    let qrSessionId = null;
     let qrPollInterval = null;
     let qrTimerInterval = null;
-    let qrSessionId = null;
 
     async function openQrModal() {
       openModal('qrModal');
-      await startQrSession();
+      startQrSession();
     }
 
     function closeQrModal() {
-      closeModal('qrModal');
       stopQrPolling();
-    }
-
-    function stopQrPolling() {
-      clearInterval(qrPollInterval);
-      clearInterval(qrTimerInterval);
-      qrPollInterval = null;
-      qrTimerInterval = null;
+      closeModal('qrModal');
     }
 
     async function startQrSession() {
       stopQrPolling();
-      qrSessionId = 'qr_' + Date.now();
-
-      // Reset UI
       document.getElementById('qrLoading').classList.remove('hidden');
       document.getElementById('qrImage').classList.add('hidden');
       document.getElementById('qrLinked').classList.add('hidden');
       document.getElementById('qrError').classList.add('hidden');
-      document.getElementById('qrTimerText').classList.remove('hidden');
-      document.getElementById('qrRefreshBtn').disabled = true;
 
-      // Init QR session on backend
       try {
         const res = await fetch('/api/qr-start', { method: 'POST' });
         const data = await res.json();
-        if (!data.success) {
+        if (data.sessionId) {
+          qrSessionId = data.sessionId;
+          qrPollInterval = setInterval(pollQrStatus, 2000);
+          pollQrStatus();
+        } else {
           showQrError(data.error || 'Failed to start QR session.');
-          return;
         }
-        qrSessionId = data.sessionId;
       } catch {
-        showQrError('Cannot reach the server.');
-        return;
+        showQrError('Server unreachable.');
       }
-
-      document.getElementById('qrRefreshBtn').disabled = false;
-      // Poll for QR every 2s
-      qrPollInterval = setInterval(pollQr, 2000);
-      pollQr();
     }
 
-    async function pollQr() {
+    async function pollQrStatus() {
       if (!qrSessionId) return;
       try {
         const res = await fetch(`/api/qr-status?sessionId=${qrSessionId}`);
         const data = await res.json();
 
         if (data.linked) {
-          stopQrPolling();
           document.getElementById('qrImage').classList.add('hidden');
           document.getElementById('qrLoading').classList.add('hidden');
-          document.getElementById('qrTimerText').classList.add('hidden');
           document.getElementById('qrLinked').classList.remove('hidden');
-          checkStatus();
+          clearInterval(qrTimerInterval);
+          stopQrPolling();
+          fetchBots();
+          fetchSystemStats();
+          setTimeout(() => closeQrModal(), 3500);
           return;
         }
 
@@ -325,8 +521,6 @@
           img.classList.remove('hidden');
           document.getElementById('qrLoading').classList.add('hidden');
           document.getElementById('qrError').classList.add('hidden');
-
-          // Start/reset countdown from expiry (55s)
           startQrTimer(55);
         }
 
@@ -334,9 +528,7 @@
           showQrError(data.error);
           stopQrPolling();
         }
-      } catch {
-        // silently retry
-      }
+      } catch {}
     }
 
     function startQrTimer(seconds) {
@@ -359,119 +551,22 @@
       }, 1000);
     }
 
+    function stopQrPolling() {
+      if (qrPollInterval) { clearInterval(qrPollInterval); qrPollInterval = null; }
+      if (qrTimerInterval) { clearInterval(qrTimerInterval); qrTimerInterval = null; }
+      qrSessionId = null;
+    }
+
     function showQrError(msg) {
       const el = document.getElementById('qrError');
       el.textContent = '⚠ ' + msg;
       el.classList.remove('hidden');
       document.getElementById('qrLoading').classList.add('hidden');
     }
-    // ── Status check on load ──
-    async function checkStatus() {
-      const pill = document.getElementById('statusPill');
-      const dot = document.getElementById('statusDot');
-      const text = document.getElementById('statusText');
-      try {
-        const res = await fetch('/api/session-status');
-        const data = await res.json();
-        if (data.linked) {
-          dot.className = 'status-dot dot-online';
-          text.textContent = `Bot linked${data.phone ? ' · ' + data.phone : ''}`;
-          pill.style.borderColor = 'rgba(0,200,80,0.4)';
-        } else {
-          dot.className = 'status-dot dot-offline';
-          text.textContent = 'Not linked';
-          pill.style.borderColor = 'rgba(255,60,60,0.4)';
-        }
-      } catch {
-        dot.className = 'status-dot dot-offline';
-        text.textContent = 'Server offline';
-      }
-    }
-    checkStatus();
 
-    // ── Modal helpers ──
-    function openModal(id) {
-      document.getElementById(id).classList.add('active');
-      document.body.style.overflow = 'hidden';
-    }
-    function closeModal(id) {
-      document.getElementById(id).classList.remove('active');
-      document.body.style.overflow = '';
-    }
-    function closeOnOverlay(e, id) {
-      if (e.target === document.getElementById(id)) closeModal(id);
-    }
-
-    // ── Pair code ──
-    let timerInterval = null;
-
-    async function getPairCode() {
-      const phone = document.getElementById('phoneInput').value.replace(/[^0-9]/g, '');
-      const btn = document.getElementById('pairBtn');
-      const errBox = document.getElementById('pairError');
-      const successBox = document.getElementById('pairSuccess');
-      const codeResult = document.getElementById('codeResult');
-
-      errBox.classList.add('hidden');
-      successBox.classList.add('hidden');
-
-      if (!phone || phone.length < 7) {
-        showError('pairError', 'Please enter a valid phone number with country code.');
-        return;
-      }
-
-      btn.textContent = 'Generating...';
-      btn.disabled = true;
-
-      try {
-        const res = await fetch(`/api/pair-code?phone=${phone}`);
-        const data = await res.json();
-
-        if (data.code) {
-          document.getElementById('pairCode').textContent = data.code;
-          codeResult.classList.remove('hidden');
-          startTimer(180);
-        } else {
-          showError('pairError', data.error || 'Failed to generate code. Try again.');
-        }
-      } catch {
-        showError('pairError', 'Cannot reach the server. Is it running?');
-      } finally {
-        btn.textContent = 'Regenerate Code';
-        btn.disabled = false;
-      }
-    }
-
-    function startTimer(seconds) {
-      clearInterval(timerInterval);
-      let s = seconds;
-      const el = document.getElementById('timerCount');
-      timerInterval = setInterval(() => {
-        s--;
-        const m = Math.floor(s / 60);
-        const sec = String(s % 60).padStart(2, '0');
-        el.textContent = `${m}:${sec}`;
-        if (s <= 0) {
-          clearInterval(timerInterval);
-          el.textContent = 'Expired';
-          document.getElementById('codeResult').classList.add('hidden');
-        }
-      }, 1000);
-    }
-
-    function copyCode() {
-      const text = document.getElementById('pairCode').textContent;
-      if (text === '--------') return;
-      navigator.clipboard.writeText(text).then(() => {
-        const el = document.getElementById('pairCode');
-        el.textContent = 'Copied! ✓';
-        setTimeout(() => el.textContent = text, 1500);
-      });
-    }
-
-    // ── Session inject ──
+    // ── Session ID Injection ──
     async function injectSession() {
-      const sessionId = document.getElementById('sessionInput').value.trim();
+      const input = document.getElementById('sessionInput').value.trim();
       const btn = document.getElementById('sessionBtn');
       const errBox = document.getElementById('sessionError');
       const successBox = document.getElementById('sessionSuccess');
@@ -479,49 +574,68 @@
       errBox.classList.add('hidden');
       successBox.classList.add('hidden');
 
-      if (!sessionId) {
-        showError('sessionError', 'Please paste your session ID first.');
-        return;
-      }
-      if (!sessionId.includes('~')) {
-        showError('sessionError', 'Session ID must be in the format RED-DRAGON~... (include the ~)');
+      if (!input) {
+        errBox.textContent = 'Please paste your session ID.';
+        errBox.classList.remove('hidden');
         return;
       }
 
-      btn.textContent = 'Linking...';
       btn.disabled = true;
+      btn.textContent = 'Linking...';
 
       try {
         const res = await fetch('/api/inject-session', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sessionId })
+          body: JSON.stringify({ sessionId: input })
         });
         const data = await res.json();
-
         if (data.success) {
-          errBox.classList.add('hidden');
-          successBox.textContent = '✅ ' + data.message;
+          successBox.textContent = `✓ ${data.message}`;
           successBox.classList.remove('hidden');
-          document.getElementById('sessionInput').value = '';
-          checkStatus(); // refresh status pill
+          fetchBots();
+          fetchSystemStats();
+          setTimeout(() => closeModal('sessionModal'), 2500);
         } else {
-          showError('sessionError', data.error || 'Failed to inject session.');
+          errBox.textContent = data.error || 'Failed to inject session.';
+          errBox.classList.remove('hidden');
         }
       } catch {
-        showError('sessionError', 'Cannot reach the server. Is it running?');
+        errBox.textContent = 'Server error during injection.';
+        errBox.classList.remove('hidden');
       } finally {
-        btn.textContent = 'Link Bot Now';
         btn.disabled = false;
+        btn.textContent = 'Host Bot Instance';
       }
     }
 
-    function showError(id, msg) {
-      const el = document.getElementById(id);
-      el.textContent = '⚠ ' + msg;
-      el.classList.remove('hidden');
+    // ── Modal Helpers ──
+    function openModal(id) {
+      document.getElementById(id).classList.add('active');
+      document.body.style.overflow = 'hidden';
     }
-  </script>
 
+    function closeModal(id) {
+      document.getElementById(id).classList.remove('active');
+      document.body.style.overflow = '';
+      if (id === 'logsModal' && logPollInterval) {
+        clearInterval(logPollInterval);
+        logPollInterval = null;
+        activeLogPhone = null;
+      }
+    }
+
+    function closeOnOverlay(e, id) {
+      if (e.target === document.getElementById(id)) closeModal(id);
+    }
+
+    // Initial load and polling
+    fetchBots();
+    fetchSystemStats();
+    setInterval(() => {
+      fetchBots();
+      fetchSystemStats();
+    }, 3000);
+  </script>
 </body>
 </html>
