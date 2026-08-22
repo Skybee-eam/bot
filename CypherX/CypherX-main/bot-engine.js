@@ -480,21 +480,39 @@ function getArg(name) {
         return m.reply(menuText);
       }
 
-      // 3. Automatic AI Chatbot handler when chatbot mode is ON
-      if (!isCmd && body && !m.isGroup && global.db?.settings?.chatbot && !m.fromMe) {
-        try {
-          const aiPlugin = require('./plugins/ai.js');
-          if (typeof aiPlugin.fetchAIResponse === 'function') {
-            const aiReply = await aiPlugin.fetchAIResponse(body);
-            if (aiReply) {
-              await Cypher.sendMessage(m.chat, {
-                text: `🤖 *CypherX AI:*\n\n${aiReply}`
-              }, { quoted: m });
-              return;
+      // 3. Automatic AI Chatbot handler
+      const chatbotEnabled = global.db?.settings?.chatbot !== false; // Active by default
+      const isMentionedInGroup = m.isGroup && (
+        contextInfo?.mentionedJid?.includes(botNumber) ||
+        (m.quoted && m.quoted.sender === botNumber)
+      );
+
+      // Trigger chatbot in DM (both incoming and self-test), or when tagged in group
+      if (!isCmd && body && (isMentionedInGroup || !m.isGroup) && chatbotEnabled) {
+        // Ignore single character or punctuation only
+        if (body.length >= 2 && !body.startsWith('.')) {
+          try {
+            const aiPlugin = require('./plugins/ai.js');
+            if (typeof aiPlugin.fetchAIResponse === 'function') {
+              const cleanPrompt = isMentionedInGroup 
+                ? body.replace(new RegExp(`@${botCleanNumber}`, 'g'), '').trim() 
+                : body;
+
+              if (cleanPrompt) {
+                await Cypher.sendMessage(m.chat, { react: { text: "🧠", key: m.key } });
+                const aiReply = await aiPlugin.fetchAIResponse(cleanPrompt);
+                if (aiReply) {
+                  await Cypher.sendMessage(m.chat, {
+                    text: `🤖 *CypherX AI:*\n\n${aiReply}`
+                  }, m.fromMe ? {} : { quoted: m });
+                  await Cypher.sendMessage(m.chat, { react: { text: "✨", key: m.key } });
+                  return;
+                }
+              }
             }
+          } catch (aiErr) {
+            console.log('[Auto-Chatbot Error]:', aiErr.message);
           }
-        } catch (aiErr) {
-          console.log('[Auto-Chatbot Error]:', aiErr.message);
         }
       }
 
