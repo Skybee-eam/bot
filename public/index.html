@@ -79,7 +79,7 @@
   <div class="glow-orb glow-orb-1"></div>
   <div class="glow-orb glow-orb-2"></div>
 
-  <div class="page-wrapper">
+  <div class="page-wrapper" id="pageWrapper" style="pointer-events:none; user-select:none; filter:blur(4px); transition: filter 0.4s;">
 
     <!-- Header -->
     <header class="site-header">
@@ -312,6 +312,12 @@
           const gate = document.getElementById('accessGate');
           gate.style.transition = 'opacity 0.4s';
           gate.style.opacity = '0';
+          // Unblur and unlock the page
+          const pw = document.getElementById('pageWrapper');
+          pw.style.filter = 'none';
+          pw.style.pointerEvents = 'auto';
+          pw.style.userSelect = 'auto';
+          document.body.style.overflow = '';
           setTimeout(() => gate.remove(), 420);
         } else {
           errEl.textContent = data.error || 'Wrong access code. Try again.';
