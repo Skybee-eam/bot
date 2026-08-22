@@ -99,15 +99,6 @@ module.exports = {
                 });
             }
 
-            // If triggered by a typed text command, delete the trigger text message
-            if (!m.fromReaction && m.key && m.chat) {
-                try {
-                    await client.sendMessage(m.chat, { delete: m.key });
-                } catch (delErr) {
-                    console.log('[VV] Could not delete trigger message:', delErr.message);
-                }
-            }
-
         } catch (error) {
             console.error('[VV Plugin Error]:', error);
             try {

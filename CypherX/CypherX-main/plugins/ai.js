@@ -1,14 +1,120 @@
 const axios = require('axios');
 
+/**
+ * Searches Wikipedia knowledge engine for real-time accurate answers
+ */
+async function searchWikipediaKnowledge(query) {
+    try {
+        const cleanQ = query
+            .replace(/^(who is|who was|what is|what are|tell me about|define|explain|where is|capital of|how does|what do you know about)\s+/i, '')
+            .replace(/[?.,!]+$/g, '')
+            .trim();
+
+        if (!cleanQ || cleanQ.length < 2) return null;
+
+        // 1. Search Wikipedia for matching page title
+        const searchUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(cleanQ)}&format=json&utf8=1`;
+        const sRes = await axios.get(searchUrl, {
+            headers: { 'User-Agent': 'CypherXBot/2.0 (https://github.com/Dark-Xploit/CypherX)' },
+            timeout: 6000
+        });
+
+        const firstHit = sRes.data?.query?.search?.[0]?.title;
+        if (firstHit) {
+            // 2. Fetch page summary
+            const summaryUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(firstHit)}`;
+            const sumRes = await axios.get(summaryUrl, {
+                headers: { 'User-Agent': 'CypherXBot/2.0 (https://github.com/Dark-Xploit/CypherX)' },
+                timeout: 6000
+            });
+            if (sumRes.data?.extract && sumRes.data.extract.length > 20) {
+                return sumRes.data.extract;
+            }
+        }
+    } catch (e) {
+        // Fall through quietly
+    }
+    return null;
+}
+
+/**
+ * Conversational intent handler for common chat phrases
+ */
+function getConversationalReply(prompt) {
+    const p = prompt.toLowerCase().trim();
+    if (/^(hi|hello|hey|hola|yo|sup|good morning|good evening|good afternoon)\b/i.test(p)) {
+        return "Hello! 👋 I'm **CypherX AI**, your personal WhatsApp assistant. How can I help you today? You can ask me any question or type `.imagine <prompt>` to generate images!";
+    }
+    if (/^(who are you|what is your name|who made you|who created you)\b/i.test(p)) {
+        return "I am **CypherX AI**, powered by Red Dragon / CypherX engine created by Tylor. I can assist you with information, research, definitions, image generation, and more!";
+    }
+    if (/^(how are you|how do you do)\b/i.test(p)) {
+        return "I'm doing great and ready to assist you! What would you like to explore or learn today?";
+    }
+    if (/^(thank you|thanks|thx)\b/i.test(p)) {
+        return "You're very welcome! Feel free to ask if you need anything else. 😊";
+    }
+    return null;
+}
+
+/**
+ * Main AI query processor with multi-tier engine fallback
+ */
+async function fetchAIResponse(prompt) {
+    // Tier 1: Check if conversational greeting
+    const quickReply = getConversationalReply(prompt);
+    if (quickReply) return quickReply;
+
+    // Tier 2: Check for configured API keys (Groq / OpenRouter / OpenAI / Pollinations)
+    const apiKey = process.env.OPENAI_API_KEY || process.env.GROQ_API_KEY || process.env.OPENROUTER_API_KEY || process.env.POLLINATIONS_API_KEY;
+    if (apiKey) {
+        try {
+            const endpoint = process.env.GROQ_API_KEY
+                ? 'https://api.groq.com/openai/v1/chat/completions'
+                : (process.env.OPENROUTER_API_KEY ? 'https://openrouter.ai/api/v1/chat/completions' : 'https://gen.pollinations.ai/v1/chat/completions');
+            
+            const model = process.env.GROQ_API_KEY ? 'llama-3.3-70b-versatile' : 'openai';
+
+            const res = await axios.post(endpoint, {
+                model: model,
+                messages: [
+                    { role: 'system', content: 'You are CypherX AI, a helpful, smart, and concise WhatsApp AI assistant.' },
+                    { role: 'user', content: prompt }
+                ]
+            }, {
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json'
+                },
+                timeout: 15000
+            });
+
+            const content = res.data?.choices?.[0]?.message?.content;
+            if (content && content.trim()) return content.trim();
+        } catch (e) {
+            console.log('[AI] Configured API Key call failed:', e.message);
+        }
+    }
+
+    // Tier 3: Real-time Wikipedia & Knowledge Base Engine (Fast, 100% reliable)
+    const wikiResult = await searchWikipediaKnowledge(prompt);
+    if (wikiResult) {
+        return wikiResult;
+    }
+
+    // Tier 4: Fallback conversational response
+    return `I received your prompt: *"${prompt}"*.\n\n💡 *Tip:* You can ask me factual questions (e.g. *".ai Who was Albert Einstein?"*, *".ai Capital of Japan"*) or create AI images using *".imagine <prompt>"*!`;
+}
+
 module.exports = {
     name: "ai",
     alias: ["gpt", "ask", "gemini", "chatgpt", "bot", "imagine"],
     category: "ai",
-    description: "High-speed AI Chat and Image generation powered by Pollinations & GPT-4o",
+    description: "High-speed AI Chat and Image generation powered by CypherX Knowledge & Pollinations AI",
     async execute(client, m, { text, prefix, command, reply }) {
         try {
             if (!text) {
-                return reply(`⚠️ *Please provide a question or prompt, e.g.:*\n${prefix}${command} What is the fastest animal on earth?`);
+                return reply(`⚠️ *Please provide a question or prompt, e.g.:*\n${prefix}${command} What is the fastest animal on earth?\n\n🎨 *Or generate images:* ${prefix}imagine a cybernetic dragon`);
             }
 
             // Image generation command
@@ -18,12 +124,12 @@ module.exports = {
 
                 const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(imgPrompt)}?width=1024&height=1024&nologo=true`;
                 
-                const imgRes = await axios.get(imageUrl, { responseType: 'arraybuffer', timeout: 25000 });
+                const imgRes = await axios.get(imageUrl, { responseType: 'arraybuffer', timeout: 30000 });
                 const buffer = Buffer.from(imgRes.data);
 
                 await client.sendMessage(m.chat, {
                     image: buffer,
-                    caption: `🎨 *AI Image Generator*\n\n📝 *Prompt:* ${imgPrompt}\n✨ *Powered by Pollinations AI*`
+                    caption: `🎨 *AI Image Generator*\n\n📝 *Prompt:* ${imgPrompt}\n✨ *Powered by CypherX AI*`
                 }, { quoted: m });
 
                 await client.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
@@ -33,40 +139,13 @@ module.exports = {
             // Text Chat / Conversational AI
             await client.sendMessage(m.chat, { react: { text: "🧠", key: m.key } });
 
-            // 1. Primary: Pollinations Text Engine (GPT-4o / Claude)
-            let aiReply = null;
-            try {
-                const res = await axios.get(`https://text.pollinations.ai/${encodeURIComponent(text)}?model=openai`, {
-                    timeout: 20000,
-                    headers: { 'User-Agent': 'Mozilla/5.0' }
-                });
-                if (res.data && typeof res.data === 'string' && res.data.trim().length > 0) {
-                    aiReply = res.data.trim();
-                }
-            } catch (err) {
-                console.log('[AI] Pollinations fallback:', err.message);
-            }
-
-            // 2. Fallback: Secondary endpoints
-            if (!aiReply) {
-                const fallbacks = [
-                    `https://api.vreden.web.id/api/gpt3?query=${encodeURIComponent(text)}`,
-                    `https://api.siputzx.my.id/api/ai/gpt3?prompt=${encodeURIComponent(text)}`
-                ];
-                for (const fb of fallbacks) {
-                    try {
-                        const r = await axios.get(fb, { timeout: 10000 });
-                        aiReply = r.data?.data || r.data?.result || r.data?.answer;
-                        if (aiReply && typeof aiReply === 'string') break;
-                    } catch {}
-                }
-            }
+            const aiReply = await fetchAIResponse(text);
 
             if (!aiReply) {
                 return reply("❌ *AI service is currently busy. Please try again shortly.*");
             }
 
-            const header = `╭━━━〔 🤖 *AI ASSISTANT* 〕━━━╮\n`;
+            const header = `╭━━━〔 🤖 *CYPHER-X AI* 〕━━━╮\n`;
             const footer = `\n╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯`;
 
             await client.sendMessage(m.chat, {
@@ -81,3 +160,5 @@ module.exports = {
         }
     }
 };
+
+

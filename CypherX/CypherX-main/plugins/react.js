@@ -19,11 +19,6 @@ module.exports = {
                 }
             });
 
-            // Automatically delete the command message to keep the chat clean
-            try {
-                await client.sendMessage(m.chat, { delete: m.key });
-            } catch {}
-
         } catch (error) {
             console.error('[React Plugin Error]:', error);
             reply(`❌ *Failed to react to message:* ${error.message}`);

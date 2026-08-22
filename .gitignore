@@ -8,4 +8,6 @@ session/
 CypherX/CypherX-main/session/
 src/Session/
 CypherX/CypherX-main/src/Session/
+sessions/
 *.db
+

@@ -16,6 +16,7 @@
   "dependencies": {
     "@babel/runtime": "^8.0.0",
     "@distube/ytdl-core": "^4.16.12",
+    "@vreden/youtube_scraper": "^1.2.9",
     "@whiskeysockets/baileys": "https://github.com/Dark-Xploit/Baileys/archive/refs/tags/v1.8.0.tar.gz",
     "acrcloud": "^1.4.0",
     "adm-zip": "^0.5.16",
