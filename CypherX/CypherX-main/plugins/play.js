@@ -1,5 +1,6 @@
 const yts = require("yt-search");
 const axios = require("axios");
+const ytdl = require("@distube/ytdl-core");
 const yt = require("@vreden/youtube_scraper");
 const fs = require("fs");
 const path = require("path");
@@ -9,38 +10,70 @@ if (!fs.existsSync(tmpDir)) {
     try { fs.mkdirSync(tmpDir, { recursive: true }); } catch {}
 }
 
-// High-reliability audio download resolver
-async function getAudioDownloadUrl(videoUrl) {
-    // 1. Primary: @vreden/youtube_scraper (Fast & Direct CDN)
+// High-reliability MP3 download — returns Buffer
+async function getAudioBuffer(videoUrl) {
+    // Method 1: vreden scraper → download URL → buffer
     try {
         const dl = await yt.ytmp3(videoUrl);
-        if (dl && dl.status && dl.download?.url) {
-            return dl.download.url;
+        if (dl?.status && dl?.download?.url) {
+            const r = await axios.get(dl.download.url, {
+                responseType: "arraybuffer",
+                timeout: 60000,
+                headers: { "User-Agent": "Mozilla/5.0" }
+            });
+            if (r.data && r.data.byteLength > 10000) {
+                return Buffer.from(r.data);
+            }
         }
     } catch (e) {
-        console.log("[Play] Primary scraper note:", e.message);
+        console.log("[Play] vreden method failed:", e.message);
     }
 
-    // 2. Secondary: Fallback endpoints
-    const fallbackApis = [
-        async () => {
-            const res = await axios.get(`https://api.siputzx.my.id/api/d/ytmp3?url=${encodeURIComponent(videoUrl)}`, { timeout: 12000 });
-            return res.data?.data?.dl || res.data?.result?.download?.url || res.data?.data?.download?.url || null;
-        },
-        async () => {
-            const res = await axios.get(`https://api.agatz.xyz/api/ytmp3?url=${encodeURIComponent(videoUrl)}`, { timeout: 12000 });
-            return res.data?.data?.dl || res.data?.result?.url || null;
-        },
-        async () => {
-            const res = await axios.get(`https://api.ryzendesu.vip/api/downloader/ytmp3?url=${encodeURIComponent(videoUrl)}`, { timeout: 12000 });
-            return res.data?.url || res.data?.download?.url || null;
+    // Method 2: @distube/ytdl-core streaming into buffer
+    try {
+        const chunks = [];
+        await new Promise((resolve, reject) => {
+            const stream = ytdl(videoUrl, {
+                filter: "audioonly",
+                quality: "highestaudio",
+                requestOptions: {
+                    headers: {
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                    }
+                }
+            });
+            stream.on("data", chunk => chunks.push(chunk));
+            stream.on("end", resolve);
+            stream.on("error", reject);
+            // Timeout after 60s
+            setTimeout(() => reject(new Error("YTDL stream timeout")), 60000);
+        });
+        if (chunks.length > 0) {
+            return Buffer.concat(chunks);
         }
-    ];
+    } catch (e) {
+        console.log("[Play] ytdl method failed:", e.message);
+    }
 
-    for (const fetchServer of fallbackApis) {
+    // Method 3: fallback REST APIs
+    const fallbacks = [
+        `https://api.siputzx.my.id/api/d/ytmp3?url=${encodeURIComponent(videoUrl)}`,
+        `https://api.agatz.xyz/api/ytmp3?url=${encodeURIComponent(videoUrl)}`
+    ];
+    for (const api of fallbacks) {
         try {
-            const url = await fetchServer();
-            if (url) return url;
+            const res = await axios.get(api, { timeout: 12000 });
+            const dlUrl = res.data?.data?.dl || res.data?.result?.download?.url;
+            if (dlUrl) {
+                const r = await axios.get(dlUrl, {
+                    responseType: "arraybuffer",
+                    timeout: 60000,
+                    headers: { "User-Agent": "Mozilla/5.0" }
+                });
+                if (r.data && r.data.byteLength > 10000) {
+                    return Buffer.from(r.data);
+                }
+            }
         } catch {}
     }
 
@@ -54,7 +87,7 @@ module.exports = {
     description: "Search and download playable high-quality audio from YouTube",
     async execute(client, m, { text, prefix, command, reply }) {
         if (!text) {
-            return reply(`🎵 *Please provide a song title or YouTube link!*\n\n*Example:* \`${prefix || '.'}${command || 'play'} Shape of You\``);
+            return reply(`🎵 *Please provide a song title or YouTube link!*\n\n*Example:* \`${prefix || "."}${command || "play"} Shape of You\``);
         }
 
         let tempFile = null;
@@ -65,13 +98,13 @@ module.exports = {
             let videoUrl = text.trim();
             let videoInfo = null;
 
+            // Search if not a direct URL
             if (!text.includes("youtube.com") && !text.includes("youtu.be")) {
                 const search = await yts(text);
-                const video = search.videos && search.videos[0];
+                const video = search.videos?.[0];
                 if (!video) {
-                    return reply("❌ *No songs found for your query. Please try different keywords.*");
+                    return reply("❌ *No songs found. Try different keywords.*");
                 }
-                
                 videoUrl = video.url;
                 videoInfo = {
                     title: video.title,
@@ -81,68 +114,51 @@ module.exports = {
                     url: video.url
                 };
             } else {
-                const search = await yts(text);
-                const first = search.videos && search.videos[0];
-                videoInfo = {
-                    title: first?.title || "YouTube Audio Track",
-                    author: first?.author?.name || "YouTube",
-                    timestamp: first?.timestamp || "N/A",
-                    thumbnail: first?.thumbnail || first?.image || "https://i.imgur.com/2wzL9Zc.png",
-                    url: videoUrl
-                };
+                try {
+                    const meta = await yt.metadata(videoUrl);
+                    videoInfo = {
+                        title: meta?.title || "Audio Track",
+                        author: meta?.channel?.name || "YouTube",
+                        timestamp: meta?.timestamp || "N/A",
+                        thumbnail: meta?.thumbnail || "https://i.imgur.com/2wzL9Zc.png",
+                        url: videoUrl
+                    };
+                } catch {
+                    videoInfo = { title: "Audio Track", author: "YouTube", timestamp: "N/A", thumbnail: "https://i.imgur.com/2wzL9Zc.png", url: videoUrl };
+                }
             }
 
-            // Send track info card with externalAdReply preview
+            // Send info card
             await client.sendMessage(m.chat, {
                 image: { url: videoInfo.thumbnail },
-                caption: `╭━━━〔 🎵 *CYPHER-X MUSIC* 〕━━━╮\n` +
-                         `│ 📌 *Title:* ${videoInfo.title}\n` +
-                         `│ 👤 *Artist:* ${videoInfo.author}\n` +
-                         `│ ⏱️ *Duration:* ${videoInfo.timestamp}\n` +
-                         `│ 🔗 *URL:* ${videoInfo.url}\n` +
-                         `╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯\n\n` +
-                         `_⏳ Downloading playable audio stream..._`,
-                contextInfo: {
-                    externalAdReply: {
-                        title: videoInfo.title,
-                        body: `By ${videoInfo.author} • CypherX Music`,
-                        thumbnailUrl: videoInfo.thumbnail,
-                        sourceUrl: videoInfo.url,
-                        mediaType: 1,
-                        renderLargerThumbnail: true
-                    }
-                }
+                caption:
+                    `╭━━━〔 🎵 *CYPHER-X MUSIC* 〕━━━╮\n` +
+                    `│ 📌 *${videoInfo.title}*\n` +
+                    `│ 👤 ${videoInfo.author}\n` +
+                    `│ ⏱️ ${videoInfo.timestamp}\n` +
+                    `╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯\n\n` +
+                    `_⏳ Downloading audio... please wait_`
             }, { quoted: m });
 
             await client.sendMessage(m.chat, { react: { text: "⏳", key: m.key } });
 
-            // Fetch stream download URL
-            const downloadUrl = await getAudioDownloadUrl(videoUrl);
+            // Get audio buffer
+            const audioBuffer = await getAudioBuffer(videoUrl);
 
-            if (!downloadUrl) {
-                return reply("❌ *Unable to download this track right now. Please try again with another song or link.*");
+            if (!audioBuffer || audioBuffer.length < 10000) {
+                return reply("❌ *Failed to download audio. Try another song or paste the YouTube link directly.*");
             }
 
-            // Download MP3 binary stream
-            const audioRes = await axios.get(downloadUrl, {
-                responseType: 'arraybuffer',
-                timeout: 50000,
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                }
-            });
+            // Write to temp file
+            const safeTitle = (videoInfo.title || "song").replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 40);
+            tempFile = path.join(tmpDir, `play_${Date.now()}_${safeTitle}.mp3`);
+            fs.writeFileSync(tempFile, audioBuffer);
+            const fileBuf = fs.readFileSync(tempFile);
 
-            const buffer = Buffer.from(audioRes.data);
-
-            // Write to temp file to ensure complete stream integrity for WhatsApp
-            const safeTitle = (videoInfo.title || 'song').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 30);
-            tempFile = path.join(tmpDir, `audio_${Date.now()}_${safeTitle}.mp3`);
-            fs.writeFileSync(tempFile, buffer);
-
-            // Send clean audio payload (mimetype audio/mp4 with ptt: false is the standard for WhatsApp in-app playable media)
+            // KEY FIX: mimetype MUST be "audio/mpeg" for MP3 with ID3 tags
             await client.sendMessage(m.chat, {
-                audio: fs.readFileSync(tempFile),
-                mimetype: "audio/mp4",
+                audio: fileBuf,
+                mimetype: "audio/mpeg",
                 ptt: false,
                 fileName: `${safeTitle}.mp3`
             }, { quoted: m });
@@ -150,10 +166,10 @@ module.exports = {
             await client.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
 
         } catch (error) {
-            console.error("[Play Plugin Error]:", error);
-            reply(`❌ *Play command failed:* ${error.message}`);
+            console.error("[Play Plugin Error]:", error.message);
+            reply(`❌ *Play failed:* ${error.message}`);
         } finally {
-            if (tempFile && fs.existsSync(tempFile)) {
+            if (tempFile) {
                 try { fs.unlinkSync(tempFile); } catch {}
             }
         }
