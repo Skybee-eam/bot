@@ -1,6 +1,13 @@
 const yts = require("yt-search");
 const axios = require("axios");
 const yt = require("@vreden/youtube_scraper");
+const fs = require("fs");
+const path = require("path");
+
+const tmpDir = path.join(__dirname, "..", "tmp");
+if (!fs.existsSync(tmpDir)) {
+    try { fs.mkdirSync(tmpDir, { recursive: true }); } catch {}
+}
 
 // High-reliability audio download resolver
 async function getAudioDownloadUrl(videoUrl) {
@@ -11,17 +18,21 @@ async function getAudioDownloadUrl(videoUrl) {
             return dl.download.url;
         }
     } catch (e) {
-        console.log("[Play] Primary scraper failed:", e.message);
+        console.log("[Play] Primary scraper note:", e.message);
     }
 
     // 2. Secondary: Fallback endpoints
     const fallbackApis = [
         async () => {
-            const res = await axios.get(`https://api.vreden.web.id/api/ytmp3?url=${encodeURIComponent(videoUrl)}`, { timeout: 10000 });
-            return res.data?.result?.download?.url || res.data?.result?.url || null;
+            const res = await axios.get(`https://api.siputzx.my.id/api/d/ytmp3?url=${encodeURIComponent(videoUrl)}`, { timeout: 12000 });
+            return res.data?.data?.dl || res.data?.result?.download?.url || res.data?.data?.download?.url || null;
         },
         async () => {
-            const res = await axios.get(`https://api.ryzendesu.vip/api/downloader/ytmp3?url=${encodeURIComponent(videoUrl)}`, { timeout: 10000 });
+            const res = await axios.get(`https://api.agatz.xyz/api/ytmp3?url=${encodeURIComponent(videoUrl)}`, { timeout: 12000 });
+            return res.data?.data?.dl || res.data?.result?.url || null;
+        },
+        async () => {
+            const res = await axios.get(`https://api.ryzendesu.vip/api/downloader/ytmp3?url=${encodeURIComponent(videoUrl)}`, { timeout: 12000 });
             return res.data?.url || res.data?.download?.url || null;
         }
     ];
@@ -40,11 +51,13 @@ module.exports = {
     name: "play",
     alias: ["song", "music", "ytplay", "audio"],
     category: "downloader",
-    description: "Search and download high-quality audio from YouTube",
+    description: "Search and download playable high-quality audio from YouTube",
     async execute(client, m, { text, prefix, command, reply }) {
         if (!text) {
             return reply(`🎵 *Please provide a song title or YouTube link!*\n\n*Example:* \`${prefix || '.'}${command || 'play'} Shape of You\``);
         }
+
+        let tempFile = null;
 
         try {
             await client.sendMessage(m.chat, { react: { text: "🔍", key: m.key } });
@@ -79,7 +92,7 @@ module.exports = {
                 };
             }
 
-            // Send track info card with thumbnail
+            // Send track info card with externalAdReply preview
             await client.sendMessage(m.chat, {
                 image: { url: videoInfo.thumbnail },
                 caption: `╭━━━〔 🎵 *CYPHER-X MUSIC* 〕━━━╮\n` +
@@ -88,7 +101,17 @@ module.exports = {
                          `│ ⏱️ *Duration:* ${videoInfo.timestamp}\n` +
                          `│ 🔗 *URL:* ${videoInfo.url}\n` +
                          `╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯\n\n` +
-                         `_⏳ Downloading high quality audio stream..._`
+                         `_⏳ Downloading playable audio stream..._`,
+                contextInfo: {
+                    externalAdReply: {
+                        title: videoInfo.title,
+                        body: `By ${videoInfo.author} • CypherX Music`,
+                        thumbnailUrl: videoInfo.thumbnail,
+                        sourceUrl: videoInfo.url,
+                        mediaType: 1,
+                        renderLargerThumbnail: true
+                    }
+                }
             }, { quoted: m });
 
             await client.sendMessage(m.chat, { react: { text: "⏳", key: m.key } });
@@ -100,36 +123,28 @@ module.exports = {
                 return reply("❌ *Unable to download this track right now. Please try again with another song or link.*");
             }
 
-            // Download audio buffer to ensure 100% playable file delivery
-            let audioPayload;
-            try {
-                const audioRes = await axios.get(downloadUrl, {
-                    responseType: 'arraybuffer',
-                    timeout: 45000,
-                    headers: { 'User-Agent': 'Mozilla/5.0' }
-                });
-                audioPayload = Buffer.from(audioRes.data);
-            } catch (err) {
-                console.log("[Play] Buffer download error, falling back to direct URL:", err.message);
-                audioPayload = { url: downloadUrl };
-            }
-
-            // Send audio track to WhatsApp chat with valid audio/mpeg format
-            await client.sendMessage(m.chat, {
-                audio: audioPayload,
-                mimetype: "audio/mpeg",
-                ptt: false,
-                fileName: `${videoInfo.title}.mp3`,
-                contextInfo: {
-                    externalAdReply: {
-                        title: videoInfo.title,
-                        body: `By ${videoInfo.author} • CypherX Music`,
-                        thumbnailUrl: videoInfo.thumbnail,
-                        sourceUrl: videoInfo.url,
-                        mediaType: 2,
-                        renderLargerThumbnail: true
-                    }
+            // Download MP3 binary stream
+            const audioRes = await axios.get(downloadUrl, {
+                responseType: 'arraybuffer',
+                timeout: 50000,
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
                 }
+            });
+
+            const buffer = Buffer.from(audioRes.data);
+
+            // Write to temp file to ensure complete stream integrity for WhatsApp
+            const safeTitle = (videoInfo.title || 'song').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 30);
+            tempFile = path.join(tmpDir, `audio_${Date.now()}_${safeTitle}.mp3`);
+            fs.writeFileSync(tempFile, buffer);
+
+            // Send clean audio payload (mimetype audio/mp4 with ptt: false is the standard for WhatsApp in-app playable media)
+            await client.sendMessage(m.chat, {
+                audio: fs.readFileSync(tempFile),
+                mimetype: "audio/mp4",
+                ptt: false,
+                fileName: `${safeTitle}.mp3`
             }, { quoted: m });
 
             await client.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
@@ -137,8 +152,10 @@ module.exports = {
         } catch (error) {
             console.error("[Play Plugin Error]:", error);
             reply(`❌ *Play command failed:* ${error.message}`);
+        } finally {
+            if (tempFile && fs.existsSync(tempFile)) {
+                try { fs.unlinkSync(tempFile); } catch {}
+            }
         }
     }
 };
-
-

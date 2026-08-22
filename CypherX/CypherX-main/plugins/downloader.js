@@ -1,13 +1,22 @@
 const yts = require('yt-search');
 const axios = require('axios');
 const scraper = require('@vreden/youtube_scraper');
+const fs = require('fs');
+const path = require('path');
+
+const tmpDir = path.join(__dirname, "..", "tmp");
+if (!fs.existsSync(tmpDir)) {
+    try { fs.mkdirSync(tmpDir, { recursive: true }); } catch {}
+}
 
 module.exports = {
     name: "downloader",
     alias: ["ytmp4", "video", "ytv", "fb", "facebook", "fbdl", "ytvideo", "dlvideo"],
     category: "download",
-    description: "Download YouTube and Facebook videos as MP4 files",
+    description: "Download YouTube and Facebook videos as playable MP4 files",
     async execute(client, m, { text, prefix, command, reply }) {
+        let tempFile = null;
+
         try {
             if (!text) {
                 return reply(
@@ -52,10 +61,14 @@ module.exports = {
                     maxContentLength: 80 * 1024 * 1024
                 });
 
+                tempFile = path.join(tmpDir, `fb_${Date.now()}.mp4`);
+                fs.writeFileSync(tempFile, Buffer.from(fbBufferRes.data));
+
                 await client.sendMessage(m.chat, {
-                    video: Buffer.from(fbBufferRes.data),
+                    video: fs.readFileSync(tempFile),
                     caption: "📥 *Facebook Video Downloaded by RED DRAGON OFC*",
-                    mimetype: "video/mp4"
+                    mimetype: "video/mp4",
+                    fileName: `fb_video.mp4`
                 }, { quoted: m });
 
                 await client.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
@@ -83,7 +96,7 @@ module.exports = {
 
             let videoDownloadUrl = null;
 
-            // Tier 1: Direct CDN Scraper via @vreden/youtube_scraper (SaveTube CDN)
+            // Tier 1: Direct Scraper via @vreden/youtube_scraper
             try {
                 const scrapRes = await scraper.ytmp4(targetUrl, '360');
                 if (scrapRes?.status && scrapRes?.download?.url) {
@@ -95,7 +108,7 @@ module.exports = {
                 console.error('[YTMP4 Scraper Exception]:', e.message);
             }
 
-            // Tier 2: Multi-API Fallback Stream resolvers
+            // Tier 2: Fallback Stream Resolvers
             if (!videoDownloadUrl) {
                 const ytApis = [
                     `https://api.siputzx.my.id/api/d/ytmp4?url=${encodeURIComponent(targetUrl)}`,
@@ -127,15 +140,18 @@ module.exports = {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
                 },
                 timeout: 60000,
-                maxContentLength: 90 * 1024 * 1024 // 90MB max buffer limit
+                maxContentLength: 80 * 1024 * 1024
             });
 
-            const buffer = Buffer.from(videoBufferRes.data);
+            const safeTitle = (videoTitle || 'video').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 30);
+            tempFile = path.join(tmpDir, `video_${Date.now()}_${safeTitle}.mp4`);
+            fs.writeFileSync(tempFile, Buffer.from(videoBufferRes.data));
 
             await client.sendMessage(m.chat, {
-                video: buffer,
+                video: fs.readFileSync(tempFile),
                 caption: `🎬 *${videoTitle}*\n${duration ? `⏱️ *Duration:* ${duration}\n` : ''}${views ? `👁️ *Views:* ${views}\n` : ''}\n📥 *Downloaded by RED DRAGON OFC*`,
-                mimetype: "video/mp4"
+                mimetype: "video/mp4",
+                fileName: `${safeTitle}.mp4`
             }, { quoted: m });
 
             await client.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
@@ -143,6 +159,10 @@ module.exports = {
         } catch (error) {
             console.error('[Downloader Plugin Error]:', error);
             reply(`❌ *Failed to download video:* ${error.message}`);
+        } finally {
+            if (tempFile && fs.existsSync(tempFile)) {
+                try { fs.unlinkSync(tempFile); } catch {}
+            }
         }
     }
 };
