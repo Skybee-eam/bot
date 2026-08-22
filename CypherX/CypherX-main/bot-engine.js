@@ -30,6 +30,32 @@ const pluginManager = require('./src/Core/executor');
 let retryCount = 0;
 let isStarting = false;
 
+// ─────────────────────────────────────────────────────────────────
+// SUPPRESS NON-FATAL BAD MAC / SESSION DECRYPTION ERRORS
+// These come from libsignal when WhatsApp sends a message encrypted
+// for an old session. Baileys auto-recovers, this is just noise.
+// ─────────────────────────────────────────────────────────────────
+const _origStderr = process.stderr.write.bind(process.stderr);
+process.stderr.write = (chunk, ...args) => {
+  const str = typeof chunk === 'string' ? chunk : chunk.toString();
+  if (
+    str.includes('Bad MAC') ||
+    str.includes('Failed to decrypt message with any known session') ||
+    str.includes('Closing open session in favor of incoming prekey bundle') ||
+    str.includes('session_cipher.js') ||
+    str.includes('queue_job.js') ||
+    str.includes('Session error:Error:')
+  ) return true;  // silently swallow
+  return _origStderr(chunk, ...args);
+};
+
+// Catch unhandled Bad MAC promise rejections silently
+process.on('unhandledRejection', (reason) => {
+  const msg = reason?.message || String(reason);
+  if (msg.includes('Bad MAC') || msg.includes('Failed to decrypt')) return;
+  console.error('[CYPHER-X] Unhandled rejection:', msg);
+});
+
 // Retry counter cache & message store for session decryption & retries
 const msgRetryCounterCache = new NodeCache({ stdTTL: 3600, checkperiod: 600 });
 const messageStore = new Map();
