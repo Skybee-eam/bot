@@ -40,6 +40,40 @@ if (!fs.existsSync(tmpDir)) {
   fs.mkdirSync(tmpDir, { recursive: true });
 }
 
+// Automated Session Cleaner (Purges inactive session files older than 2 days)
+function cleanInactiveSessions(authDir) {
+  try {
+    if (!fs.existsSync(authDir)) return 0;
+    const now = Date.now();
+    const TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000;
+    const files = fs.readdirSync(authDir);
+    let purgedCount = 0;
+
+    for (const file of files) {
+      // NEVER delete creds.json or sync keys
+      if (file === 'creds.json' || file.startsWith('app-state-sync-key')) continue;
+      
+      const filePath = path.join(authDir, file);
+      try {
+        const stats = fs.statSync(filePath);
+        if (now - stats.mtimeMs > TWO_DAYS_MS) {
+          fs.unlinkSync(filePath);
+          purgedCount++;
+          console.log(`[SESSION-CLEANER] Auto-purged inactive session file: ${file}`);
+        }
+      } catch {}
+    }
+
+    if (purgedCount > 0) {
+      console.log(`[SESSION-CLEANER] Successfully removed ${purgedCount} inactive session file(s) older than 2 days.`);
+    }
+    return purgedCount;
+  } catch (err) {
+    console.error('[SESSION-CLEANER Error]:', err.message);
+    return 0;
+  }
+}
+
 // Media download helper
 async function downloadMediaMessage(message) {
   let mimeMap = {
@@ -189,6 +223,13 @@ async function startCypherBot() {
   }
 
   console.log(`[CYPHER-X] Using session directory: ${authDir}`);
+  
+  // Safe auto-purge of stale session peer/prekey files older than 2 days
+  cleanInactiveSessions(authDir);
+  if (!global.sessionCleanupInterval) {
+    global.sessionCleanupInterval = setInterval(() => cleanInactiveSessions(authDir), 12 * 60 * 60 * 1000);
+  }
+
   const { state, saveCreds } = await useMultiFileAuthState(authDir);
   const { version } = await fetchLatestBaileysVersion();
 
