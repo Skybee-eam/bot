@@ -7,35 +7,38 @@ module.exports = {
     description: "Download Instagram Reels and Posts",
     async execute(client, m, { text, prefix, command, reply }) {
         try {
-            if (!text || !text.includes('instagram.com')) {
+            if (!text || (!text.includes('instagram.com') && !text.includes('instagr.am'))) {
                 return reply(`⚠️ *Please provide an Instagram post or reel link, e.g.:*\n${prefix}${command} https://www.instagram.com/reel/...`);
             }
 
             await client.sendMessage(m.chat, { react: { text: "⏳", key: m.key } });
 
             let mediaUrl = null;
-            let isImage = false;
             const igApis = [
+                `https://api.vreden.web.id/api/instagram?url=${encodeURIComponent(text)}`,
                 `https://api.siputzx.my.id/api/d/igdl?url=${encodeURIComponent(text)}`,
-                `https://api.vreden.my.id/api/igdownload?url=${encodeURIComponent(text)}`,
-                `https://bk9.fun/download/ig?url=${encodeURIComponent(text)}`
+                `https://api.agatz.xyz/api/instagram?url=${encodeURIComponent(text)}`
             ];
 
             for (const api of igApis) {
                 try {
-                    const res = await axios.get(api, { timeout: 15000 });
-                    const items = res.data?.data || res.data?.result || res.data?.BK9;
+                    const res = await axios.get(api, {
+                        headers: { 'User-Agent': 'Mozilla/5.0' },
+                        timeout: 15000
+                    });
+                    const d = res.data;
+                    const items = d?.data || d?.result;
                     if (Array.isArray(items) && items[0]) {
                         mediaUrl = items[0].url || items[0].downloadUrl || items[0];
                     } else if (typeof items === 'object') {
-                        mediaUrl = items.url || items.video || items.image;
+                        mediaUrl = items?.url || items?.video || items?.image;
                     }
                     if (mediaUrl) break;
                 } catch {}
             }
 
             if (!mediaUrl) {
-                return reply("❌ *Failed to extract Instagram media. Make sure the account is public.*");
+                return reply("❌ *Failed to extract Instagram media. Make sure the account/post is public.*");
             }
 
             if (mediaUrl.includes('.jpg') || mediaUrl.includes('.png') || mediaUrl.includes('.webp')) {

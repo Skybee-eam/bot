@@ -18,15 +18,19 @@ module.exports = {
             if (command === 'fb' || command === 'facebook' || command === 'fbdl' || text.includes('facebook.com') || text.includes('fb.watch')) {
                 let fbUrl = null;
                 const fbApis = [
+                    `https://api.vreden.web.id/api/fbdown?url=${encodeURIComponent(text)}`,
                     `https://api.siputzx.my.id/api/d/facebook?url=${encodeURIComponent(text)}`,
-                    `https://api.vreden.my.id/api/fbdl?url=${encodeURIComponent(text)}`,
-                    `https://bk9.fun/download/fb?url=${encodeURIComponent(text)}`
+                    `https://api.agatz.xyz/api/facebook?url=${encodeURIComponent(text)}`
                 ];
 
                 for (const api of fbApis) {
                     try {
-                        const res = await axios.get(api, { timeout: 15000 });
-                        fbUrl = res.data?.data?.urls?.[0]?.hd || res.data?.data?.urls?.[0]?.sd || res.data?.result?.video || res.data?.BK9?.hd || res.data?.BK9?.sd;
+                        const res = await axios.get(api, {
+                            headers: { 'User-Agent': 'Mozilla/5.0' },
+                            timeout: 15000
+                        });
+                        const d = res.data;
+                        fbUrl = d?.data?.urls?.[0]?.hd || d?.data?.urls?.[0]?.sd || d?.result?.video || d?.data?.hd || d?.data?.sd || d?.url;
                         if (fbUrl) break;
                     } catch {}
                 }
@@ -60,15 +64,20 @@ module.exports = {
 
             let videoDownloadUrl = null;
             const ytApis = [
+                `https://api.vreden.web.id/api/ytmp4?url=${encodeURIComponent(targetUrl)}`,
                 `https://api.siputzx.my.id/api/d/ytmp4?url=${encodeURIComponent(targetUrl)}`,
-                `https://api.vreden.my.id/api/ytmp4?url=${encodeURIComponent(targetUrl)}`,
-                `https://bk9.fun/download/ytmp4?url=${encodeURIComponent(targetUrl)}`
+                `https://api.agatz.xyz/api/ytmp4?url=${encodeURIComponent(targetUrl)}`,
+                `https://api.ryzendesu.vip/api/downloader/ytmp4?url=${encodeURIComponent(targetUrl)}`
             ];
 
             for (const api of ytApis) {
                 try {
-                    const res = await axios.get(api, { timeout: 15000 });
-                    videoDownloadUrl = res.data?.data?.dl || res.data?.result?.download?.url || res.data?.BK9?.downloadUrl || res.data?.result?.dl;
+                    const res = await axios.get(api, {
+                        headers: { 'User-Agent': 'Mozilla/5.0' },
+                        timeout: 15000
+                    });
+                    const d = res.data;
+                    videoDownloadUrl = d?.data?.dl || d?.result?.download?.url || d?.result?.dl || d?.data?.download?.url || d?.url;
                     if (videoDownloadUrl) break;
                 } catch {}
             }
