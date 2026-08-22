@@ -16,86 +16,110 @@ function formatUptime(ms) {
     return parts.join(' ');
 }
 
-// Verified & Working Command Categories Definition
+function getGreeting() {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 12) return '🌅 Good Morning';
+    if (hour >= 12 && hour < 17) return '☀️ Good Afternoon';
+    if (hour >= 17 && hour < 21) return '🌆 Good Evening';
+    return '🌙 Good Night';
+}
+
+function getMemoryUsage() {
+    const total = (os.totalmem() / (1024 * 1024 * 1024)).toFixed(1);
+    const free = (os.freemem() / (1024 * 1024 * 1024)).toFixed(1);
+    const used = (total - free).toFixed(1);
+    return `${used}GB / ${total}GB`;
+}
+
+// Verified & Working Command Categories
 const VERIFIED_COMMANDS = {
-    "🤖 AI & CREATIVE": [
-        { cmd: "ai <question>", desc: "Ask CypherX AI anything / smart answers" },
-        { cmd: "imagine <prompt>", desc: "Generate ultra-realistic AI images" },
-        { cmd: "gpt <prompt>", desc: "Chat with fast conversational AI" },
-        { cmd: "ask <query>", desc: "Knowledge base & encyclopedic lookup" }
-    ],
-    "🎵 MUSIC & AUDIO": [
-        { cmd: "play <song title>", desc: "Download high quality MP3 from YouTube" },
-        { cmd: "song <title/url>", desc: "Search & download YouTube audio" },
-        { cmd: "music <title>", desc: "Stream & download music directly" },
-        { cmd: "tomp3", desc: "Convert replied video/voice note to MP3" }
-    ],
-    "📥 MEDIA DOWNLOADERS": [
-        { cmd: "tiktok <url>", desc: "Download TikTok videos without watermark" },
-        { cmd: "ig <url>", desc: "Download Instagram reels, posts & carousels" },
-        { cmd: "facebook <url>", desc: "Download Facebook HD/SD public videos" },
-        { cmd: "ytmp4 <url>", desc: "Download YouTube videos as MP4" },
-        { cmd: "video <title/url>", desc: "Search and download YouTube video" }
-    ],
-    "👁️ PRIVACY & UTILITIES": [
-        { cmd: "vv", desc: "Retrieve View Once media (image/video/audio) to DM" },
-        { cmd: "sticker", desc: "Convert replied image/video to WhatsApp sticker" },
-        { cmd: "take <pack|author>", desc: "Change sticker pack name & author" },
-        { cmd: "react <emoji>", desc: "React to replied message with custom emoji" }
-    ],
-    "👥 GROUP MANAGEMENT": [
-        { cmd: "tagall <message>", desc: "Tag all members in the group" },
-        { cmd: "hidetag <message>", desc: "Broadcast message tagging everyone invisibly" },
-        { cmd: "kick @user", desc: "Remove member from the group" },
-        { cmd: "add <number>", desc: "Add member to the group" },
-        { cmd: "promote @user", desc: "Promote member to group admin" },
-        { cmd: "demote @user", desc: "Demote group admin to member" },
-        { cmd: "mute", desc: "Close group (only admins can send messages)" },
-        { cmd: "unmute", desc: "Open group (all members can send messages)" },
-        { cmd: "link", desc: "Get group invite link" }
-    ],
-    "⚡ SYSTEM & CORE": [
-        { cmd: "ping", desc: "Check bot response speed & server latency" },
-        { cmd: "alive", desc: "Show bot system information & uptime" },
-        { cmd: "runtime", desc: "Show bot active running duration" },
-        { cmd: "clearsessions", desc: "Clean temporary session cache files" },
-        { cmd: "menu", desc: "Display this interactive command dashboard" }
-    ]
+    "🤖 ARTIFICIAL INTELLIGENCE": {
+        icon: "🧠",
+        commands: [
+            { cmd: "ai <question>", desc: "Ask CypherX AI smart questions" },
+            { cmd: "imagine <prompt>", desc: "Generate realistic AI art & images" },
+            { cmd: "gpt <prompt>", desc: "Conversational GPT assistant" },
+            { cmd: "ask <query>", desc: "Instant encyclopedia & facts" }
+        ]
+    },
+    "🎵 MUSIC & AUDIO STUDIO": {
+        icon: "🎧",
+        commands: [
+            { cmd: "play <song title>", desc: "Download high quality MP3 audio" },
+            { cmd: "song <title/url>", desc: "Search & download YouTube tracks" },
+            { cmd: "music <title>", desc: "Stream & save song directly" },
+            { cmd: "tomp3", desc: "Convert replied video/audio to MP3" }
+        ]
+    },
+    "📥 MEDIA DOWNLOADERS": {
+        icon: "⚡",
+        commands: [
+            { cmd: "tiktok <url>", desc: "Download TikTok videos without watermark" },
+            { cmd: "ig <url>", desc: "Download Instagram Reels & posts" },
+            { cmd: "facebook <url>", desc: "Download Facebook HD videos" },
+            { cmd: "ytmp4 <url>", desc: "Download YouTube videos as MP4" },
+            { cmd: "video <title/url>", desc: "Search and download YouTube video" }
+        ]
+    },
+    "👁️ PRIVACY & UTILITIES": {
+        icon: "🛠️",
+        commands: [
+            { cmd: "vv", desc: "Retrieve View-Once media permanently to DM" },
+            { cmd: "sticker", desc: "Convert image/video into WhatsApp sticker" },
+            { cmd: "take <pack|author>", desc: "Customize sticker metadata" },
+            { cmd: "react <emoji>", desc: "React to message with custom emoji" }
+        ]
+    },
+    "👥 GROUP ADMINISTRATION": {
+        icon: "🛡️",
+        commands: [
+            { cmd: "tagall <message>", desc: "Tag all group members with a notice" },
+            { cmd: "hidetag <message>", desc: "Broadcast message invisibly to all" },
+            { cmd: "kick @user", desc: "Remove unwanted user from group" },
+            { cmd: "add <number>", desc: "Add new member to group" },
+            { cmd: "promote @user", desc: "Grant administrator privileges" },
+            { cmd: "demote @user", desc: "Revoke administrator privileges" },
+            { cmd: "mute", desc: "Lock chat (Admins only)" },
+            { cmd: "unmute", desc: "Unlock chat (All members)" },
+            { cmd: "link", desc: "Retrieve group invitation link" }
+        ]
+    },
+    "⚡ SYSTEM & CORE METRICS": {
+        icon: "📊",
+        commands: [
+            { cmd: "ping", desc: "Check server latency & ping response" },
+            { cmd: "alive", desc: "Display bot health & system status" },
+            { cmd: "runtime", desc: "Display active uptime duration" },
+            { cmd: "clearsessions", desc: "Purge temporary cache files" },
+            { cmd: "menu", desc: "Display the main control dashboard" }
+        ]
+    }
 };
 
 module.exports = {
     name: "menu",
-    alias: ["help", "commands", "list", "allmenu", "panel"],
+    alias: ["help", "commands", "list", "allmenu", "panel", "start"],
     category: "general",
-    description: "Displays modern, clean dashboard of all verified working commands",
+    description: "Displays a modern, aesthetic command directory dashboard",
     async execute(client, m, { args, text, prefix, command, reply }) {
         try {
             const p = prefix || '.';
             const uptime = formatUptime(Date.now() - START_TIME);
             const user = m.pushName || 'User';
+            const greeting = getGreeting();
+            const memory = getMemoryUsage();
             const query = (text || '').trim().toLowerCase();
 
-            // Calculate total verified commands
+            // Total command count
             let totalCmdCount = 0;
             for (const cat in VERIFIED_COMMANDS) {
-                totalCmdCount += VERIFIED_COMMANDS[cat].length;
+                totalCmdCount += VERIFIED_COMMANDS[cat].commands.length;
             }
 
-            const headerCard = 
-`┌───「 🐉 *RED DRAGON / CYPHER-X* 🐉 」───┐
-│ 👤 *User:* ${user}
-│ 👑 *Owner:* RED DRAGON OFC
-│ 🤖 *Bot:* CypherX MD v2.0 (Active)
-│ ⚡ *Prefix:* [ ${p} ]
-│ 📊 *Active Commands:* ${totalCmdCount} Verified
-│ ⏱️ *Uptime:* ${uptime}
-│ 📡 *Status:* 🟢 All Systems Operational
-└───「 ᴄʏᴘʜᴇʀ-x ᴏғғɪᴄɪᴀʟ 」───┘\n`;
-
-            // Single Category View if user types e.g. .menu ai or .menu 1
             const categoryKeys = Object.keys(VERIFIED_COMMANDS);
-            let selectedCategory = null;
 
+            // Filter single category if specified
+            let selectedCategory = null;
             if (query && query !== 'all' && query !== 'full') {
                 const num = parseInt(query, 10);
                 if (!isNaN(num) && num >= 1 && num <= categoryKeys.length) {
@@ -105,49 +129,71 @@ module.exports = {
                 }
             }
 
+            // Header Banner Block
+            const headerBlock =
+`╭─━─━─━─━─━─━─━─━─━─━─━─━─━─━─╮
+  🐉 *RED DRAGON / CYPHER-X* 🐉
+  ${greeting}, *${user}*!
+╰─━─━─━─━─━─━─━─━─━─━─━─━─━─━─╯
+
+┌───「 📊 *SYSTEM TELEMETRY* 」───┐
+│ 👤 *User:* ${user}
+│ 👑 *Developer:* RED DRAGON OFC
+│ 🤖 *Engine:* CypherX MD v2.0
+│ ⚡ *Prefix:* [ ${p} ]
+│ 🧠 *RAM:* ${memory}
+│ ⏱️ *Uptime:* ${uptime}
+│ 📡 *Status:* 🟢 Optimal (Active)
+│ 📦 *Commands:* ${totalCmdCount} Verified
+└───「 ᴄʏᴘʜᴇʀ-x ᴏғғɪᴄɪᴀʟ 」───┘`;
+
+            // If a specific category was requested
             if (selectedCategory) {
-                const list = VERIFIED_COMMANDS[selectedCategory];
-                let catText = `${headerCard}\n╭───『 ${selectedCategory} 』\n`;
-                for (const item of list) {
-                    catText += `│ ◈ *${p}${item.cmd}*\n│   └─ _${item.desc}_\n`;
+                const catObj = VERIFIED_COMMANDS[selectedCategory];
+                let singleText = `${headerBlock}\n\n` +
+                                 `╭─◈ 『 ${catObj.icon} *${selectedCategory}* 』\n`;
+
+                for (const item of catObj.commands) {
+                    singleText += `│  › *${p}${item.cmd}*\n│    └─ _${item.desc}_\n`;
                 }
-                catText += `╰──────────────────────────────\n\n` +
-                           `💡 *Tip:* Type *${p}menu* to return to the full menu dashboard.`;
+
+                singleText += `╰──────────────────────────────\n\n` +
+                              `💡 *Tip:* Send *${p}menu* to view the entire master dashboard.`;
 
                 return await client.sendMessage(m.chat, {
-                    text: catText
+                    text: singleText
                 }, { quoted: m });
             }
 
-            // Full All-Commands Display
-            let fullMenuText = `${headerCard}\n`;
+            // Full Master Dashboard Display
+            let fullText = `${headerBlock}\n\n`;
 
-            categoryKeys.forEach((catName, idx) => {
-                const list = VERIFIED_COMMANDS[catName];
-                fullMenuText += `╭───『 ${catName} 』\n`;
-                for (const item of list) {
-                    fullMenuText += `│ ◈ *${p}${item.cmd}*\n│   └─ _${item.desc}_\n`;
+            categoryKeys.forEach((catName) => {
+                const catObj = VERIFIED_COMMANDS[catName];
+                fullText += `╭─◈ 『 ${catObj.icon} *${catName}* 』\n`;
+                for (const item of catObj.commands) {
+                    fullText += `│  › *${p}${item.cmd}*\n│    └─ _${item.desc}_\n`;
                 }
-                fullMenuText += `╰──────────────────────────────\n\n`;
+                fullText += `╰──────────────────────────────\n\n`;
             });
 
-            fullMenuText += 
-`╭───『 📌 *QUICK SHORTCUTS* 』
-│ • *${p}menu ai* ➔ AI & Creative commands
-│ • *${p}menu music* ➔ Music & Audio downloader
-│ • *${p}menu dl* ➔ Video downloaders
-│ • *${p}menu group* ➔ Group management tools
-│ • *${p}menu tools* ➔ Privacy & utility tools
+            fullText += 
+`╭─◈ 『 💡 *NAVIGATION SHORTCUTS* 』
+│  › *${p}menu ai* ➔ AI & Art Generator
+│  › *${p}menu music* ➔ Music & Audio Studio
+│  › *${p}menu dl* ➔ Video Downloaders
+│  › *${p}menu group* ➔ Group Management
+│  › *${p}menu tools* ➔ Privacy & Sticker Tools
 ╰──────────────────────────────
 
 🐉 *RED DRAGON OFC • CYPHER-X BOT ENGINE*`;
 
             await client.sendMessage(m.chat, {
-                text: fullMenuText,
+                text: fullText,
                 contextInfo: {
                     externalAdReply: {
                         title: "🐉 RED DRAGON / CYPHER-X BOT",
-                        body: `535 Commands Loaded • ${uptime} Uptime`,
+                        body: `${totalCmdCount} Commands Active • ${uptime} Uptime`,
                         thumbnailUrl: "https://i.imgur.com/2wzL9Zc.png",
                         sourceUrl: "https://github.com/Skybee-eam/bot",
                         mediaType: 1,
@@ -162,4 +208,5 @@ module.exports = {
         }
     }
 };
+
 
