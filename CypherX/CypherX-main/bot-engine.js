@@ -414,14 +414,22 @@ function getArg(name) {
         } catch {}
       }
 
-      m.isAdmin = isAdmin;
-      m.isBotAdmin = isBotAdmin;
+      const botNumber = jidNormalizedUser(Cypher.user.id);
+      const botCleanNumber = botNumber.split('@')[0].split(':')[0];
+
+      // Auto-set the linked WhatsApp account as owner of its own bot instance
+      m.isOwner = m.fromMe ||
+                  m.sender.replace(/[^0-9]/g, '') === botCleanNumber ||
+                  m.sender === botNumber ||
+                  (global.ownerNumber && global.ownerNumber.includes(m.sender.split('@')[0]));
 
       const globalContext = {
         Cypher,
+        client: Cypher,
         m,
         reply: m.reply,
         text,
+        q: text,
         args,
         prefix,
         command,
@@ -435,11 +443,22 @@ function getArg(name) {
         isAdmin,
         isOwner: m.isOwner,
         isCreator: m.isOwner,
-        mainOwner: global.ownerNumber || '',
+        botNumber,
+        botCleanNumber,
+        mainOwner: global.ownerNumber || botCleanNumber,
         mess: global.mess || {},
         quoted: m.quoted,
         mime: m.quoted?.mimetype || m.msg?.mimetype || '',
-        filter: ''
+        filter: '',
+        db: global.db || { settings: { mode: 'public' }, chats: {}, blacklist: {}, sudo: [] },
+        saveDatabase: async () => {
+          try {
+            const { saveDatabase } = require('./src/Core/database');
+            await saveDatabase();
+          } catch {}
+        },
+        loadBlacklist: () => ({ blacklisted_numbers: global.db?.blacklist?.blacklisted_numbers || [] }),
+        bad: []
       };
 
       // 1. Dispatch to loaded plugin (from plugins/ or src/Plugins/) if matched
