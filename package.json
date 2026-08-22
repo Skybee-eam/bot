@@ -4,7 +4,9 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "build": "npm install && npm --prefix CypherX/CypherX-main install",
+    "postinstall": "npm --prefix CypherX/CypherX-main install"
   },
   "dependencies": {
     "@whiskeysockets/baileys": "^6.7.8",
