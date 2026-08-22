@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RED DRAGON OFC — WhatsApp Bot</title>
+  <meta name="description" content="RED DRAGON OFC — Link your WhatsApp directly to the bot. Fast, secure, and instant connection.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Animated background particles -->
+  <div class="bg-grid"></div>
+  <div class="glow-orb glow-orb-1"></div>
+  <div class="glow-orb glow-orb-2"></div>
+
+  <div class="page-wrapper">
+
+    <!-- Header -->
+    <header class="site-header">
+      <div class="logo-badge">
+        <span class="logo-icon">🐉</span>
+        <span class="logo-text">RED DRAGON <span class="logo-ofc">OFC</span></span>
+      </div>
+      <div class="status-pill" id="statusPill">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText">Checking...</span>
+      </div>
+    </header>
+
+    <!-- Hero -->
+    <section class="hero">
+      <div class="hero-avatar">
+        <img src="https://i.ibb.co/vz1yW9s/dragon.png" alt="RED DRAGON Bot" onerror="this.style.display='none'">
+      </div>
+      <h1 class="hero-title">Connect Your <span class="text-fire">WhatsApp</span></h1>
+      <p class="hero-sub">Link your WhatsApp directly to the bot — no session file hassle. Choose your method below.</p>
+    </section>
+
+    <!-- Method cards -->
+    <div class="method-grid">
+
+      <!-- Card 1: Pairing Code -->
+      <div class="method-card" id="pairCard">
+        <div class="card-badge">Recommended</div>
+        <div class="card-icon">📱</div>
+        <h2 class="card-title">Pairing Code</h2>
+        <p class="card-desc">Generate a 8-digit pairing code and enter it in WhatsApp → Linked Devices. The bot links automatically.</p>
+        <button class="btn btn-primary" onclick="openModal('pairModal')">Get Pairing Code</button>
+      </div>
+
+      <!-- Card 2: Session ID -->
+      <div class="method-card" id="sessionCard">
+        <div class="card-badge card-badge-alt">Advanced</div>
+        <div class="card-icon">🔑</div>
+        <h2 class="card-title">Session ID</h2>
+        <p class="card-desc">Already have a <code>RED-DRAGON~...</code> session ID? Paste it here to link the bot instantly without scanning.</p>
+        <button class="btn btn-secondary" onclick="openModal('sessionModal')">Paste Session ID</button>
+      </div>
+
+    </div>
+
+    <footer class="site-footer">
+      <p>Powered by <span class="text-fire">RED DRAGON OFC</span> • WhatsApp Bot Technology</p>
+      <a href="https://whatsapp.com/channel/your-channel-id" target="_blank" class="footer-link">Support Channel ↗</a>
+    </footer>
+
+  </div>
+
+  <!-- ═══════ MODAL: Pairing Code ═══════ -->
+  <div class="modal-overlay" id="pairModal" onclick="closeOnOverlay(event, 'pairModal')">
+    <div class="modal-box">
+      <button class="modal-close" onclick="closeModal('pairModal')">✕</button>
+      <div class="modal-icon">📱</div>
+      <h2 class="modal-title">Get Pairing Code</h2>
+      <p class="modal-desc">Enter your phone number with country code (no + or spaces).</p>
+      <p class="modal-desc" style="font-size:0.8rem; color:#888;">Example: <code style="color:#ff4d4d;">2348012345678</code></p>
+
+      <input type="tel" id="phoneInput" class="modal-input" placeholder="e.g. 2348012345678" maxlength="15">
+      <button class="btn btn-primary btn-full" id="pairBtn" onclick="getPairCode()">Generate Code</button>
+
+      <div id="codeResult" class="code-result hidden">
+        <p class="code-label">Tap to copy your code:</p>
+        <div class="code-display" id="pairCode" onclick="copyCode()">--------</div>
+        <p class="code-hint">Open WhatsApp → <strong>Linked Devices</strong> → <strong>Link a Device</strong> → enter this code</p>
+        <div class="code-timer" id="codeTimer">⏳ Expires in <strong id="timerCount">3:00</strong></div>
+      </div>
+
+      <div id="pairError" class="alert-error hidden"></div>
+      <div id="pairSuccess" class="alert-success hidden"></div>
+    </div>
+  </div>
+
+  <!-- ═══════ MODAL: Session ID ═══════ -->
+  <div class="modal-overlay" id="sessionModal" onclick="closeOnOverlay(event, 'sessionModal')">
+    <div class="modal-box">
+      <button class="modal-close" onclick="closeModal('sessionModal')">✕</button>
+      <div class="modal-icon">🔑</div>
+      <h2 class="modal-title">Inject Session ID</h2>
+      <p class="modal-desc">Paste your full session ID below. It should start with <code style="color:#ff4d4d;">RED-DRAGON~</code></p>
+
+      <textarea id="sessionInput" class="modal-textarea" placeholder="RED-DRAGON~eyJub2lzZUtleSI6..."></textarea>
+      <button class="btn btn-primary btn-full" id="sessionBtn" onclick="injectSession()">Link Bot Now</button>
+
+      <div id="sessionError" class="alert-error hidden"></div>
+      <div id="sessionSuccess" class="alert-success hidden"></div>
+    </div>
+  </div>
+
+  <script>
+    // ── Status check on load ──
+    async function checkStatus() {
+      const pill = document.getElementById('statusPill');
+      const dot = document.getElementById('statusDot');
+      const text = document.getElementById('statusText');
+      try {
+        const res = await fetch('/api/session-status');
+        const data = await res.json();
+        if (data.linked) {
+          dot.className = 'status-dot dot-online';
+          text.textContent = `Bot linked${data.phone ? ' · ' + data.phone : ''}`;
+          pill.style.borderColor = 'rgba(0,200,80,0.4)';
+        } else {
+          dot.className = 'status-dot dot-offline';
+          text.textContent = 'Not linked';
+          pill.style.borderColor = 'rgba(255,60,60,0.4)';
+        }
+      } catch {
+        dot.className = 'status-dot dot-offline';
+        text.textContent = 'Server offline';
+      }
+    }
+    checkStatus();
+
+    // ── Modal helpers ──
+    function openModal(id) {
+      document.getElementById(id).classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+    function closeModal(id) {
+      document.getElementById(id).classList.remove('active');
+      document.body.style.overflow = '';
+    }
+    function closeOnOverlay(e, id) {
+      if (e.target === document.getElementById(id)) closeModal(id);
+    }
+
+    // ── Pair code ──
+    let timerInterval = null;
+
+    async function getPairCode() {
+      const phone = document.getElementById('phoneInput').value.replace(/[^0-9]/g, '');
+      const btn = document.getElementById('pairBtn');
+      const errBox = document.getElementById('pairError');
+      const successBox = document.getElementById('pairSuccess');
+      const codeResult = document.getElementById('codeResult');
+
+      errBox.classList.add('hidden');
+      successBox.classList.add('hidden');
+
+      if (!phone || phone.length < 7) {
+        showError('pairError', 'Please enter a valid phone number with country code.');
+        return;
+      }
+
+      btn.textContent = 'Generating...';
+      btn.disabled = true;
+
+      try {
+        const res = await fetch(`/api/pair-code?phone=${phone}`);
+        const data = await res.json();
+
+        if (data.code) {
+          document.getElementById('pairCode').textContent = data.code;
+          codeResult.classList.remove('hidden');
+          startTimer(180);
+        } else {
+          showError('pairError', data.error || 'Failed to generate code. Try again.');
+        }
+      } catch {
+        showError('pairError', 'Cannot reach the server. Is it running?');
+      } finally {
+        btn.textContent = 'Regenerate Code';
+        btn.disabled = false;
+      }
+    }
+
+    function startTimer(seconds) {
+      clearInterval(timerInterval);
+      let s = seconds;
+      const el = document.getElementById('timerCount');
+      timerInterval = setInterval(() => {
+        s--;
+        const m = Math.floor(s / 60);
+        const sec = String(s % 60).padStart(2, '0');
+        el.textContent = `${m}:${sec}`;
+        if (s <= 0) {
+          clearInterval(timerInterval);
+          el.textContent = 'Expired';
+          document.getElementById('codeResult').classList.add('hidden');
+        }
+      }, 1000);
+    }
+
+    function copyCode() {
+      const text = document.getElementById('pairCode').textContent;
+      if (text === '--------') return;
+      navigator.clipboard.writeText(text).then(() => {
+        const el = document.getElementById('pairCode');
+        el.textContent = 'Copied! ✓';
+        setTimeout(() => el.textContent = text, 1500);
+      });
+    }
+
+    // ── Session inject ──
+    async function injectSession() {
+      const sessionId = document.getElementById('sessionInput').value.trim();
+      const btn = document.getElementById('sessionBtn');
+      const errBox = document.getElementById('sessionError');
+      const successBox = document.getElementById('sessionSuccess');
+
+      errBox.classList.add('hidden');
+      successBox.classList.add('hidden');
+
+      if (!sessionId) {
+        showError('sessionError', 'Please paste your session ID first.');
+        return;
+      }
+      if (!sessionId.includes('~')) {
+        showError('sessionError', 'Session ID must be in the format RED-DRAGON~... (include the ~)');
+        return;
+      }
+
+      btn.textContent = 'Linking...';
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/api/inject-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          errBox.classList.add('hidden');
+          successBox.textContent = '✅ ' + data.message;
+          successBox.classList.remove('hidden');
+          document.getElementById('sessionInput').value = '';
+          checkStatus(); // refresh status pill
+        } else {
+          showError('sessionError', data.error || 'Failed to inject session.');
+        }
+      } catch {
+        showError('sessionError', 'Cannot reach the server. Is it running?');
+      } finally {
+        btn.textContent = 'Link Bot Now';
+        btn.disabled = false;
+      }
+    }
+
+    function showError(id, msg) {
+      const el = document.getElementById(id);
+      el.textContent = '⚠ ' + msg;
+      el.classList.remove('hidden');
+    }
+  </script>
+
+</body>
+</html>

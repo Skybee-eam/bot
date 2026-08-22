@@ -1,0 +1,21 @@
+{
+  "name": "dragon-pair-web",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.8",
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "node-cache": "^5.1.2",
+    "pino": "^9.0.0"
+  },
+  "overrides": {
+    "@whiskeysockets/baileys": {
+      "libsignal": "https://github.com/WhiskeySockets/libsignal-node/tarball/master"
+    }
+  }
+}

@@ -1,0 +1,4 @@
+node_modules/
+CypherX/CypherX-main/node_modules/
+.env
+tmp/
