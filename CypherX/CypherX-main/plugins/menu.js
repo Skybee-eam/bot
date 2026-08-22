@@ -51,14 +51,16 @@ const VERIFIED_COMMANDS = {
             { cmd: "tomp3", desc: "Convert replied video/audio to MP3" }
         ]
     },
-    "📥 MEDIA DOWNLOADERS": {
+    "📥 MEDIA & VIDEO DOWNLOADERS": {
         icon: "⚡",
         commands: [
+            { cmd: "video <title/url>", desc: "Search & download HD YouTube video" },
+            { cmd: "ytmp4 <url>", desc: "Download YouTube videos as MP4" },
+            { cmd: "movie <title>", desc: "Search & download movie trailer/clip" },
+            { cmd: "movieinfo <title>", desc: "Get full IMDb details, cast & synopsis" },
             { cmd: "tiktok <url>", desc: "Download TikTok videos without watermark" },
             { cmd: "ig <url>", desc: "Download Instagram Reels & posts" },
-            { cmd: "facebook <url>", desc: "Download Facebook HD videos" },
-            { cmd: "ytmp4 <url>", desc: "Download YouTube videos as MP4" },
-            { cmd: "video <title/url>", desc: "Search and download YouTube video" }
+            { cmd: "facebook <url>", desc: "Download Facebook HD videos" }
         ]
     },
     "👁️ PRIVACY & UTILITIES": {
