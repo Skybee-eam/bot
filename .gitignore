@@ -2,3 +2,10 @@ node_modules/
 CypherX/CypherX-main/node_modules/
 .env
 tmp/
+CypherX/CypherX-main/tmp/
+temp_sessions/
+session/
+CypherX/CypherX-main/session/
+src/Session/
+CypherX/CypherX-main/src/Session/
+*.db

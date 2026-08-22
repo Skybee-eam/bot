@@ -51,7 +51,16 @@
         <button class="btn btn-primary" onclick="openModal('pairModal')">Get Pairing Code</button>
       </div>
 
-      <!-- Card 2: Session ID -->
+      <!-- Card 2: QR Code -->
+      <div class="method-card" id="qrCard">
+        <div class="card-badge card-badge-qr">Easiest</div>
+        <div class="card-icon">📷</div>
+        <h2 class="card-title">QR Code</h2>
+        <p class="card-desc">Scan the QR code with your phone — just like adding a new linked device in WhatsApp. No phone number needed.</p>
+        <button class="btn btn-qr" onclick="openQrModal()">Scan QR Code</button>
+      </div>
+
+      <!-- Card 3: Session ID -->
       <div class="method-card" id="sessionCard">
         <div class="card-badge card-badge-alt">Advanced</div>
         <div class="card-icon">🔑</div>
@@ -61,6 +70,33 @@
       </div>
 
     </div>
+
+    <!-- ═══ Bot Control Panel ═══ -->
+    <section class="bot-panel" id="botPanel">
+      <div class="bot-panel-header">
+        <div class="bot-panel-title">
+          <span class="bot-panel-icon">🤖</span>
+          <div>
+            <h2 class="bot-title">Bot Control Panel</h2>
+            <p class="bot-subtitle" id="botSubtitle">Dark-Xploit CypherX</p>
+          </div>
+        </div>
+        <div class="bot-status-badge" id="botStatusBadge">
+          <span class="bot-status-dot" id="botStatusDot"></span>
+          <span id="botStatusText">Checking...</span>
+        </div>
+      </div>
+
+      <div class="bot-controls">
+        <button class="btn btn-primary" id="botStartBtn" onclick="botStart()" disabled>▶ Start Bot</button>
+        <button class="btn btn-stop" id="botStopBtn" onclick="botStop()" disabled>■ Stop Bot</button>
+      </div>
+
+      <div class="bot-log-wrap">
+        <div class="bot-log-label">📋 Live Log</div>
+        <div class="bot-log" id="botLog"><span class="log-placeholder">Waiting for bot activity...</span></div>
+      </div>
+    </section>
 
     <footer class="site-footer">
       <p>Powered by <span class="text-fire">RED DRAGON OFC</span> • WhatsApp Bot Technology</p>
@@ -93,6 +129,36 @@
     </div>
   </div>
 
+  <!-- ═══════ MODAL: QR Code ═══════ -->
+  <div class="modal-overlay" id="qrModal" onclick="closeOnOverlay(event, 'qrModal')">
+    <div class="modal-box modal-box-qr">
+      <button class="modal-close" onclick="closeQrModal()">✕</button>
+      <div class="modal-icon">📷</div>
+      <h2 class="modal-title">Scan to Link WhatsApp</h2>
+      <p class="modal-desc">Open WhatsApp → <strong style="color:#ccc">Linked Devices</strong> → <strong style="color:#ccc">Link a Device</strong>, then scan this QR.</p>
+
+      <div class="qr-wrapper" id="qrWrapper">
+        <div class="qr-loading" id="qrLoading">
+          <div class="qr-spinner"></div>
+          <p>Generating QR Code…</p>
+        </div>
+        <img class="qr-image hidden" id="qrImage" alt="WhatsApp QR Code">
+        <div class="qr-success hidden" id="qrLinked">
+          <div style="font-size:3rem;">✅</div>
+          <p style="color:#4ade80;font-weight:700;margin-top:10px;">WhatsApp Linked!</p>
+          <p style="color:#888;font-size:0.82rem;margin-top:6px;">The bot is now connected.</p>
+        </div>
+      </div>
+
+      <div class="qr-timer-bar" id="qrTimerBar"></div>
+      <div class="code-timer" id="qrTimerText" style="margin-top:8px;">⏳ QR expires in <strong id="qrTimerCount">0:55</strong></div>
+
+      <button class="btn btn-primary btn-full" id="qrRefreshBtn" onclick="startQrSession()" style="margin-top:16px;">🔄 Refresh QR</button>
+
+      <div id="qrError" class="alert-error hidden"></div>
+    </div>
+  </div>
+
   <!-- ═══════ MODAL: Session ID ═══════ -->
   <div class="modal-overlay" id="sessionModal" onclick="closeOnOverlay(event, 'sessionModal')">
     <div class="modal-box">
@@ -110,6 +176,195 @@
   </div>
 
   <script>
+    // ── Bot Control Panel ──
+    let botPollInterval = null;
+
+    async function refreshBotStatus() {
+      try {
+        const res = await fetch('/api/bot-status');
+        const data = await res.json();
+        const dot  = document.getElementById('botStatusDot');
+        const text = document.getElementById('botStatusText');
+        const badge = document.getElementById('botStatusBadge');
+        const startBtn = document.getElementById('botStartBtn');
+        const stopBtn  = document.getElementById('botStopBtn');
+        const subtitle = document.getElementById('botSubtitle');
+
+        if (data.status === 'running') {
+          dot.className = 'bot-status-dot bot-dot-running';
+          text.textContent = `Running${data.pid ? ' · PID ' + data.pid : ''}`;
+          badge.className = 'bot-status-badge badge-running';
+          startBtn.disabled = true;
+          stopBtn.disabled = false;
+          subtitle.textContent = 'Dark-Xploit CypherX · Active';
+        } else if (data.status === 'error') {
+          dot.className = 'bot-status-dot bot-dot-error';
+          text.textContent = 'Error';
+          badge.className = 'bot-status-badge badge-error';
+          startBtn.disabled = false;
+          stopBtn.disabled = true;
+          subtitle.textContent = 'Dark-Xploit CypherX · Error — check log';
+        } else {
+          dot.className = 'bot-status-dot bot-dot-stopped';
+          text.textContent = 'Stopped';
+          badge.className = 'bot-status-badge badge-stopped';
+          startBtn.disabled = false;
+          stopBtn.disabled = true;
+          subtitle.textContent = 'Dark-Xploit CypherX · Not running';
+        }
+
+        // Update log
+        if (data.log && data.log.length > 0) {
+          const logEl = document.getElementById('botLog');
+          logEl.innerHTML = data.log.map(l =>
+            `<span class="log-line${l.startsWith('ERR') ? ' log-err' : ''}">` +
+            escapeHtml(l) + '</span>'
+          ).join('');
+          logEl.scrollTop = logEl.scrollHeight;
+        }
+      } catch { /* server may be restarting */ }
+    }
+
+    async function botStart() {
+      document.getElementById('botStartBtn').disabled = true;
+      try {
+        const res = await fetch('/api/bot-start', { method: 'POST' });
+        const data = await res.json();
+        if (!data.success) alert(data.message);
+      } catch { alert('Cannot reach server.'); }
+      refreshBotStatus();
+    }
+
+    async function botStop() {
+      document.getElementById('botStopBtn').disabled = true;
+      try { await fetch('/api/bot-stop', { method: 'POST' }); } catch {}
+      refreshBotStatus();
+    }
+
+    function escapeHtml(s) {
+      return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    // Poll bot status every 3 seconds
+    refreshBotStatus();
+    setInterval(refreshBotStatus, 3000);
+
+    // ── QR Code flow ──
+    let qrPollInterval = null;
+    let qrTimerInterval = null;
+    let qrSessionId = null;
+
+    async function openQrModal() {
+      openModal('qrModal');
+      await startQrSession();
+    }
+
+    function closeQrModal() {
+      closeModal('qrModal');
+      stopQrPolling();
+    }
+
+    function stopQrPolling() {
+      clearInterval(qrPollInterval);
+      clearInterval(qrTimerInterval);
+      qrPollInterval = null;
+      qrTimerInterval = null;
+    }
+
+    async function startQrSession() {
+      stopQrPolling();
+      qrSessionId = 'qr_' + Date.now();
+
+      // Reset UI
+      document.getElementById('qrLoading').classList.remove('hidden');
+      document.getElementById('qrImage').classList.add('hidden');
+      document.getElementById('qrLinked').classList.add('hidden');
+      document.getElementById('qrError').classList.add('hidden');
+      document.getElementById('qrTimerText').classList.remove('hidden');
+      document.getElementById('qrRefreshBtn').disabled = true;
+
+      // Init QR session on backend
+      try {
+        const res = await fetch('/api/qr-start', { method: 'POST' });
+        const data = await res.json();
+        if (!data.success) {
+          showQrError(data.error || 'Failed to start QR session.');
+          return;
+        }
+        qrSessionId = data.sessionId;
+      } catch {
+        showQrError('Cannot reach the server.');
+        return;
+      }
+
+      document.getElementById('qrRefreshBtn').disabled = false;
+      // Poll for QR every 2s
+      qrPollInterval = setInterval(pollQr, 2000);
+      pollQr();
+    }
+
+    async function pollQr() {
+      if (!qrSessionId) return;
+      try {
+        const res = await fetch(`/api/qr-status?sessionId=${qrSessionId}`);
+        const data = await res.json();
+
+        if (data.linked) {
+          stopQrPolling();
+          document.getElementById('qrImage').classList.add('hidden');
+          document.getElementById('qrLoading').classList.add('hidden');
+          document.getElementById('qrTimerText').classList.add('hidden');
+          document.getElementById('qrLinked').classList.remove('hidden');
+          checkStatus();
+          return;
+        }
+
+        if (data.qr) {
+          const img = document.getElementById('qrImage');
+          img.src = data.qr;
+          img.classList.remove('hidden');
+          document.getElementById('qrLoading').classList.add('hidden');
+          document.getElementById('qrError').classList.add('hidden');
+
+          // Start/reset countdown from expiry (55s)
+          startQrTimer(55);
+        }
+
+        if (data.error) {
+          showQrError(data.error);
+          stopQrPolling();
+        }
+      } catch {
+        // silently retry
+      }
+    }
+
+    function startQrTimer(seconds) {
+      clearInterval(qrTimerInterval);
+      let s = seconds;
+      const bar = document.getElementById('qrTimerBar');
+      const count = document.getElementById('qrTimerCount');
+      const total = seconds;
+
+      qrTimerInterval = setInterval(() => {
+        s--;
+        const m = Math.floor(s / 60);
+        const sec = String(s % 60).padStart(2, '0');
+        count.textContent = `${m}:${sec}`;
+        bar.style.setProperty('--qr-progress', `${(s / total) * 100}%`);
+        if (s <= 0) {
+          clearInterval(qrTimerInterval);
+          count.textContent = 'Expired';
+        }
+      }, 1000);
+    }
+
+    function showQrError(msg) {
+      const el = document.getElementById('qrError');
+      el.textContent = '⚠ ' + msg;
+      el.classList.remove('hidden');
+      document.getElementById('qrLoading').classList.add('hidden');
+    }
     // ── Status check on load ──
     async function checkStatus() {
       const pill = document.getElementById('statusPill');
