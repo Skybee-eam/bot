@@ -480,6 +480,24 @@ function getArg(name) {
         return m.reply(menuText);
       }
 
+      // 3. Automatic AI Chatbot handler when chatbot mode is ON
+      if (!isCmd && body && !m.isGroup && global.db?.settings?.chatbot && !m.fromMe) {
+        try {
+          const aiPlugin = require('./plugins/ai.js');
+          if (typeof aiPlugin.fetchAIResponse === 'function') {
+            const aiReply = await aiPlugin.fetchAIResponse(body);
+            if (aiReply) {
+              await Cypher.sendMessage(m.chat, {
+                text: `🤖 *CypherX AI:*\n\n${aiReply}`
+              }, { quoted: m });
+              return;
+            }
+          }
+        } catch (aiErr) {
+          console.log('[Auto-Chatbot Error]:', aiErr.message);
+        }
+      }
+
     } catch (err) {
       console.error('[CYPHER-X] Error processing message:', err);
     }

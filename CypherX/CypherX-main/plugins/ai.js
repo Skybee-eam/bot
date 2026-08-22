@@ -43,10 +43,10 @@ async function searchWikipediaKnowledge(query) {
 function getConversationalReply(prompt) {
     const p = prompt.toLowerCase().trim();
     if (/^(hi|hello|hey|hola|yo|sup|good morning|good evening|good afternoon)\b/i.test(p)) {
-        return "Hello! 👋 I'm **CypherX AI**, your personal WhatsApp assistant. How can I help you today? You can ask me any question or type `.imagine <prompt>` to generate images!";
+        return "Hello! 👋 I'm **CypherX AI**, your personal WhatsApp assistant. How can I help you today? You can ask me any question, chat with me, or type `.imagine <prompt>` to generate images!";
     }
     if (/^(who are you|what is your name|who made you|who created you)\b/i.test(p)) {
-        return "I am **CypherX AI**, powered by Red Dragon / CypherX engine created by Tylor. I can assist you with information, research, definitions, image generation, and more!";
+        return "I am **CypherX AI**, powered by Red Dragon / CypherX engine. I can assist you with research, facts, definitions, coding, image generation, and more!";
     }
     if (/^(how are you|how do you do)\b/i.test(p)) {
         return "I'm doing great and ready to assist you! What would you like to explore or learn today?";
@@ -78,7 +78,7 @@ async function fetchAIResponse(prompt) {
             const res = await axios.post(endpoint, {
                 model: model,
                 messages: [
-                    { role: 'system', content: 'You are CypherX AI, a helpful, smart, and concise WhatsApp AI assistant.' },
+                    { role: 'system', content: 'You are CypherX AI, a helpful, smart, friendly, and concise WhatsApp AI assistant.' },
                     { role: 'user', content: prompt }
                 ]
             }, {
@@ -92,34 +92,78 @@ async function fetchAIResponse(prompt) {
             const content = res.data?.choices?.[0]?.message?.content;
             if (content && content.trim()) return content.trim();
         } catch (e) {
-            console.log('[AI] Configured API Key call failed:', e.message);
+            console.log('[AI] Configured API Key call note:', e.message);
         }
     }
 
-    // Tier 3: Real-time Wikipedia & Knowledge Base Engine (Fast, 100% reliable)
+    // Tier 3: Pollinations Free AI API (No API key required)
+    try {
+        const polUrl = `https://text.pollinations.ai/${encodeURIComponent(prompt)}?model=openai&system=${encodeURIComponent("You are CypherX AI, a friendly and smart WhatsApp chatbot assistant.")}`;
+        const polRes = await axios.get(polUrl, { timeout: 12000 });
+        if (polRes.data && typeof polRes.data === 'string' && polRes.data.trim().length > 5) {
+            return polRes.data.trim();
+        }
+    } catch (e) {}
+
+    // Tier 4: Real-time Wikipedia & Knowledge Base Engine (Fast, 100% reliable)
     const wikiResult = await searchWikipediaKnowledge(prompt);
     if (wikiResult) {
         return wikiResult;
     }
 
-    // Tier 4: Fallback conversational response
-    return `I received your prompt: *"${prompt}"*.\n\n💡 *Tip:* You can ask me factual questions (e.g. *".ai Who was Albert Einstein?"*, *".ai Capital of Japan"*) or create AI images using *".imagine <prompt>"*!`;
+    // Tier 5: Fallback conversational response
+    return `I received your prompt: *"${prompt}"*.\n\n💡 *Tip:* Ask me any question (e.g. *".ai Who was Albert Einstein?"*) or generate art using *".imagine <prompt>"*!`;
 }
 
 module.exports = {
     name: "ai",
-    alias: ["gpt", "ask", "gemini", "chatgpt", "bot", "imagine"],
+    alias: ["gpt", "ask", "gemini", "chatgpt", "bot", "imagine", "chatbot"],
     category: "ai",
-    description: "High-speed AI Chat and Image generation powered by CypherX Knowledge & Pollinations AI",
-    async execute(client, m, { text, prefix, command, reply }) {
+    description: "High-speed AI Chatbot and Image generator",
+    fetchAIResponse,
+    async execute(client, m, { text, prefix, command, reply, isOwner, db, saveDatabase }) {
         try {
-            if (!text) {
-                return reply(`⚠️ *Please provide a question or prompt, e.g.:*\n${prefix}${command} What is the fastest animal on earth?\n\n🎨 *Or generate images:* ${prefix}imagine a cybernetic dragon`);
+            const rawText = (text || '').trim();
+            const lowerText = rawText.toLowerCase();
+
+            // 1. Handle `.chatbot on` / `.chatbot off` / `.chatbot status` toggle command
+            if (command === 'chatbot') {
+                if (lowerText === 'on' || lowerText === 'enable' || lowerText === '1') {
+                    if (db && db.settings) db.settings.chatbot = true;
+                    if (global.db && global.db.settings) global.db.settings.chatbot = true;
+                    if (typeof saveDatabase === 'function') await saveDatabase();
+                    return reply(`🤖 *CypherX Auto-Chatbot is now ENABLED!* ✅\n\n_The bot will now automatically chat and reply to incoming messages in DM using AI._`);
+                }
+
+                if (lowerText === 'off' || lowerText === 'disable' || lowerText === '0') {
+                    if (db && db.settings) db.settings.chatbot = false;
+                    if (global.db && global.db.settings) global.db.settings.chatbot = false;
+                    if (typeof saveDatabase === 'function') await saveDatabase();
+                    return reply(`🤖 *CypherX Auto-Chatbot is now DISABLED.* ❌\n\n_Automatic AI replies in DM are turned off._`);
+                }
+
+                if (!rawText || lowerText === 'status') {
+                    const isEnabled = Boolean(global.db?.settings?.chatbot);
+                    return reply(
+                        `🤖 *CYPHER-X CHATBOT CONFIGURATION*\n\n` +
+                        `• *Status:* ${isEnabled ? '🟢 ACTIVE (Enabled)' : '🔴 INACTIVE (Disabled)'}\n\n` +
+                        `*Commands:*\n` +
+                        `• *${prefix}chatbot on* ➔ Enable auto-AI replies in DM\n` +
+                        `• *${prefix}chatbot off* ➔ Disable auto-AI replies in DM\n` +
+                        `• *${prefix}chatbot <question>* ➔ Ask a direct question to AI\n` +
+                        `• *${prefix}ai <question>* ➔ Smart AI assistant\n` +
+                        `• *${prefix}imagine <prompt>* ➔ Generate realistic AI art`
+                    );
+                }
             }
 
-            // Image generation command
-            if (command === 'imagine' || text.startsWith('draw ') || text.startsWith('image ')) {
-                const imgPrompt = text.replace(/^(draw|image)\s+/i, '');
+            if (!rawText) {
+                return reply(`⚠️ *Please provide a question or prompt, e.g.:*\n${prefix}${command} What is quantum physics?\n\n🎨 *Or generate art:* ${prefix}imagine cybernetic dragon`);
+            }
+
+            // 2. Image generation command
+            if (command === 'imagine' || rawText.startsWith('draw ') || rawText.startsWith('image ')) {
+                const imgPrompt = rawText.replace(/^(draw|image)\s+/i, '');
                 await client.sendMessage(m.chat, { react: { text: "🎨", key: m.key } });
 
                 const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(imgPrompt)}?width=1024&height=1024&nologo=true`;
@@ -130,16 +174,16 @@ module.exports = {
                 await client.sendMessage(m.chat, {
                     image: buffer,
                     caption: `🎨 *AI Image Generator*\n\n📝 *Prompt:* ${imgPrompt}\n✨ *Powered by CypherX AI*`
-                }, { quoted: m });
+                }, m.fromMe ? {} : { quoted: m });
 
                 await client.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
                 return;
             }
 
-            // Text Chat / Conversational AI
+            // 3. Text Chat / Conversational AI
             await client.sendMessage(m.chat, { react: { text: "🧠", key: m.key } });
 
-            const aiReply = await fetchAIResponse(text);
+            const aiReply = await fetchAIResponse(rawText);
 
             if (!aiReply) {
                 return reply("❌ *AI service is currently busy. Please try again shortly.*");
@@ -150,7 +194,7 @@ module.exports = {
 
             await client.sendMessage(m.chat, {
                 text: `${header}${aiReply}${footer}`
-            }, { quoted: m });
+            }, m.fromMe ? {} : { quoted: m });
 
             await client.sendMessage(m.chat, { react: { text: "✨", key: m.key } });
 
@@ -160,5 +204,3 @@ module.exports = {
         }
     }
 };
-
-
