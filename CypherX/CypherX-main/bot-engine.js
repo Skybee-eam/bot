@@ -49,10 +49,10 @@ process.stderr.write = (chunk, ...args) => {
   return _origStderr(chunk, ...args);
 };
 
-// Catch unhandled Bad MAC promise rejections silently
+// Catch unhandled Baileys crypto / decryption promise rejections silently
 process.on('unhandledRejection', (reason) => {
   const msg = reason?.message || String(reason);
-  if (msg.includes('Bad MAC') || msg.includes('Failed to decrypt')) return;
+  if (msg.includes('Bad MAC') || msg.includes('Failed to decrypt') || msg.includes('No sessions')) return;
   console.error('[CYPHER-X] Unhandled rejection:', msg);
 });
 
@@ -236,11 +236,23 @@ async function serializeMessage(Cypher, m) {
               (global.ownerNumber && global.ownerNumber.includes(m.sender.split('@')[0]));
 
   m.reply = async (text, options = {}) => {
+    // 1. Try quoted reply first
     try {
       return await Cypher.sendMessage(m.chat, { text: String(text), ...options }, { quoted: m });
     } catch (err) {
-      console.warn(`[REPLY] Quoted reply failed in ${m.chat}, sending direct:`, err.message);
-      return await Cypher.sendMessage(m.chat, { text: String(text), ...options });
+      // 2. If quoted reply fails (e.g. No sessions for participant or LID), retry direct after 200ms
+      try {
+        await new Promise(r => setTimeout(r, 200));
+        return await Cypher.sendMessage(m.chat, { text: String(text), ...options });
+      } catch (err2) {
+        // 3. Final fallback retry with slight backoff
+        try {
+          await new Promise(r => setTimeout(r, 500));
+          return await Cypher.sendMessage(m.chat, { text: String(text), ...options });
+        } catch (err3) {
+          console.error(`[REPLY] Send failed in ${m.chat}:`, err3.message);
+        }
+      }
     }
   };
 
@@ -320,6 +332,13 @@ function getArg(name) {
     defaultQueryTimeoutMs: 0,
     keepAliveIntervalMs: 25000,
     msgRetryCounterCache,
+    cachedGroupMetadata: async (jid) => {
+      try {
+        return await Cypher.groupMetadata(jid);
+      } catch {
+        return null;
+      }
+    },
     getMessage: async (key) => {
       if (messageStore.has(key.id)) {
         return messageStore.get(key.id);

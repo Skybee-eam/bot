@@ -240,7 +240,7 @@ class MultiBotManager {
 
     bot.status = 'running';
     bot.startedAt = new Date();
-    this.appendLog(cleanPhone, `Starting CypherX Bot Engine for +${cleanPhone}...`);
+    this.appendLog(cleanPhone, `Starting Skybee Bot Engine for +${cleanPhone}...`);
 
     try {
       const proc = spawn('node', [BOT_ENTRY, '--session', sessionDir, '--phone', cleanPhone], {
