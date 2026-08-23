@@ -173,7 +173,7 @@ module.exports = {
 
                 await client.sendMessage(m.chat, {
                     image: buffer,
-                    caption: `🎨 *AI Image Generator*\n\n📝 *Prompt:* ${imgPrompt}\n✨ *Powered by CypherX AI*`
+                    caption: `🎨 *AI Image Generator*\n\n📝 *Prompt:* ${imgPrompt}\n✨ *Powered by Skybee AI*`
                 }, m.fromMe ? {} : { quoted: m });
 
                 await client.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
@@ -189,7 +189,7 @@ module.exports = {
                 return reply("❌ *AI service is currently busy. Please try again shortly.*");
             }
 
-            const header = `╭━━━〔 🤖 *CYPHER-X AI* 〕━━━╮\n`;
+            const header = `╭━━━〔 🤖 *SKYBEE AI* 〕━━━╮\n`;
             const footer = `\n╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯`;
 
             await client.sendMessage(m.chat, {

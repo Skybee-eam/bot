@@ -683,17 +683,20 @@ function getArg(name) {
       }
 
       // 3. Automatic AI Chatbot handler
-      const chatbotEnabled = global.db?.settings?.chatbot !== false; // Active by default
+      // IMPORTANT: Never respond to bot's own outgoing messages (prevents double replies and loops)
+      if (m.fromMe) return;
+
+      const chatbotEnabled = global.db?.settings?.chatbot === true; // Active when .chatbot on is set
       const msgContextInfo = m.msg?.contextInfo || m.message?.extendedTextMessage?.contextInfo;
       const isMentionedInGroup = m.isGroup && (
         msgContextInfo?.mentionedJid?.includes(botNumber) ||
         (m.quoted && m.quoted.sender === botNumber)
       );
 
-      // Trigger chatbot in DM (both incoming and self-test), or when tagged in group
-      if (!isCmd && body && (isMentionedInGroup || !m.isGroup) && chatbotEnabled) {
-        // Ignore single character or punctuation only
-        if (body.length >= 2 && !body.startsWith('.')) {
+      // Trigger chatbot in DM when enabled, or when tagged in group
+      if (!isCmd && body && (isMentionedInGroup || (!m.isGroup && chatbotEnabled))) {
+        // Ignore single character, bot output headers, or punctuation only
+        if (body.length >= 2 && !body.startsWith('.') && !body.startsWith('╭━━━') && !body.startsWith('🐝') && !body.startsWith('🤖')) {
           try {
             const aiPlugin = require('./plugins/ai.js');
             if (typeof aiPlugin.fetchAIResponse === 'function') {
@@ -706,8 +709,8 @@ function getArg(name) {
                 const aiReply = await aiPlugin.fetchAIResponse(cleanPrompt);
                 if (aiReply) {
                   await Cypher.sendMessage(m.chat, {
-                    text: `🤖 *CypherX AI:*\n\n${aiReply}`
-                  }, m.fromMe ? {} : { quoted: m });
+                    text: `🤖 *Skybee AI:*\n\n${aiReply}`
+                  }, { quoted: m });
                   await Cypher.sendMessage(m.chat, { react: { text: "✨", key: m.key } });
                   return;
                 }
