@@ -26,9 +26,9 @@ const PORT = process.env.PORT || 3000;
 // ─────────────────────────────────────────────────────────────────
 // ACCESS CODE PROTECTION
 // Set ACCESS_CODE environment variable to change the secret code
-// Default code: REDDRAGON2024
+// Default code: SKYBEE2026
 // ─────────────────────────────────────────────────────────────────
-const ACCESS_CODE = process.env.ACCESS_CODE || 'REDDRAGON2024';
+const ACCESS_CODE = process.env.ACCESS_CODE || 'SKYBEE2026';
 
 function requireAccessCode(req, res, next) {
   const provided = req.headers['x-access-code'] ||
