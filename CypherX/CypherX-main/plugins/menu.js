@@ -110,10 +110,13 @@ const VERIFIED_COMMANDS = {
     "💡 MOTIVATION & INSPIRATION": {
         icon: "✨",
         commands: [
-            { cmd: "motivation", desc: "Daily motivational quotes & success advice" },
-            { cmd: "quote", desc: "Inspirational thoughts from famous leaders" },
-            { cmd: "mindset", desc: "Powerful growth and discipline quotes" },
-            { cmd: "inspire", desc: "Uplifting words to boost your day" }
+            { cmd: "automindset on/off", desc: "Toggle 24/7 hourly motivation broadcasts" },
+            { cmd: "automindset status", desc: "Check hourly mindset telemetry" },
+            { cmd: "automindset test", desc: "Test run an instant hourly mindset broadcast" },
+            { cmd: "automindset group", desc: "Toggle hourly mindset in current group" },
+            { cmd: "motivation", desc: "Instant motivational quotes & success advice" },
+            { cmd: "mindset", desc: "Powerful growth and discipline principles" },
+            { cmd: "quote", desc: "Inspirational thoughts from iconic leaders" }
         ]
     },
     "⚡ SYSTEM & CORE METRICS": {

@@ -392,6 +392,16 @@ function getArg(name) {
       console.log('==============================================');
       retryCount = 0;
       isStarting = false;
+
+      // Initialize Hourly Auto-Mindset Motivation Scheduler
+      try {
+        const motivationPlugin = require('./plugins/motivation.js');
+        if (typeof motivationPlugin.initAutoMindsetScheduler === 'function') {
+          motivationPlugin.initAutoMindsetScheduler(Cypher);
+        }
+      } catch (mErr) {
+        console.warn('[AUTO-MINDSET Init Note]:', mErr.message);
+      }
     }
 
     if (connection === 'close') {
