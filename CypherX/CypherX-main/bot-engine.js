@@ -564,6 +564,106 @@ function getArg(name) {
       console.error('[CYPHER-X] Error in reaction handler:', err);
     }
   });
+
+  // 6. Handle Group Join & Leave Events (Welcome & Goodbye System)
+  Cypher.ev.on('group-participants.update', async (update) => {
+    try {
+      const { id, participants, action } = update;
+      if (!id || !participants || !participants.length) return;
+
+      // Check if welcome messages are active for this group (active by default unless disabled)
+      const isWelcomeEnabled = global.db?.chats?.[id]?.welcome !== false;
+      if (!isWelcomeEnabled) return;
+
+      let groupMetadata;
+      try {
+        groupMetadata = await Cypher.groupMetadata(id);
+      } catch (metaErr) {
+        console.warn(`[GROUP-UPDATE] Could not fetch group metadata for ${id}:`, metaErr.message);
+        groupMetadata = { subject: 'the group', participants: [], desc: '' };
+      }
+
+      const groupName = groupMetadata.subject || 'the group';
+      const memberCount = groupMetadata.participants ? groupMetadata.participants.length : '—';
+      const groupDesc = groupMetadata.desc ? `\n\n📜 *Group Rules / Description:*\n${groupMetadata.desc}` : '';
+
+      for (const jid of participants) {
+        if (!jid) continue;
+        const cleanJid = jidNormalizedUser(jid);
+        const userTag = `@${cleanJid.split('@')[0]}`;
+
+        // Get user profile pic or fallback
+        let profilePic = null;
+        try {
+          profilePic = await Cypher.profilePictureUrl(cleanJid, 'image');
+        } catch {
+          try {
+            profilePic = await Cypher.profilePictureUrl(id, 'image');
+          } catch {
+            profilePic = 'https://i.imgur.com/6VBx3io.png';
+          }
+        }
+
+        if (action === 'add') {
+          const welcomeCaption =
+            `╭━━━〔 🐝 𝐒𝐊𝐘𝐁𝐄𝐄 𝐁𝐎𝐓 〕━━━╮\n` +
+            `│ 👋 *Welcome to ${groupName}!* \n` +
+            `│\n` +
+            `│ 👤 *Member:* ${userTag}\n` +
+            `│ 👥 *Total Members:* ${memberCount}\n` +
+            `│ 🤖 *Automation:* Active\n` +
+            `╰━━━━━━━━━━━━━━━━━━━━━╯` +
+            groupDesc +
+            `\n\n⚡ *Type .menu to explore commands and features!*`;
+
+          try {
+            if (profilePic) {
+              await Cypher.sendMessage(id, {
+                image: { url: profilePic },
+                caption: welcomeCaption,
+                mentions: [cleanJid]
+              });
+            } else {
+              await Cypher.sendMessage(id, {
+                text: welcomeCaption,
+                mentions: [cleanJid]
+              });
+            }
+          } catch (sendErr) {
+            console.error('[WELCOME Send Error]:', sendErr.message);
+          }
+
+        } else if (action === 'remove') {
+          const goodbyeCaption =
+            `╭━━━〔 🐝 𝐒𝐊𝐘𝐁𝐄𝐄 𝐁𝐎𝐓 〕━━━╮\n` +
+            `│ 🚪 *Farewell ${userTag}*\n` +
+            `│ We'll miss you in *${groupName}*!\n` +
+            `│ 👥 *Remaining Members:* ${memberCount}\n` +
+            `╰━━━━━━━━━━━━━━━━━━━━━╯\n` +
+            `⚡ *SKYBEE BOT • CONNECTIVITY AND AUTOMATION*`;
+
+          try {
+            if (profilePic) {
+              await Cypher.sendMessage(id, {
+                image: { url: profilePic },
+                caption: goodbyeCaption,
+                mentions: [cleanJid]
+              });
+            } else {
+              await Cypher.sendMessage(id, {
+                text: goodbyeCaption,
+                mentions: [cleanJid]
+              });
+            }
+          } catch (sendErr) {
+            console.error('[GOODBYE Send Error]:', sendErr.message);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[GROUP-UPDATE Error]:', err);
+    }
+  });
 }
 
 startCypherBot().catch((err) => {

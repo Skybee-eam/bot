@@ -342,7 +342,9 @@ class PluginManager {
           isOwner: globalContext.isOwner || false,
           quoted: globalContext.quoted || null,
           mime: globalContext.mime || '',
-          reply: globalContext.reply || m.reply
+          reply: globalContext.reply || m.reply,
+          db: globalContext.db || global.db,
+          saveDatabase: globalContext.saveDatabase
         };
         await plugin.execute(client, m, options);
         return true;
