@@ -96,6 +96,17 @@ const VERIFIED_COMMANDS = {
             { cmd: "link", desc: "Retrieve group invitation link" }
         ]
     },
+    "🕊️ RELIGION & SACRED SCRIPTURES": {
+        icon: "📖",
+        commands: [
+            { cmd: "bible <book chapter:verse>", desc: "Look up Holy Bible scriptures (e.g. John 3:16)" },
+            { cmd: "dailyverse", desc: "Inspirational Bible verse of the day" },
+            { cmd: "quran <surah:ayah>", desc: "Look up Holy Quran with Arabic & English (e.g. 2:255)" },
+            { cmd: "surah <number>", desc: "Explore entire Quranic Surahs" },
+            { cmd: "quranaudio <surah:ayah>", desc: "Listen to crystal clear Quran MP3 recitation" },
+            { cmd: "dailyayah", desc: "Inspirational Quranic Ayah of the day" }
+        ]
+    },
     "⚡ SYSTEM & CORE METRICS": {
         icon: "📊",
         commands: [
