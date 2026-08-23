@@ -77,7 +77,7 @@ module.exports = {
 
             const senderInfo = m.isGroup ? `\n👥 *From Group:* ${m.chat}` : '';
             const caption = (mediaNode.caption ? `💬 *Caption:* ${mediaNode.caption}\n\n` : '') +
-                            `🔓 *Secret View-Once Media Retrieved*` + senderInfo;
+                `🔓 *Secret View-Once Media Retrieved*` + senderInfo;
 
             // Send permanently to the sender's private DM
             if (mediaType === 'image') {
@@ -105,7 +105,8 @@ module.exports = {
                 await client.sendMessage(targetJid, {
                     text: `❌ *Failed to retrieve View Once media:* ${error.message}`
                 });
-            } catch {}
+            } catch { }
         }
     }
 };
+S
