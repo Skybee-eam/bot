@@ -122,6 +122,8 @@ const VERIFIED_COMMANDS = {
     "⚡ SYSTEM & CORE METRICS": {
         icon: "📊",
         commands: [
+            { cmd: "link", desc: "Get official Skybee Bot store activation link" },
+            { cmd: "store", desc: "Share bot referral link with friends" },
             { cmd: "ping", desc: "Check server latency & ping response" },
             { cmd: "alive", desc: "Display bot health & system status" },
             { cmd: "runtime", desc: "Display active uptime duration" },

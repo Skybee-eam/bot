@@ -1,0 +1,53 @@
+/**
+ * 🐝 Skybee Bot Store Activation & Referral Link Plugin
+ * Sends the official Render Cloud link for users to pair and host their own 24/7 bot
+ */
+
+module.exports = {
+    name: "link",
+    alias: ["store", "join", "pair", "getbot", "botlink", "storelink", "hostbot", "connectbot"],
+    category: "general",
+    description: "Sends the official Skybee Bot Activation Store link to pair or join the cloud",
+    async execute(client, m, { args, text, prefix, command, reply }) {
+        try {
+            const senderName = m.pushName || 'Friend';
+            const cleanRef = encodeURIComponent(senderName);
+            const storeUrl = `https://bot-z47t.onrender.com/store`;
+            const refStoreUrl = `https://bot-z47t.onrender.com/store?ref=${cleanRef}`;
+
+            const linkMsg = `╭━━━━〔 🐝 𝐒𝐊𝐘𝐁𝐄𝐄 𝐁𝐎𝐓 𝐒𝐓𝐎𝐑𝐄 〕━━━━╮\n` +
+                            `┃ ✨ *HOST YOUR OWN 24/7 WHATSAPP BOT*\n` +
+                            `┃ ⚡ *Ultra-Fast Cloud Activation in 60s*\n` +
+                            `╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯\n\n` +
+                            `🚀 *Activate Your Bot Now:*\n` +
+                            `👉 *Store Link:* ${storeUrl}\n\n` +
+                            `🤝 *Personalized Referral Link:*\n` +
+                            `👉 ${refStoreUrl}\n\n` +
+                            `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+                            `📦 *Everything Included:* \n` +
+                            `• ⚡ *577+ Commands* & Automated Tools\n` +
+                            `• 🤖 *AI ChatGPT & Smart Assistant*\n` +
+                            `• 🎵 *Music & Full Movie Downloaders*\n` +
+                            `• 🛡️ *Group Security & Auto Moderation*\n` +
+                            `• 👁️ *24/7 Auto View Status & Reactions*\n` +
+                            `• 🔒 *Anti-Delete & Anti-Call Protection*\n` +
+                            `• 📖 *Holy Bible & Holy Quran Audio Suite*\n` +
+                            `• ☁️ *Runs 24/7 in Cloud (No Phone Battery Drain)*\n` +
+                            `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+                            `📱 *How to Link Your WhatsApp:* \n` +
+                            `1️⃣ Open the Store Link: ${storeUrl}\n` +
+                            `2️⃣ Enter your WhatsApp Number\n` +
+                            `3️⃣ Copy your *8-Digit Pairing Code*\n` +
+                            `4️⃣ In WhatsApp: *Linked Devices* → *Link with Phone Number*\n` +
+                            `5️⃣ Enter Code & Enjoy your 24/7 Skybee Bot! 🎉\n\n` +
+                            `💡 _Share the link with friends so they can activate their own bot too!_`;
+
+            await client.sendMessage(m.chat, {
+                text: linkMsg
+            }, { quoted: m });
+        } catch (error) {
+            console.error('[Link Plugin Error]:', error);
+            reply(`❌ *Failed to generate store link:* ${error.message}`);
+        }
+    }
+};
