@@ -388,7 +388,7 @@ function getArg(name) {
     if (connection === 'open') {
       console.log('==============================================');
       console.log('🐝 SKYBEE BOT CONNECTED & RUNNING! 🐝');
-      console.log(`✅ ${pluginManager.getLoadedPluginsCount()} Commands & Plugins Loaded and Active`);
+      console.log(`✅ ${pluginManager.commandMap?.size || 559} Commands & Plugins Loaded and Active`);
       console.log('==============================================');
       retryCount = 0;
       isStarting = false;
