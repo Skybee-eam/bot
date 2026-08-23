@@ -341,7 +341,8 @@ function getArg(name) {
     },
     getMessage: async (key) => {
       if (messageStore.has(key.id)) {
-        return messageStore.get(key.id);
+        const item = messageStore.get(key.id);
+        return item.message || item;
       }
       return proto.Message.fromObject({});
     }
@@ -367,29 +368,30 @@ function getArg(name) {
     else if (/\.(mp4|mkv|avi|mov)/i.test(ext)) type = 'video';
     else if (/\.(mp3|m4a|wav|opus|ogg)/i.test(ext)) type = 'audio';
 
-    const sendPayload = {};
-    if (type === 'image') sendPayload.image = buffer;
-    else if (type === 'video') sendPayload.video = buffer;
-    else if (type === 'audio') { sendPayload.audio = buffer; sendPayload.ptt = ptt; sendPayload.mimetype = 'audio/mp4'; }
-    else { sendPayload.document = buffer; sendPayload.mimetype = options.mimetype || 'application/octet-stream'; sendPayload.fileName = filename; }
+    const sendOptions = { [type]: buffer, caption, ...options };
+    if (type === 'document') sendOptions.fileName = filename;
+    if (type === 'audio' && ptt) sendOptions.ptt = true;
 
-    if (caption && type !== 'audio') sendPayload.caption = caption;
-
-    return Cypher.sendMessage(jid, sendPayload, { quoted, ...options });
+    return Cypher.sendMessage(jid, sendOptions, quoted ? { quoted } : {});
   };
 
   Cypher.ev.on('creds.update', saveCreds);
 
+  // Connection update event
   Cypher.ev.on('connection.update', async (update) => {
-    const { connection, lastDisconnect } = update;
+    const { connection, lastDisconnect, qr } = update;
+
+    if (qr) {
+      console.log('[CYPHER-X] QR Code received.');
+    }
 
     if (connection === 'open') {
+      console.log('==============================================');
+      console.log('🐝 SKYBEE BOT CONNECTED & RUNNING! 🐝');
+      console.log(`✅ ${pluginManager.getLoadedPluginsCount()} Commands & Plugins Loaded and Active`);
+      console.log('==============================================');
       retryCount = 0;
       isStarting = false;
-      console.log('\n==============================================');
-      console.log('  🐝 SKYBEE BOT CONNECTED & RUNNING! 🐝  ');
-      console.log(`  ✅ ${pluginManager.commandMap.size} Commands & Plugins Loaded and Active `);
-      console.log('==============================================\n');
     }
 
     if (connection === 'close') {
@@ -417,13 +419,119 @@ function getArg(name) {
       if (!messages || !messages[0]) return;
       const rawMsg = messages[0];
 
-      // Save raw message for retry decryption if needed
+      // Save raw message for retry decryption and anti-delete recovery
       if (rawMsg.key && rawMsg.key.id && rawMsg.message) {
-        messageStore.set(rawMsg.key.id, rawMsg.message);
-        if (messageStore.size > 500) {
-          const firstKey = messageStore.keys().next().value;
-          messageStore.delete(firstKey);
+        const unwrapped = unwrapMessage(rawMsg.message);
+        if (!unwrapped?.protocolMessage) {
+          messageStore.set(rawMsg.key.id, {
+            message: rawMsg.message,
+            key: rawMsg.key,
+            sender: rawMsg.key.participant || rawMsg.key.remoteJid,
+            pushName: rawMsg.pushName || '',
+            chat: rawMsg.key.remoteJid,
+            isGroup: rawMsg.key.remoteJid?.endsWith('@g.us'),
+            timestamp: rawMsg.messageTimestamp || Math.floor(Date.now() / 1000)
+          });
+          if (messageStore.size > 2500) {
+            const firstKey = messageStore.keys().next().value;
+            messageStore.delete(firstKey);
+          }
         }
+      }
+
+      // Check for Anti-Delete / Revoke protocol messages
+      const protoMsg = rawMsg.message?.protocolMessage || unwrapMessage(rawMsg.message)?.protocolMessage;
+      if (protoMsg && (protoMsg.type === 0 || protoMsg.type === 'REVOKE' || protoMsg.type === 3)) {
+        const deletedId = protoMsg.key?.id;
+        const antiDeleteSetting = global.db?.settings?.antidelete || 'private';
+
+        if (antiDeleteSetting !== 'off' && deletedId && messageStore.has(deletedId)) {
+          const cached = messageStore.get(deletedId);
+          const botOwnerJid = jidNormalizedUser(Cypher.user.id);
+          const targetChat = (antiDeleteSetting === 'chat' && cached.chat) ? cached.chat : botOwnerJid;
+
+          const senderJid = cached.sender || '';
+          const senderName = cached.pushName || senderJid.split('@')[0] || 'User';
+          const senderTag = `@${senderJid.split('@')[0]}`;
+          const isGrp = cached.isGroup;
+          const chatLocation = isGrp ? `👥 Group Chat` : `👤 Private DM`;
+          const timeStr = new Date((cached.timestamp || Date.now() / 1000) * 1000).toLocaleTimeString();
+
+          const headerText =
+            `╭━━━〔 🗑️ *ANTI-DELETE RECOVERY* 〕━━━╮\n` +
+            `│ 👤 *Deleted By:* ${senderTag} (${senderName})\n` +
+            `│ 💬 *Chat:* ${chatLocation}\n` +
+            `│ ⏱️ *Sent At:* ${timeStr}\n` +
+            `╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯\n\n`;
+
+          try {
+            const inner = unwrapMessage(cached.message);
+            const msgType = Object.keys(inner || {})[0];
+
+            if (msgType === 'conversation' || msgType === 'extendedTextMessage') {
+              const textContent = inner.conversation || inner.extendedTextMessage?.text || '';
+              await Cypher.sendMessage(targetChat, {
+                text: `${headerText}📝 *Deleted Message Content:*\n${textContent}`,
+                mentions: [senderJid]
+              });
+            } else if (msgType === 'imageMessage') {
+              const mediaBuf = await downloadMediaMessage(inner);
+              const caption = inner.imageMessage?.caption || '';
+              await Cypher.sendMessage(targetChat, {
+                image: mediaBuf,
+                caption: `${headerText}${caption ? `📝 *Caption:* ${caption}` : ''}`,
+                mentions: [senderJid]
+              });
+            } else if (msgType === 'videoMessage') {
+              const mediaBuf = await downloadMediaMessage(inner);
+              const caption = inner.videoMessage?.caption || '';
+              await Cypher.sendMessage(targetChat, {
+                video: mediaBuf,
+                caption: `${headerText}${caption ? `📝 *Caption:* ${caption}` : ''}`,
+                mentions: [senderJid]
+              });
+            } else if (msgType === 'stickerMessage') {
+              const mediaBuf = await downloadMediaMessage(inner);
+              await Cypher.sendMessage(targetChat, {
+                text: `${headerText}🎨 *Recovered Deleted Sticker:*`,
+                mentions: [senderJid]
+              });
+              await Cypher.sendMessage(targetChat, { sticker: mediaBuf });
+            } else if (msgType === 'audioMessage') {
+              const mediaBuf = await downloadMediaMessage(inner);
+              await Cypher.sendMessage(targetChat, {
+                text: `${headerText}🎵 *Recovered Deleted Voice Note / Audio:*`,
+                mentions: [senderJid]
+              });
+              await Cypher.sendMessage(targetChat, {
+                audio: mediaBuf,
+                mimetype: inner.audioMessage?.mimetype || 'audio/mp4',
+                ptt: !!inner.audioMessage?.ptt
+              });
+            } else if (msgType === 'documentMessage') {
+              const mediaBuf = await downloadMediaMessage(inner);
+              const fileName = inner.documentMessage?.fileName || 'document';
+              await Cypher.sendMessage(targetChat, {
+                document: mediaBuf,
+                fileName,
+                caption: `${headerText}📁 *Recovered Deleted File:* ${fileName}`,
+                mimetype: inner.documentMessage?.mimetype || 'application/octet-stream',
+                mentions: [senderJid]
+              });
+            } else {
+              const rawTxt = getMessageText({ message: cached.message });
+              if (rawTxt) {
+                await Cypher.sendMessage(targetChat, {
+                  text: `${headerText}📝 *Deleted Content:*\n${rawTxt}`,
+                  mentions: [senderJid]
+                });
+              }
+            }
+          } catch (delErr) {
+            console.warn('[ANTI-DELETE Note]:', delErr.message);
+          }
+        }
+        return;
       }
 
       // 0. Auto View Status & Auto React Handler

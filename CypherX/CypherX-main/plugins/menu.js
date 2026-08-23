@@ -68,6 +68,8 @@ const VERIFIED_COMMANDS = {
     "👁️ PRIVACY & UTILITIES": {
         icon: "🛠️",
         commands: [
+            { cmd: "antidelete private/chat/off", desc: "Recover deleted messages, photos & audio" },
+            { cmd: "antidelete status", desc: "Check current anti-delete mode" },
             { cmd: "autostatus on/off", desc: "Toggle 24/7 automatic status viewing" },
             { cmd: "statusreact on/off", desc: "Toggle automatic emoji reactions on statuses" },
             { cmd: "setstatusemoji <emoji>", desc: "Customize auto reaction emoji (e.g. 💚)" },
