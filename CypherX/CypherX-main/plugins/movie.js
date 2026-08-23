@@ -112,7 +112,7 @@ module.exports = {
         try {
             if (!text) {
                 return reply(
-                    `🎬 *RED DRAGON CINEMA HUB*\n\n` +
+                    `🎬 *SKYBEE CINEMA HUB*\n\n` +
                     `• *${prefix}movie <title>* — Download FULL movie\n` +
                     `• *${prefix}movieinfo <title>* — Movie details & IMDb info\n\n` +
                     `Example: \`${prefix}movie Inception\``
@@ -146,7 +146,7 @@ module.exports = {
 📖 *SYNOPSIS:*
 _${movie.Plot || "No plot available."}_
 
-🐉 *RED DRAGON CINEMA STUDIO*`;
+🐝 *SKYBEE CINEMA STUDIO*`;
             }
 
             // ── Info-only mode ───────────────────────────────────────
@@ -247,7 +247,7 @@ _${movie.Plot || "No plot available."}_
                 (movie ? `⭐ *IMDb:* ${movie.imdbRating}/10 • 🎭 ${movie.Genre}\n` : "") +
                 `⏱️ *Duration:* ${fullVideo.timestamp} (${durationMin} min)\n` +
                 `📦 *Size:* ${formatSize(finalSize)}\n\n` +
-                `🐉 *RED DRAGON OFC — H.264/AAC*`;
+                `🐝 *SKYBEE BOT — H.264/AAC*`;
 
             const fileData = fs.readFileSync(finalPath);
 

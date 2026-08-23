@@ -28,10 +28,10 @@ module.exports = {
             const uptime = formatUptime(Date.now() - START_TIME);
             const platform = `${os.type()} (${os.arch()})`;
 
-            const aliveMsg = `╭━━━〔 🐉 𝐑𝐄𝐃 𝐃𝐑𝐀𝐆𝐎𝐍 𝐎𝐅𝐂 🐉 〕━━━╮\n` +
+            const aliveMsg = `╭━━━〔 🐝 𝐒𝐊𝐘𝐁𝐄𝐄 𝐁𝐎𝐓 🐝 〕━━━╮\n` +
                              `┃ 🤖 *Status:* Online & Operational\n` +
-                             `┃ ⚡ *Engine:* CypherX Multi-Device\n` +
-                             `┃ 👑 *Owner:* RED DRAGON OFC\n` +
+                             `┃ ⚡ *Engine:* Skybee Multi-Device\n` +
+                             `┃ 👑 *Owner:* SKYBEE BOT\n` +
                              `┃ ⏱️ *Uptime:* ${uptime}\n` +
                              `┃ 💾 *RAM Usage:* ${ramUsed} MB / ${ramTotal} GB\n` +
                              `┃ 💻 *Platform:* ${platform}\n` +

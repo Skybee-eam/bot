@@ -44,12 +44,12 @@ module.exports = {
             if (mediaUrl.includes('.jpg') || mediaUrl.includes('.png') || mediaUrl.includes('.webp')) {
                 await client.sendMessage(m.chat, {
                     image: { url: mediaUrl },
-                    caption: "📸 *Instagram Post Downloaded by RED DRAGON OFC*"
+                    caption: "📸 *Instagram Post Downloaded by SKYBEE BOT*"
                 }, { quoted: m });
             } else {
                 await client.sendMessage(m.chat, {
                     video: { url: mediaUrl },
-                    caption: "🎬 *Instagram Reel Downloaded by RED DRAGON OFC*",
+                    caption: "🎬 *Instagram Reel Downloaded by SKYBEE BOT*",
                     mimetype: "video/mp4"
                 }, { quoted: m });
             }

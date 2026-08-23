@@ -135,20 +135,20 @@ module.exports = {
             // Header Banner Block
             const headerBlock =
 `╭─━─━─━─━─━─━─━─━─━─━─━─━─━─━─╮
-  🐉 *RED DRAGON / CYPHER-X* 🐉
+  🐝 *SKYBEE BOT* 🐝
   ${greeting}, *${user}*!
 ╰─━─━─━─━─━─━─━─━─━─━─━─━─━─━─╯
 
 ┌───「 📊 *SYSTEM TELEMETRY* 」───┐
 │ 👤 *User:* ${user}
-│ 👑 *Developer:* RED DRAGON OFC
-│ 🤖 *Engine:* CypherX MD v2.0
+│ 👑 *Developer:* SKYBEE BOT
+│ 🤖 *Engine:* Skybee Bot MD v2.0
 │ ⚡ *Prefix:* [ ${p} ]
 │ 🧠 *RAM:* ${memory}
 │ ⏱️ *Uptime:* ${uptime}
 │ 📡 *Status:* 🟢 Optimal (Active)
 │ 📦 *Commands:* ${totalCmdCount} Verified
-└───「 ᴄʏᴘʜᴇʀ-x ᴏғғɪᴄɪᴀʟ 」───┘`;
+└───「 sᴋʏʙᴇᴇ ʙᴏᴛ ᴏғғɪᴄɪᴀʟ 」───┘`;
 
             // If a specific category was requested
             if (selectedCategory) {
@@ -189,7 +189,7 @@ module.exports = {
 │  › *${p}menu tools* ➔ Privacy & Sticker Tools
 ╰──────────────────────────────
 
-🐉 *RED DRAGON OFC • CYPHER-X BOT ENGINE*`;
+🐝 *SKYBEE BOT • CONNECTIVITY AND AUTOMATION*`;
 
             await client.sendMessage(m.chat, {
                 text: fullText

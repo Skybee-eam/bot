@@ -16,7 +16,7 @@ module.exports = {
         try {
             if (!text) {
                 return reply(
-                    `📥 *RED DRAGON VIDEO DOWNLOADER*\n\n` +
+                    `📥 *SKYBEE VIDEO DOWNLOADER*\n\n` +
                     `*Usage Examples:*\n` +
                     `• *${prefix}${command} https://youtu.be/...* ➔ Download video from URL\n` +
                     `• *${prefix}${command} Alan Walker Faded* ➔ Search & download video\n` +
@@ -62,7 +62,7 @@ module.exports = {
 
                 await client.sendMessage(m.chat, {
                     video: fs.readFileSync(tempFile),
-                    caption: "📥 *Facebook Video Downloaded by RED DRAGON OFC*",
+                    caption: "📥 *Facebook Video Downloaded by SKYBEE BOT*",
                     mimetype: "video/mp4",
                     fileName: `fb_video.mp4`
                 }, { quoted: m });
@@ -154,7 +154,7 @@ module.exports = {
 
             await client.sendMessage(m.chat, {
                 video: fs.readFileSync(finalPath),
-                caption: `🎬 *${videoTitle}*\n${duration ? `⏱️ *Duration:* ${duration}\n` : ''}${views ? `👁️ *Views:* ${views}\n` : ''}\n📥 *RED DRAGON OFC — H.264/AAC*`,
+                caption: `🎬 *${videoTitle}*\n${duration ? `⏱️ *Duration:* ${duration}\n` : ''}${views ? `👁️ *Views:* ${views}\n` : ''}\n📥 *SKYBEE BOT — H.264/AAC*`,
                 mimetype: "video/mp4",
                 fileName: `${safeTitle}.mp4`
             }, { quoted: m });

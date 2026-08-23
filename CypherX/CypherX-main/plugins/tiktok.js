@@ -54,7 +54,7 @@ module.exports = {
             // Fetch video stream and send to WhatsApp
             await client.sendMessage(m.chat, {
                 video: { url: videoUrl },
-                caption: `📱 *${title}*\n👤 *Creator:* ${author}\n\n🔓 *Watermark removed by RED DRAGON OFC*`,
+                caption: `📱 *${title}*\n👤 *Creator:* ${author}\n\n🔓 *Watermark removed by SKYBEE BOT*`,
                 mimetype: "video/mp4"
             }, { quoted: m });
 

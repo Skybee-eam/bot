@@ -43,10 +43,10 @@ async function searchWikipediaKnowledge(query) {
 function getConversationalReply(prompt) {
     const p = prompt.toLowerCase().trim();
     if (/^(hi|hello|hey|hola|yo|sup|good morning|good evening|good afternoon)\b/i.test(p)) {
-        return "Hello! 👋 I'm **CypherX AI**, your personal WhatsApp assistant. How can I help you today? You can ask me any question, chat with me, or type `.imagine <prompt>` to generate images!";
+        return "Hello! 👋 I'm **Skybee AI**, your personal WhatsApp assistant. How can I help you today? You can ask me any question, chat with me, or type `.imagine <prompt>` to generate images!";
     }
     if (/^(who are you|what is your name|who made you|who created you)\b/i.test(p)) {
-        return "I am **CypherX AI**, powered by Red Dragon / CypherX engine. I can assist you with research, facts, definitions, coding, image generation, and more!";
+        return "I am **Skybee AI**, powered by the Skybee Bot connectivity & automation engine. I can assist you with research, facts, definitions, coding, image generation, and more!";
     }
     if (/^(how are you|how do you do)\b/i.test(p)) {
         return "I'm doing great and ready to assist you! What would you like to explore or learn today?";

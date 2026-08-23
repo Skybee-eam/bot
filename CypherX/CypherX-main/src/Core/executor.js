@@ -229,17 +229,19 @@ class PluginManager {
     // ─────────────────────────────────────────────
     // 2. FULL COMPLETE COMMAND LIST (.menu all)
     // ─────────────────────────────────────────────
+    // 2. FULL COMPLETE COMMAND LIST (.menu all)
+    // ─────────────────────────────────────────────
     if (queryClean === 'all' || queryClean === 'full') {
-      let menuStr = `┌───「 🐉 𝐑𝐄𝐃 𝐃𝐑𝐀𝐆𝐎𝐍 𝐎𝐅𝐂 🐉 」───┐\n` +
+      let menuStr = `┌───「 🐝 𝐒𝐊𝐘𝐁𝐄𝐄 𝐁𝐎𝐓 🐝 」───┐\n` +
                     `│ 👤 ᴜsᴇʀ     : @${pushName}\n` +
-                    `│ 👑 ᴏᴡɴᴇʀ    : RED DRAGON OFC\n` +
-                    `│ 🤖 ʙᴏᴛ      : CypherX MD v1.6.7\n` +
+                    `│ 👑 ᴏᴡɴᴇʀ    : SKYBEE BOT\n` +
+                    `│ 🤖 ʙᴏᴛ      : Skybee Bot MD v2.0\n` +
                     `│ ⚡ ᴘʀᴇғɪx   : [ ${prefix} ]\n` +
                     `│ 📊 ᴄᴏᴍᴍᴀɴᴅs : ${totalCommands} Active\n` +
                     `│ ⏱️ ᴜᴘᴛɪᴍᴇ   : ${uptime}\n` +
                     `│ 📅 ᴅᴀᴛᴇ     : ${dateStr}\n` +
                     `│ 📡 sᴛᴀᴛᴜs   : 🟢 Operational\n` +
-                    `└───「 ᴄʏᴘʜᴇʀ-x ᴀʟʟ ᴄᴏᴍᴍᴀɴᴅs 」───┘\n\n`;
+                    `└───「 sᴋʏʙᴇᴇ ᴀʟʟ ᴄᴏᴍᴍᴀɴᴅs 」───┘\n\n`;
 
       for (const cat of categories) {
         const cmds = Array.from(this.categorizedCommands.get(cat)).sort();
@@ -255,23 +257,23 @@ class PluginManager {
       menuStr += `📌 *NAVIGATION GUIDE:*\n` +
                  `• Type *${prefix}menu* to return to the Main Dashboard\n` +
                  `• Type *${prefix}menu <number>* (e.g. *${prefix}menu 1*) for single category\n\n` +
-                 `🐉 *RED DRAGON OFC • CYPHER-X MULTI-DEVICE*`;
+                 `🐝 *SKYBEE BOT • CONNECTIVITY AND AUTOMATION*`;
       return menuStr;
     }
 
     // ─────────────────────────────────────────────
     // 3. MASTER EXECUTIVE DASHBOARD (.menu)
     // ─────────────────────────────────────────────
-    let menuStr = `┌───「 🐉 𝐑𝐄𝐃 𝐃𝐑𝐀𝐆𝐎𝐍 𝐎𝐅𝐂 🐉 」───┐\n` +
+    let menuStr = `┌───「 🐝 𝐒𝐊𝐘𝐁𝐄𝐄 𝐁𝐎𝐓 🐝 」───┐\n` +
                   `│ 👤 ᴜsᴇʀ     : @${pushName}\n` +
-                  `│ 👑 ᴏᴡɴᴇʀ    : RED DRAGON OFC\n` +
-                  `│ 🤖 ʙᴏᴛ      : CypherX MD v1.6.7\n` +
+                  `│ 👑 ᴏᴡɴᴇʀ    : SKYBEE BOT\n` +
+                  `│ 🤖 ʙᴏᴛ      : Skybee Bot MD v2.0\n` +
                   `│ ⚡ ᴘʀᴇғɪx   : [ ${prefix} ]\n` +
                   `│ 📊 ᴄᴏᴍᴍᴀɴᴅs : ${totalCommands} Active\n` +
                   `│ ⏱️ ᴜᴘᴛɪᴍᴇ   : ${uptime}\n` +
                   `│ 📅 ᴅᴀᴛᴇ     : ${dateStr}\n` +
                   `│ 📡 sᴛᴀᴛᴜs   : 🟢 Operational\n` +
-                  `└───「 ᴄʏᴘʜᴇʀ-x ᴇxᴇᴄᴜᴛɪᴠᴇ 」───┘\n\n` +
+                  `└───「 sᴋʏʙᴇᴇ ᴇxᴇᴄᴜᴛɪᴠᴇ 」───┘\n\n` +
                   `╭───『 🌟 *FEATURED SHOWCASE* 』\n` +
                   `│ 👁️ *View Once:* Reply *.vv* or react *👁️ / ❤️*\n` +
                   `│ 🤖 *AI Query:* *${prefix}ai <prompt>*\n` +
@@ -296,7 +298,7 @@ class PluginManager {
                `• Type *${prefix}menu <number>* (e.g. *${prefix}menu 1*) for single category\n` +
                `• Type *${prefix}menu <name>* (e.g. *${prefix}menu audio*) for category\n` +
                `• Type *${prefix}menu all* to view all ${totalCommands} commands\n\n` +
-               `🐉 *RED DRAGON OFC • CYPHER-X MULTI-DEVICE*`;
+               `🐝 *SKYBEE BOT • CONNECTIVITY AND AUTOMATION*`;
 
     return menuStr;
   }

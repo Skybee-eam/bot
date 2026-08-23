@@ -336,7 +336,7 @@ function getArg(name) {
       retryCount = 0;
       isStarting = false;
       console.log('\n==============================================');
-      console.log('  🐉 RED DRAGON / CYPHER-X BOT CONNECTED! 🐉  ');
+      console.log('  🐝 SKYBEE BOT CONNECTED & RUNNING! 🐝  ');
       console.log(`  ✅ ${pluginManager.commandMap.size} Commands & Plugins Loaded and Active `);
       console.log('==============================================\n');
     }
@@ -472,7 +472,7 @@ function getArg(name) {
 
       // 2. Built-in command fallbacks
       if (command === 'alive') {
-        return m.reply(`*🐉 RED DRAGON OFC BOT IS ALIVE! 🐉*\n\n✅ *Status:* Online & Ready\n🤖 *Engine:* CypherX v1.6.7\n📦 *Commands Loaded:* ${pluginManager.commandMap.size}\n⚡ *Type .menu to see all commands!*`);
+        return m.reply(`*🐝 SKYBEE BOT IS ALIVE! 🐝*\n\n✅ *Status:* Online & Ready\n🤖 *Engine:* Skybee Bot v2.0\n📦 *Commands Loaded:* ${pluginManager.commandMap.size}\n⚡ *Type .menu to see all commands!*`);
       }
 
       if (['menu', 'help', 'list', 'commands', 'allmenu'].includes(command)) {

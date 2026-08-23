@@ -477,10 +477,10 @@ async function startPairSocket(phone, sessionDir) {
         const rawId = sock.user?.id || '';
         const userJid = rawId.includes(':') ? `${rawId.split(':')[0]}@s.whatsapp.net` : rawId;
         await sock.sendMessage(userJid, {
-          text: `✅ *CypherX Bot Connected!* 🐉\n\n` +
+          text: `✅ *SKYBEE BOT Connected!* 🐝\n\n` +
                 `*Phone:* +${phone}\n` +
-                `*Status:* Active & Hosted on Multi-User Cloud\n\n` +
-                `🤖 Your bot is now active and ready to process commands!`
+                `*Status:* Active & Hosted on Skybee Cloud\n\n` +
+                `🤖 Your bot is now active and ready to process commands! Type *.menu* to get started.`
         });
       } catch (e) {
         console.error('[ERROR] Post-pairing error:', e);
@@ -707,7 +707,7 @@ app.post(['/api/qr-start', '/api/client/qr-start'], async (req, res) => {
 
           const userJid = rawId.includes(':') ? `${rawId.split(':')[0]}@s.whatsapp.net` : rawId;
           await sock.sendMessage(userJid, {
-            text: `✅ *CypherX Bot Connected via QR!* 🐉\n\n*Phone:* +${phone}\n🤖 Hosted & Active on Multi-User Cloud!`
+            text: `✅ *SKYBEE BOT Connected via QR!* 🐝\n\n*Phone:* +${phone}\n🤖 Hosted & Active on Skybee Multi-User Cloud!`
           });
         } catch (e) {
           console.error('[QR] Post-link save error:', e);
@@ -778,7 +778,7 @@ app.post(['/api/qr-start', '/api/client/qr-start'], async (req, res) => {
                     promoteToPermanentSession(phone2, sessionDir);
                     const userJid = rawId.includes(':') ? `${rawId.split(':')[0]}@s.whatsapp.net` : rawId;
                     await sock2.sendMessage(userJid, {
-                      text: `✅ *CypherX Bot Connected via QR!* 🐉\n\n*Phone:* +${phone2}\n🤖 Hosted & Active on Multi-User Cloud!`
+                      text: `✅ *SKYBEE BOT Connected via QR!* 🐝\n\n*Phone:* +${phone2}\n🤖 Hosted & Active on Skybee Multi-User Cloud!`
                     });
                   } catch {} finally {
                     await delay(4000);
@@ -888,7 +888,7 @@ app.post('/api/inject-session', requireAccessCode, async (req, res) => {
 // ─────────────────────────────────────────────────────────────────
 const server = app.listen(PORT, () => {
   console.log(`\n=================================================`);
-  console.log(`🚀 CypherX Multi-User WhatsApp Bot Host Running!`);
+  console.log(`🚀 SKYBEE Multi-User WhatsApp Bot Host Running!`);
   console.log(`🌐 Dashboard URL: http://localhost:${PORT}`);
   console.log(`📦 Sessions Storage: ${multiSessionsDir}`);
   console.log(`=================================================\n`);
