@@ -194,9 +194,14 @@ const msgRetryCounterCache = new NodeCache();
 // ─────────────────────────────────────────────────────────────────
 class MultiBotManager {
   constructor() {
-    /** @type {Map<string, { phone: string, process: any, status: 'running'|'stopped'|'error', logs: string[], startedAt: Date|null, sessionDir: string }>} */
-    this.bots = new Map();
-    this.serverStartedAt = new Date();
+    this.bots = new Map(); // phone -> { phone, process, status, logs, startedAt, sessionDir }
+    this.manualStops = new Set(); // tracks bots explicitly stopped by user so they don't auto-restart
+    this.ensureDirs();
+  }
+
+  ensureDirs() {
+    if (!fs.existsSync(multiSessionsDir)) fs.mkdirSync(multiSessionsDir, { recursive: true });
+    if (!fs.existsSync(tempSessionsDir)) fs.mkdirSync(tempSessionsDir, { recursive: true });
   }
 
   getOrCreate(phone, sessionDir) {
@@ -233,6 +238,7 @@ class MultiBotManager {
       throw new Error(`No credentials found for +${cleanPhone}`);
     }
 
+    this.manualStops.delete(cleanPhone);
     const bot = this.getOrCreate(cleanPhone, sessionDir);
     if (bot.process && bot.status === 'running') {
       this.appendLog(cleanPhone, `Bot is already running (PID: ${bot.process.pid})`);
@@ -263,15 +269,36 @@ class MultiBotManager {
       });
 
       proc.on('exit', (code, signal) => {
-        bot.status = code === 0 ? 'stopped' : 'error';
-        this.appendLog(cleanPhone, `Bot exited (code=${code}, signal=${signal})`);
         bot.process = null;
+        if (this.manualStops.has(cleanPhone)) {
+          bot.status = 'stopped';
+          this.appendLog(cleanPhone, `Bot stopped by user.`);
+        } else {
+          bot.status = 'reconnecting';
+          this.appendLog(cleanPhone, `Bot process disconnected (code=${code}). Supervisor auto-restarting in 5s...`);
+          setTimeout(() => {
+            if (!this.manualStops.has(cleanPhone) && fs.existsSync(path.join(sessionDir, 'creds.json'))) {
+              try {
+                this.startBot(cleanPhone);
+              } catch (e) {
+                console.error(`[SUPERVISOR RESTART] +${cleanPhone}:`, e.message);
+              }
+            }
+          }, 5000);
+        }
       });
 
       proc.on('error', (err) => {
-        bot.status = 'error';
-        this.appendLog(cleanPhone, `Failed to launch bot process: ${err.message}`);
         bot.process = null;
+        bot.status = 'error';
+        this.appendLog(cleanPhone, `Process error: ${err.message}`);
+        if (!this.manualStops.has(cleanPhone)) {
+          setTimeout(() => {
+            if (!this.manualStops.has(cleanPhone)) {
+              try { this.startBot(cleanPhone); } catch {}
+            }
+          }, 8000);
+        }
       });
 
       return bot;
@@ -284,6 +311,7 @@ class MultiBotManager {
 
   stopBot(phone) {
     const cleanPhone = String(phone).replace(/[^0-9]/g, '');
+    this.manualStops.add(cleanPhone);
     const bot = this.bots.get(cleanPhone);
     if (!bot || !bot.process) {
       if (bot) bot.status = 'stopped';
@@ -299,11 +327,14 @@ class MultiBotManager {
   }
 
   restartBot(phone) {
-    this.stopBot(phone);
+    const cleanPhone = String(phone).replace(/[^0-9]/g, '');
+    this.manualStops.delete(cleanPhone);
+    this.stopBot(cleanPhone);
     return new Promise((resolve) => {
       setTimeout(() => {
         try {
-          const b = this.startBot(phone);
+          this.manualStops.delete(cleanPhone);
+          const b = this.startBot(cleanPhone);
           resolve(b);
         } catch (e) {
           resolve(null);
@@ -314,6 +345,7 @@ class MultiBotManager {
 
   deleteBot(phone) {
     const cleanPhone = String(phone).replace(/[^0-9]/g, '');
+    this.manualStops.add(cleanPhone);
     this.stopBot(cleanPhone);
     const sessionDir = path.join(multiSessionsDir, cleanPhone);
     try {
@@ -910,6 +942,49 @@ app.post('/api/inject-session', requireAccessCode, async (req, res) => {
   }
 });
 
+// Health Check / Ping endpoints for Uptime monitors & KeepAlive
+app.get(['/health', '/ping', '/live'], (req, res) => {
+  return res.json({
+    status: 'ok',
+    uptime: process.uptime(),
+    activeBots: botManager.listBots().filter(b => b.status === 'running').length,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+// 24/7 RENDER & CLOUD ANTI-SLEEP KEEP-ALIVE WORKER
+// ─────────────────────────────────────────────────────────────────
+function initKeepAliveWorker() {
+  const targetUrl = process.env.RENDER_EXTERNAL_URL || process.env.APP_URL || 'https://bot-z47t.onrender.com';
+  console.log(`[KEEP-ALIVE] 24/7 Anti-Sleep Heartbeat active for: ${targetUrl}`);
+
+  // Pulse every 3.5 minutes (well under Render 15-min idle sleep threshold)
+  setInterval(async () => {
+    try {
+      const pingUrl = `${targetUrl}/health`;
+      const res = await fetch(pingUrl, { headers: { 'User-Agent': 'SkybeeKeepAlive/2.0' } });
+      if (res.ok) {
+        // Success
+      }
+    } catch {}
+  }, 3.5 * 60 * 1000);
+
+  // Periodic Firestore backup of active sessions every 10 minutes
+  setInterval(async () => {
+    try {
+      if (fs.existsSync(multiSessionsDir)) {
+        const dirs = fs.readdirSync(multiSessionsDir, { withFileTypes: true });
+        for (const d of dirs) {
+          if (d.isDirectory() && fs.existsSync(path.join(multiSessionsDir, d.name, 'creds.json'))) {
+            await firebaseSync.saveSessionToCloud(d.name, path.join(multiSessionsDir, d.name));
+          }
+        }
+      }
+    } catch {}
+  }, 10 * 60 * 1000);
+}
+
 // ─────────────────────────────────────────────────────────────────
 // SERVER INITIALIZATION
 // ─────────────────────────────────────────────────────────────────
@@ -922,6 +997,9 @@ const server = app.listen(PORT, () => {
 
   // Initialize and auto-boot all existing user sessions
   botManager.initAllSessions();
+
+  // Start 24/7 Anti-Sleep worker
+  initKeepAliveWorker();
 });
 
 server.on('error', (err) => {
