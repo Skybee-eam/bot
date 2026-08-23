@@ -426,8 +426,29 @@ function getArg(name) {
         }
       }
 
-      // Ignore status broadcast updates
-      if (rawMsg.key && rawMsg.key.remoteJid === 'status@broadcast') return;
+      // 0. Auto View Status & Auto React Handler
+      if (rawMsg.key && rawMsg.key.remoteJid === 'status@broadcast') {
+        const autoStatusEnabled = global.db?.settings?.autostatus !== false; // Enabled by default
+        if (autoStatusEnabled) {
+          try {
+            await Cypher.readMessages([rawMsg.key]);
+            
+            // Optional Auto React to Status
+            if (global.db?.settings?.statusreact && rawMsg.key.participant) {
+              const reactEmoji = global.db?.settings?.status_emoji || '💚';
+              await Cypher.sendMessage('status@broadcast', {
+                react: {
+                  key: rawMsg.key,
+                  text: reactEmoji
+                }
+              }, {
+                statusJidList: [rawMsg.key.participant]
+              });
+            }
+          } catch (statusErr) {}
+        }
+        return;
+      }
 
       const m = await serializeMessage(Cypher, rawMsg);
       if (!m || !m.body) return;

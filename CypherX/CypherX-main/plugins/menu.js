@@ -68,6 +68,9 @@ const VERIFIED_COMMANDS = {
     "👁️ PRIVACY & UTILITIES": {
         icon: "🛠️",
         commands: [
+            { cmd: "autostatus on/off", desc: "Toggle 24/7 automatic status viewing" },
+            { cmd: "statusreact on/off", desc: "Toggle automatic emoji reactions on statuses" },
+            { cmd: "setstatusemoji <emoji>", desc: "Customize auto reaction emoji (e.g. 💚)" },
             { cmd: "vv", desc: "Retrieve View-Once media permanently to DM" },
             { cmd: "sticker", desc: "Convert image/video into WhatsApp sticker" },
             { cmd: "take <pack|author>", desc: "Customize sticker metadata" },
