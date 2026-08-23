@@ -277,6 +277,7 @@ class PluginManager {
                   `╭───『 🌟 *FEATURED SHOWCASE* 』\n` +
                   `│ 👁️ *View Once:* Reply *.vv* or react *👁️ / ❤️*\n` +
                   `│ 🤖 *AI Query:* *${prefix}ai <prompt>*\n` +
+                  `│ 👋 *Welcome:* *${prefix}welcome on* or *${prefix}welcome off*\n` +
                   `│ 🎨 *Image Gen:* *${prefix}imagine <prompt>*\n` +
                   `│ 🎵 *Music DL:* *${prefix}play <song title>*\n` +
                   `│ 📥 *YouTube:* *${prefix}ytmp3* or *${prefix}ytmp4 <url>*\n` +

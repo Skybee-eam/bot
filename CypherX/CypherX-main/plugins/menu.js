@@ -36,7 +36,7 @@ const VERIFIED_COMMANDS = {
     "🤖 ARTIFICIAL INTELLIGENCE & CHATBOT": {
         icon: "🧠",
         commands: [
-            { cmd: "ai <question>", desc: "Ask CypherX AI smart questions" },
+            { cmd: "ai <question>", desc: "Ask Skybee AI smart questions" },
             { cmd: "chatbot on/off", desc: "Toggle automatic AI responses in DM" },
             { cmd: "imagine <prompt>", desc: "Generate realistic AI art & images" },
             { cmd: "gpt <prompt>", desc: "Conversational GPT assistant" },
@@ -47,6 +47,7 @@ const VERIFIED_COMMANDS = {
         icon: "🎧",
         commands: [
             { cmd: "play <song title>", desc: "Download high quality MP3 audio" },
+            { cmd: "ytmp3 <url>", desc: "Extract & download YouTube audio" },
             { cmd: "song <title/url>", desc: "Search & download YouTube tracks" },
             { cmd: "music <title>", desc: "Stream & save song directly" },
             { cmd: "tomp3", desc: "Convert replied video/audio to MP3" }
@@ -73,9 +74,11 @@ const VERIFIED_COMMANDS = {
             { cmd: "react <emoji>", desc: "React to message with custom emoji" }
         ]
     },
-    "👥 GROUP ADMINISTRATION": {
+    "👥 GROUP AUTOMATION & MODERATION": {
         icon: "🛡️",
         commands: [
+            { cmd: "welcome on/off", desc: "Toggle auto welcome & farewell cards" },
+            { cmd: "welcome status", desc: "Check group greeting card status" },
             { cmd: "tagall <message>", desc: "Tag all group members with a notice" },
             { cmd: "hidetag <message>", desc: "Broadcast message invisibly to all" },
             { cmd: "kick @user", desc: "Remove unwanted user from group" },
