@@ -142,10 +142,21 @@ async function downloadAndSaveMediaMessage(message, filename) {
   return filePath;
 }
 
+// Recursively unwrap ephemeral, view-once, and container wrappers
+function unwrapMessage(msg) {
+  if (!msg) return msg;
+  if (msg.ephemeralMessage?.message) return unwrapMessage(msg.ephemeralMessage.message);
+  if (msg.viewOnceMessage?.message) return unwrapMessage(msg.viewOnceMessage.message);
+  if (msg.viewOnceMessageV2?.message) return unwrapMessage(msg.viewOnceMessageV2.message);
+  if (msg.viewOnceMessageV2Extension?.message) return unwrapMessage(msg.viewOnceMessageV2Extension.message);
+  if (msg.documentWithCaptionMessage?.message) return unwrapMessage(msg.documentWithCaptionMessage.message);
+  return msg;
+}
+
 // Extract clean message text from any WhatsApp message structure
 function getMessageText(m) {
   if (!m || !m.message) return '';
-  const msg = m.message;
+  const msg = unwrapMessage(m.message);
   return (
     msg.conversation ||
     msg.extendedTextMessage?.text ||
@@ -155,6 +166,7 @@ function getMessageText(m) {
     msg.buttonsResponseMessage?.selectedButtonId ||
     msg.listResponseMessage?.singleSelectReply?.selectedRowId ||
     msg.templateButtonReplyMessage?.selectedId ||
+    msg.reactionMessage?.text ||
     ''
   );
 }
@@ -163,6 +175,9 @@ function getMessageText(m) {
 async function serializeMessage(Cypher, m) {
   if (!m.message) return null;
 
+  // Fully unwrap ephemeral and view-once containers (critical for disappearing message groups)
+  m.message = unwrapMessage(m.message);
+
   m.mtype = getContentType(m.message) || Object.keys(m.message)[0];
   m.msg = m.message[m.mtype];
   m.id = m.key.id;
@@ -170,9 +185,11 @@ async function serializeMessage(Cypher, m) {
   m.isGroup = m.key.remoteJid.endsWith('@g.us');
   m.chat = m.isGroup ? m.key.remoteJid : jidNormalizedUser(m.key.remoteJid);
   m.fromMe = m.key.fromMe;
-  m.sender = jidNormalizedUser(
-    m.fromMe ? Cypher.user.id : (m.isGroup ? m.key.participant : m.key.remoteJid)
-  );
+  
+  const rawSender = m.fromMe
+    ? Cypher.user.id
+    : (m.isGroup ? (m.key.participant || m.participant || m.key.remoteJid) : m.key.remoteJid);
+  m.sender = jidNormalizedUser(rawSender);
   m.pushName = m.pushName || '';
 
   m.body = getMessageText(m);
@@ -187,10 +204,11 @@ async function serializeMessage(Cypher, m) {
                       m.message?.documentMessage?.contextInfo;
 
   if (contextInfo && contextInfo.quotedMessage) {
-    const qMtype = getContentType(contextInfo.quotedMessage) || Object.keys(contextInfo.quotedMessage)[0];
-    const qMsg = contextInfo.quotedMessage[qMtype];
+    const rawQuoted = unwrapMessage(contextInfo.quotedMessage);
+    const qMtype = getContentType(rawQuoted) || Object.keys(rawQuoted)[0];
+    const qMsg = rawQuoted[qMtype];
     m.quoted = {
-      message: contextInfo.quotedMessage,
+      message: rawQuoted,
       key: {
         remoteJid: m.chat,
         fromMe: contextInfo.participant === Cypher.user.id,
@@ -198,8 +216,8 @@ async function serializeMessage(Cypher, m) {
         participant: contextInfo.participant
       },
       id: contextInfo.stanzaId,
-      sender: jidNormalizedUser(contextInfo.participant),
-      text: getMessageText({ message: contextInfo.quotedMessage }),
+      sender: jidNormalizedUser(contextInfo.participant || ''),
+      text: getMessageText({ message: rawQuoted }),
       mimetype: qMsg?.mimetype || '',
       mtype: qMtype,
       msg: qMsg,
@@ -211,12 +229,19 @@ async function serializeMessage(Cypher, m) {
 
   // Check admin & owner status
   const botNumber = jidNormalizedUser(Cypher.user.id);
+  const botCleanNumber = botNumber.split('@')[0].split(':')[0];
   m.isOwner = m.fromMe ||
               m.sender === botNumber ||
+              m.sender.replace(/[^0-9]/g, '') === botCleanNumber ||
               (global.ownerNumber && global.ownerNumber.includes(m.sender.split('@')[0]));
 
-  m.reply = (text, options = {}) => {
-    return Cypher.sendMessage(m.chat, { text: String(text), ...options }, m.fromMe ? {} : { quoted: m });
+  m.reply = async (text, options = {}) => {
+    try {
+      return await Cypher.sendMessage(m.chat, { text: String(text), ...options }, { quoted: m });
+    } catch (err) {
+      console.warn(`[REPLY] Quoted reply failed in ${m.chat}, sending direct:`, err.message);
+      return await Cypher.sendMessage(m.chat, { text: String(text), ...options });
+    }
   };
 
   return m;
@@ -235,6 +260,13 @@ async function startCypherBot() {
   } catch (err) {
     console.log('[CYPHER-X] Database note:', err.message);
   }
+
+  // Ensure default db structures exist
+  if (!global.db) global.db = {};
+  if (!global.db.settings) global.db.settings = { mode: 'public' };
+  if (!global.db.chats) global.db.chats = {};
+  if (!global.db.blacklist) global.db.blacklist = { blacklisted_numbers: [] };
+  if (!global.db.sudo) global.db.sudo = [];
 
   // 2. Load all plugins (both src/Plugins and root plugins/)
   await pluginManager.loadAllPlugins();
@@ -278,7 +310,7 @@ function getArg(name) {
       creds: state.creds,
       keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' }))
     },
-    browser: Browsers.macOS('Desktop'),
+    browser: ['Skybee Bot', 'Chrome', '124.0.0'],
     logger: pino({ level: 'silent' }),
     printQRInTerminal: false,
     generateHighQualityLinkPreview: true,
@@ -407,12 +439,21 @@ function getArg(name) {
         try {
           groupMetadata = await Cypher.groupMetadata(m.chat);
           participants = groupMetadata.participants || [];
-          groupAdmins = participants.filter(p => p.admin).map(p => p.id);
+          groupAdmins = participants
+            .filter(p => p.admin === 'admin' || p.admin === 'superadmin' || p.admin)
+            .map(p => jidNormalizedUser(p.id));
+
           const botId = jidNormalizedUser(Cypher.user.id);
-          isBotAdmin = groupAdmins.includes(botId);
-          isAdmin = groupAdmins.includes(m.sender);
-        } catch {}
+          const botClean = botId.split('@')[0].split(':')[0];
+          isBotAdmin = groupAdmins.some(adminJid => adminJid.includes(botClean) || adminJid === botId);
+          isAdmin = groupAdmins.some(adminJid => adminJid === m.sender || adminJid.includes(m.sender.split('@')[0]));
+        } catch (groupErr) {
+          console.warn(`[GROUP-META Fetch Note in ${m.chat}]:`, groupErr.message);
+        }
       }
+
+      m.isAdmin = isAdmin;
+      m.isBotAdmin = isBotAdmin;
 
       const botNumber = jidNormalizedUser(Cypher.user.id);
       const botCleanNumber = botNumber.split('@')[0].split(':')[0];
@@ -441,6 +482,8 @@ function getArg(name) {
         groupAdmins,
         isBotAdmin,
         isAdmin,
+        isBotAdmins: isBotAdmin,
+        isAdmins: isAdmin,
         isOwner: m.isOwner,
         isCreator: m.isOwner,
         botNumber,
@@ -463,9 +506,10 @@ function getArg(name) {
 
       // 1. Dispatch to loaded plugin (from plugins/ or src/Plugins/) if matched
       if (isCmd && command) {
+        console.log(`[CYPHER-X] Incoming: "${prefix}${command}" | Chat: ${m.chat} | Sender: ${m.sender} | isGroup: ${m.isGroup}`);
         const executed = await pluginManager.executePlugin(globalContext, command);
         if (executed) {
-          console.log(`[CYPHER-X] Executed command: "${prefix}${command}" from ${m.sender}`);
+          console.log(`[CYPHER-X] ✅ Executed "${prefix}${command}" successfully in ${m.chat}`);
           return;
         }
       }
