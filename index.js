@@ -7,6 +7,7 @@ import os from 'os';
 import { spawn } from 'child_process';
 import makeWASocket, {
   useMultiFileAuthState,
+  makeCacheableSignalKeyStore,
   fetchLatestBaileysVersion,
   delay,
   DisconnectReason,
