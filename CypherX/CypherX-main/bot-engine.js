@@ -526,8 +526,9 @@ function getArg(name) {
 
       // 3. Automatic AI Chatbot handler
       const chatbotEnabled = global.db?.settings?.chatbot !== false; // Active by default
+      const msgContextInfo = m.msg?.contextInfo || m.message?.extendedTextMessage?.contextInfo;
       const isMentionedInGroup = m.isGroup && (
-        contextInfo?.mentionedJid?.includes(botNumber) ||
+        msgContextInfo?.mentionedJid?.includes(botNumber) ||
         (m.quoted && m.quoted.sender === botNumber)
       );
 
