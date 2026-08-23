@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RED DRAGON — WhatsApp Bot Activation & Client Store</title>
+  <meta name="description" content="Activate your 24/7 Cloud WhatsApp Bot in 60 seconds. 544+ commands, AI tools, media downloaders, and group security.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* ── Client Store Specific Enhancements ── */
+    :root {
+      --store-accent: #ff4500;
+      --store-accent-bright: #ff6a00;
+      --store-gold: #ffb703;
+      --store-green: #00e676;
+    }
+
+    body {
+      overflow-x: hidden;
+    }
+
+    .store-container {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 24px 16px 80px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .ref-banner {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 18px;
+      background: rgba(255, 183, 3, 0.1);
+      border: 1px solid rgba(255, 183, 3, 0.35);
+      border-radius: 999px;
+      font-size: 0.85rem;
+      color: #ffe082;
+      margin-bottom: 20px;
+      box-shadow: 0 0 20px rgba(255, 183, 3, 0.15);
+      animation: pulseGlow 3s infinite ease-in-out;
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 15px rgba(255, 183, 3, 0.1); }
+      50% { box-shadow: 0 0 25px rgba(255, 183, 3, 0.3); }
+    }
+
+    .store-hero {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+
+    .store-title {
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      font-weight: 900;
+      line-height: 1.15;
+      letter-spacing: -0.03em;
+      margin: 0 0 16px;
+      background: linear-gradient(135deg, #ffffff 30%, #ff8c00 70%, #ff3b00 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .store-subtitle {
+      font-size: 1.05rem;
+      color: #9aa0a6;
+      max-width: 620px;
+      margin: 0 auto 24px;
+      line-height: 1.6;
+    }
+
+    .trust-badges {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 30px;
+    }
+
+    .trust-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 6px 14px;
+      font-size: 0.8rem;
+      color: #cfd8dc;
+      font-weight: 500;
+    }
+
+    /* ── Store Pairing Card ── */
+    .pair-main-card {
+      background: linear-gradient(145deg, rgba(20, 16, 28, 0.85) 0%, rgba(13, 10, 20, 0.95) 100%);
+      border: 1px solid rgba(255, 80, 0, 0.3);
+      border-radius: 24px;
+      padding: clamp(24px, 4vw, 40px);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 40px rgba(255, 69, 0, 0.12);
+      backdrop-filter: blur(16px);
+      position: relative;
+      overflow: hidden;
+      margin-bottom: 40px;
+    }
+
+    .pair-main-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, transparent, #ff4500, #ff8c00, #ffb703, transparent);
+    }
+
+    .pair-step-tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 24px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding-bottom: 16px;
+    }
+
+    .step-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      color: #8892b0;
+      font-weight: 600;
+    }
+
+    .step-badge.active {
+      color: #ff8c00;
+    }
+
+    .step-num {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+    }
+
+    .step-badge.active .step-num {
+      background: linear-gradient(135deg, #ff4500, #ff8c00);
+      color: #fff;
+    }
+
+    .input-row {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .phone-input-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .phone-prefix-icon {
+      position: absolute;
+      left: 18px;
+      font-size: 1.2rem;
+      pointer-events: none;
+      color: #888;
+    }
+
+    .phone-field {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1.5px solid rgba(255, 255, 255, 0.14);
+      border-radius: 14px;
+      padding: 18px 20px 18px 52px;
+      font-size: 1.15rem;
+      font-family: 'JetBrains Mono', monospace;
+      color: #ffffff;
+      outline: none;
+      transition: all 0.25s ease;
+      letter-spacing: 1px;
+    }
+
+    .phone-field:focus {
+      border-color: #ff6a00;
+      background: rgba(0, 0, 0, 0.6);
+      box-shadow: 0 0 25px rgba(255, 106, 0, 0.25);
+    }
+
+    .phone-hint {
+      font-size: 0.8rem;
+      color: #8892b0;
+      margin-top: -6px;
+      margin-bottom: 6px;
+    }
+
+    .btn-generate {
+      width: 100%;
+      padding: 18px 24px;
+      background: linear-gradient(135deg, #ff3b00 0%, #ff8c00 100%);
+      border: none;
+      border-radius: 14px;
+      color: #fff;
+      font-size: 1.1rem;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      box-shadow: 0 8px 30px rgba(255, 60, 0, 0.4);
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      letter-spacing: 0.5px;
+    }
+
+    .btn-generate:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 35px rgba(255, 60, 0, 0.55);
+      background: linear-gradient(135deg, #ff4d15 0%, #ffa01c 100%);
+    }
+
+    .btn-generate:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* ── Code Display Box ── */
+    .code-result-area {
+      display: none;
+      margin-top: 28px;
+      animation: fadeIn 0.4s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .code-display-box {
+      background: rgba(0, 0, 0, 0.7);
+      border: 2px dashed rgba(255, 120, 0, 0.5);
+      border-radius: 18px;
+      padding: 24px 20px;
+      text-align: center;
+      position: relative;
+      margin-bottom: 20px;
+    }
+
+    .code-text {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: clamp(2rem, 6vw, 3rem);
+      font-weight: 900;
+      color: #00e676;
+      letter-spacing: 4px;
+      text-shadow: 0 0 20px rgba(0, 230, 118, 0.5);
+      margin: 10px 0;
+      user-select: all;
+    }
+
+    .btn-copy-code {
+      background: rgba(0, 230, 118, 0.15);
+      border: 1px solid rgba(0, 230, 118, 0.4);
+      color: #00e676;
+      padding: 10px 24px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 0.95rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }
+
+    .btn-copy-code:hover {
+      background: rgba(0, 230, 118, 0.25);
+      transform: scale(1.03);
+    }
+
+    .timer-pill {
+      font-size: 0.82rem;
+      color: #ffd54f;
+      margin-top: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    /* ── Live Step Instructions ── */
+    .steps-guide {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      padding: 20px;
+      margin-top: 24px;
+    }
+
+    .steps-guide h4 {
+      font-size: 0.95rem;
+      color: #fff;
+      margin: 0 0 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .step-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 12px;
+      font-size: 0.9rem;
+      color: #cfd8dc;
+      line-height: 1.45;
+    }
+
+    .step-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .step-item-icon {
+      background: rgba(255, 100, 0, 0.15);
+      border: 1px solid rgba(255, 100, 0, 0.3);
+      color: #ff8c00;
+      width: 26px;
+      height: 26px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    /* ── Status Polling Alert ── */
+    .live-status-box {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 18px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      margin-top: 16px;
+    }
+
+    .status-badge-inline {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    /* ── Feature Grid ── */
+    .store-features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 18px;
+      margin-bottom: 40px;
+    }
+
+    .store-feature-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 18px;
+      padding: 22px;
+      transition: all 0.25s ease;
+    }
+
+    .store-feature-card:hover {
+      border-color: rgba(255, 120, 0, 0.4);
+      transform: translateY(-3px);
+      background: rgba(255, 255, 255, 0.05);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    }
+
+    .feature-icon-wrapper {
+      font-size: 2rem;
+      margin-bottom: 12px;
+    }
+
+    .feature-card-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #ffffff;
+      margin: 0 0 6px;
+    }
+
+    .feature-card-desc {
+      font-size: 0.85rem;
+      color: #8892b0;
+      line-height: 1.5;
+      margin: 0;
+    }
+
+    /* ── Referral Link Maker for Sellers ── */
+    .referral-maker-box {
+      background: linear-gradient(135deg, rgba(255, 183, 3, 0.08) 0%, rgba(255, 69, 0, 0.08) 100%);
+      border: 1px solid rgba(255, 183, 3, 0.25);
+      border-radius: 20px;
+      padding: 28px;
+      margin-bottom: 40px;
+      text-align: center;
+    }
+
+    .ref-input-group {
+      display: flex;
+      gap: 10px;
+      max-width: 540px;
+      margin: 16px auto 0;
+    }
+
+    .ref-input {
+      flex: 1;
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 10px;
+      padding: 12px 16px;
+      color: #fff;
+      font-size: 0.95rem;
+      outline: none;
+    }
+
+    .ref-input:focus {
+      border-color: #ffb703;
+    }
+
+    .ref-btn {
+      background: #ffb703;
+      color: #000;
+      font-weight: 700;
+      border: none;
+      border-radius: 10px;
+      padding: 12px 20px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      white-space: nowrap;
+      transition: all 0.2s ease;
+    }
+
+    .ref-btn:hover {
+      background: #ffc107;
+      transform: scale(1.02);
+    }
+
+    /* ── Success Celebration Modal / Toast ── */
+    .success-celebration {
+      display: none;
+      background: rgba(0, 230, 118, 0.12);
+      border: 2px solid #00e676;
+      border-radius: 18px;
+      padding: 24px;
+      text-align: center;
+      margin-top: 24px;
+      animation: bounceIn 0.5s ease;
+    }
+
+    @keyframes bounceIn {
+      0% { transform: scale(0.9); opacity: 0; }
+      70% { transform: scale(1.03); opacity: 1; }
+      100% { transform: scale(1); }
+    }
+
+    /* ── Support & Footer ── */
+    .store-footer {
+      text-align: center;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      padding-top: 30px;
+      color: #64748b;
+      font-size: 0.85rem;
+    }
+
+    .store-footer a {
+      color: #ff8c00;
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .store-footer a:hover {
+      text-decoration: underline;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 600px) {
+      .ref-input-group {
+        flex-direction: column;
+      }
+      .code-text {
+        font-size: 2.1rem;
+        letter-spacing: 2px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Animated background particles -->
+  <div class="bg-grid"></div>
+  <div class="glow-orb glow-orb-1"></div>
+  <div class="glow-orb glow-orb-2"></div>
+
+  <div class="store-container">
+
+    <!-- Store Navigation Bar -->
+    <header class="site-header" style="margin-bottom: 28px;">
+      <div class="logo-badge">
+        <span class="logo-icon">🐉</span>
+        <span class="logo-text">RED DRAGON <span class="logo-ofc">BOT STORE</span></span>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div class="status-pill">
+          <span class="status-dot dot-online"></span>
+          <span id="cloudStatus">24/7 Cloud Active</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Referral / Partner Store Badge -->
+    <div class="store-hero">
+      <div class="ref-banner" id="refBanner">
+        <span>✨</span>
+        <span id="refBadgeText">Official Red Dragon Bot Activation Portal</span>
+      </div>
+
+      <h1 class="store-title">Activate Your WhatsApp Bot<br>In 60 Seconds</h1>
+      <p class="store-subtitle">
+        Cloud-hosted, ultra-fast 24/7 uptime. Unlock 544+ commands, AI chat, music/video downloaders, and automated group management directly on your phone.
+      </p>
+
+      <div class="trust-badges">
+        <div class="trust-tag">⚡ Instant Pairing</div>
+        <div class="trust-tag">🛡️ 100% Encrypted & Safe</div>
+        <div class="trust-tag">☁️ No Phone Battery Drain</div>
+        <div class="trust-tag">🎵 HD Media Downloader</div>
+        <div class="trust-tag">🤖 544+ Commands</div>
+      </div>
+    </div>
+
+    <!-- ════ MAIN PAIRING CODE CONSOLE ════ -->
+    <div class="pair-main-card">
+
+      <div class="pair-step-tabs">
+        <div class="step-badge active" id="tabStep1">
+          <div class="step-num">1</div>
+          <span>Enter WhatsApp Number</span>
+        </div>
+        <div class="step-badge" id="tabStep2">
+          <div class="step-num">2</div>
+          <span>Get 8-Digit Code</span>
+        </div>
+        <div class="step-badge" id="tabStep3">
+          <div class="step-num">3</div>
+          <span>Link in WhatsApp</span>
+        </div>
+      </div>
+
+      <!-- Phone Entry Input -->
+      <div id="phoneInputSection">
+        <div class="input-row">
+          <label style="color:#e2e8f0; font-size:0.92rem; font-weight:600;">
+            Enter Your WhatsApp Phone Number (with Country Code)
+          </label>
+          <div class="phone-input-wrapper">
+            <span class="phone-prefix-icon">📱</span>
+            <input 
+              type="tel" 
+              id="clientPhoneInput" 
+              class="phone-field" 
+              placeholder="e.g. 233558816890 or 15551234567"
+              autocomplete="tel"
+              oninput="handlePhoneInput(this)"
+              onkeydown="if(event.key==='Enter') generateClientPairCode()"
+            >
+          </div>
+          <div class="phone-hint">
+            💡 Do <strong>NOT</strong> include "+" or dashes. Examples: Ghana <code>233558816890</code>, Nigeria <code>2348012345678</code>, USA <code>15551234567</code>.
+          </div>
+        </div>
+
+        <button class="btn-generate" id="btnGetPairCode" onclick="generateClientPairCode()">
+          <span>🚀 Generate WhatsApp Pairing Code</span>
+        </button>
+
+        <div id="errorMessage" style="display:none; margin-top:14px; padding:12px 16px; background:rgba(255,82,82,0.15); border:1px solid #ff5252; border-radius:10px; color:#ff8a80; font-size:0.88rem; text-align:center;"></div>
+      </div>
+
+      <!-- Loading State -->
+      <div id="loadingState" style="display:none; text-align:center; padding:30px 20px;">
+        <div style="font-size:2.5rem; margin-bottom:12px; animation: spin 1.2s linear infinite;">⏳</div>
+        <div style="font-size:1.1rem; font-weight:700; color:#fff; margin-bottom:6px;">Connecting to WhatsApp Cloud...</div>
+        <div style="font-size:0.85rem; color:#8892b0;">Generating your secure 8-digit device pairing code</div>
+      </div>
+
+      <!-- Pairing Code Display Area -->
+      <div class="code-result-area" id="codeResultArea">
+        
+        <div class="code-display-box">
+          <div style="font-size:0.8rem; text-transform:uppercase; letter-spacing:1.5px; color:#94a3b8; font-weight:700;">
+            Your 8-Digit Pairing Code
+          </div>
+          
+          <div class="code-text" id="pairCodeDisplay">---- ----</div>
+
+          <div>
+            <button class="btn-copy-code" id="btnCopyCode" onclick="copyPairCode()">
+              <span>📋</span> <span id="copyBtnText">Tap to Copy Code</span>
+            </button>
+          </div>
+
+          <div class="timer-pill" id="timerPill">
+            <span>⏱️ Code expires in:</span> <strong id="countdownDisplay">03:00</strong>
+          </div>
+        </div>
+
+        <!-- Step-by-Step Instructions -->
+        <div class="steps-guide">
+          <h4>📱 How to Link in WhatsApp:</h4>
+          
+          <div class="step-item">
+            <div class="step-item-icon">1</div>
+            <div>Open <strong>WhatsApp</strong> on your phone</div>
+          </div>
+          <div class="step-item">
+            <div class="step-item-icon">2</div>
+            <div>Tap the <strong>3 Dots (Android)</strong> or <strong>Settings (iPhone)</strong> → Tap <strong>Linked Devices</strong></div>
+          </div>
+          <div class="step-item">
+            <div class="step-item-icon">3</div>
+            <div>Tap <strong>"Link a Device"</strong> → Tap <strong>"Link with phone number instead"</strong> at the bottom</div>
+          </div>
+          <div class="step-item">
+            <div class="step-item-icon">4</div>
+            <div>Enter the <strong>8-Digit Code</strong> above into WhatsApp. That's it! 🎉</div>
+          </div>
+        </div>
+
+        <!-- Live Connection Status Tracker -->
+        <div class="live-status-box" id="liveStatusBox">
+          <div class="status-badge-inline">
+            <span class="status-dot dot-online" style="animation: pulseDot 1s infinite;"></span>
+            <span id="liveStatusText" style="color:#ffb74d;">Waiting for you to enter the code in WhatsApp...</span>
+          </div>
+          <button onclick="checkClientBotStatus()" style="background:transparent; border:1px solid rgba(255,255,255,0.2); color:#fff; border-radius:6px; padding:4px 10px; font-size:0.75rem; cursor:pointer;">
+            🔄 Refresh Status
+          </button>
+        </div>
+
+        <div style="margin-top:16px; text-align:center;">
+          <button onclick="resetPairing()" style="background:transparent; border:none; color:#8892b0; font-size:0.85rem; cursor:pointer; text-decoration:underline;">
+            Enter a different phone number
+          </button>
+        </div>
+
+      </div>
+
+      <!-- Success Celebration Box -->
+      <div class="success-celebration" id="successBox">
+        <div style="font-size:3rem; margin-bottom:8px;">🎉🐉</div>
+        <h3 style="color:#00e676; font-size:1.5rem; font-weight:800; margin:0 0 8px;">BOT SUCCESSFULLY CONNECTED!</h3>
+        <p style="color:#e2e8f0; font-size:0.95rem; margin:0 0 16px; line-height:1.5;">
+          Your WhatsApp account is now linked to <strong>RED DRAGON CLOUD</strong>.<br>
+          Your bot will stay active 24/7 in the cloud.
+        </p>
+        <div style="display:inline-block; background:rgba(0,0,0,0.4); border-radius:10px; padding:12px 20px; font-size:0.9rem; color:#ffd54f;">
+          👉 <strong>Quick Test:</strong> Open WhatsApp and send <code>.menu</code> or <code>.ping</code> in your chat!
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ════ FEATURES SHOWCASE ════ -->
+    <div style="text-align:center; margin-bottom: 24px;">
+      <h2 style="font-size:1.6rem; font-weight:800; color:#fff; margin:0 0 6px;">Everything Included in Your Bot</h2>
+      <p style="color:#8892b0; font-size:0.9rem; margin:0;">Supercharge your WhatsApp with 544+ automated tools</p>
+    </div>
+
+    <div class="store-features">
+      <div class="store-feature-card">
+        <div class="feature-icon-wrapper">🎵</div>
+        <h3 class="feature-card-title">Music & Full Movies</h3>
+        <p class="feature-card-desc">Download songs (.play), videos (.video), TikToks, and full HD movies with one single command directly to your chat.</p>
+      </div>
+
+      <div class="store-feature-card">
+        <div class="feature-icon-wrapper">🧠</div>
+        <h3 class="feature-card-title">AI & ChatGPT Assist</h3>
+        <p class="feature-card-desc">Instant AI question answering, text summarizer, coding assistant, and math problem solver inside WhatsApp.</p>
+      </div>
+
+      <div class="store-feature-card">
+        <div class="feature-icon-wrapper">🛡️</div>
+        <h3 class="feature-card-title">Group Security & Anti-Link</h3>
+        <p class="feature-card-desc">Protect your WhatsApp groups with automatic anti-link detection, anti-spam, auto-kick, welcome messages, and @everyone tagging.</p>
+      </div>
+
+      <div class="store-feature-card">
+        <div class="feature-icon-wrapper">⚡</div>
+        <h3 class="feature-card-title">24/7 Cloud Hosting</h3>
+        <p class="feature-card-desc">Runs entirely on our ultra-fast cloud server. Your bot stays active 24/7 even when your phone is turned off or has no internet.</p>
+      </div>
+
+      <div class="store-feature-card">
+        <div class="feature-icon-wrapper">🎭</div>
+        <h3 class="feature-card-title">Stickers & Media Tools</h3>
+        <p class="feature-card-desc">Convert any image, GIF, or short video into an instant WhatsApp sticker (.sticker) with custom pack names.</p>
+      </div>
+
+      <div class="store-feature-card">
+        <div class="feature-icon-wrapper">🔒</div>
+        <h3 class="feature-card-title">Isolated & Private</h3>
+        <p class="feature-card-desc">Each user gets an isolated, private process. Your messages and media remain strictly end-to-end encrypted.</p>
+      </div>
+    </div>
+
+    <!-- ════ REFERRAL / STORE SHARE CREATOR ════ -->
+    <div class="referral-maker-box">
+      <div style="font-size:1.8rem; margin-bottom:8px;">🤝</div>
+      <h3 style="color:#fff; font-size:1.25rem; font-weight:800; margin:0 0 6px;">Share This Store Link With Your Customers</h3>
+      <p style="color:#ffd54f; font-size:0.88rem; margin:0; max-width:540px; margin:0 auto;">
+        Create your personalized client referral link. When your customers open it, they will see your store brand and can pair instantly!
+      </p>
+
+      <div class="ref-input-group">
+        <input 
+          type="text" 
+          id="customRefInput" 
+          class="ref-input" 
+          placeholder="Enter Your Store or Name (e.g. FastLinkHub)"
+          value=""
+        >
+        <button class="ref-btn" onclick="generateAndCopyRefLink()">
+          📋 Copy Store Link
+        </button>
+      </div>
+      <div id="refCopyNotice" style="display:none; color:#00e676; font-size:0.82rem; margin-top:10px; font-weight:600;"></div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="store-footer">
+      <p style="margin:0 0 8px;">
+        Powered by <strong>RED DRAGON OFC</strong> • Multi-User WhatsApp Cloud Infrastructure
+      </p>
+      <p style="margin:0; font-size:0.8rem;">
+        Need assistance? Contact our <a href="https://whatsapp.com" target="_blank" id="supportLink">Support Channel ↗</a>
+      </p>
+    </footer>
+
+  </div>
+
+  <style>
+    @keyframes spin {
+      100% { transform: rotate(360deg); }
+    }
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+  </style>
+
+  <script>
+    let activePhone = '';
+    let currentPairCode = '';
+    let statusInterval = null;
+    let timerInterval = null;
+    let secondsLeft = 180;
+
+    // Initialize Referral Parameter from URL
+    window.addEventListener('DOMContentLoaded', () => {
+      const params = new URLSearchParams(window.location.search);
+      const ref = params.get('ref') || params.get('partner') || params.get('store') || params.get('seller') || params.get('agent');
+      
+      if (ref && ref.trim() !== '') {
+        const cleanRef = decodeURIComponent(ref.trim());
+        document.getElementById('refBadgeText').innerHTML = `✨ Verified Partner Store: <strong>${cleanRef}</strong>`;
+        document.getElementById('customRefInput').value = cleanRef;
+      }
+
+      // Pre-fill phone if in URL
+      const phoneParam = params.get('phone') || params.get('number');
+      if (phoneParam) {
+        document.getElementById('clientPhoneInput').value = phoneParam.replace(/[^0-9]/g, '');
+      }
+
+      // Fetch live cloud stats
+      fetchStoreStats();
+    });
+
+    async function fetchStoreStats() {
+      try {
+        const res = await fetch('/api/client/stats');
+        const data = await res.json();
+        if (data.success) {
+          document.getElementById('cloudStatus').textContent = `${data.activeBots} Cloud Bots Online • 99.9% Uptime`;
+        }
+      } catch (e) {
+        console.log('Stats fetch error:', e);
+      }
+    }
+
+    function handlePhoneInput(input) {
+      input.value = input.value.replace(/[^0-9]/g, '');
+    }
+
+    async function generateClientPairCode() {
+      const phoneInput = document.getElementById('clientPhoneInput');
+      let phone = phoneInput.value.replace(/[^0-9]/g, '');
+      const errBox = document.getElementById('errorMessage');
+      errBox.style.display = 'none';
+
+      if (!phone || phone.length < 8) {
+        errBox.textContent = '⚠️ Please enter a valid phone number with country code (e.g. 233558816890 or 15551234567).';
+        errBox.style.display = 'block';
+        return;
+      }
+
+      activePhone = phone;
+      const btn = document.getElementById('btnGetPairCode');
+      btn.disabled = true;
+      document.getElementById('phoneInputSection').style.display = 'none';
+      document.getElementById('loadingState').style.display = 'block';
+
+      try {
+        const response = await fetch(`/api/client/pair-code?phone=${phone}`);
+        const data = await response.json();
+
+        document.getElementById('loadingState').style.display = 'none';
+
+        if (data.success && data.code) {
+          currentPairCode = data.code;
+          displayPairCode(data.code);
+        } else {
+          document.getElementById('phoneInputSection').style.display = 'block';
+          btn.disabled = false;
+          errBox.textContent = data.error || 'Failed to generate pairing code. Please check your number and try again.';
+          errBox.style.display = 'block';
+        }
+      } catch (err) {
+        document.getElementById('loadingState').style.display = 'none';
+        document.getElementById('phoneInputSection').style.display = 'block';
+        btn.disabled = false;
+        errBox.textContent = 'Network error. Please verify your connection and try again.';
+        errBox.style.display = 'block';
+      }
+    }
+
+    function displayPairCode(code) {
+      document.getElementById('pairCodeDisplay').textContent = code;
+      document.getElementById('codeResultArea').style.display = 'block';
+      document.getElementById('tabStep1').classList.remove('active');
+      document.getElementById('tabStep2').classList.add('active');
+      document.getElementById('tabStep3').classList.add('active');
+
+      // Start Countdown
+      startCountdown(180);
+
+      // Start Polling for Connection Status
+      startStatusPolling();
+    }
+
+    function copyPairCode() {
+      if (!currentPairCode) return;
+      const cleanCode = currentPairCode.replace('-', '');
+      navigator.clipboard.writeText(currentPairCode).then(() => {
+        const btnText = document.getElementById('copyBtnText');
+        btnText.textContent = '✅ Copied to Clipboard!';
+        setTimeout(() => {
+          btnText.textContent = 'Tap to Copy Code';
+        }, 3000);
+      }).catch(() => {
+        // Fallback
+        const el = document.createElement('textarea');
+        el.value = currentPairCode;
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+        document.getElementById('copyBtnText').textContent = '✅ Copied!';
+      });
+    }
+
+    function startCountdown(duration) {
+      clearInterval(timerInterval);
+      secondsLeft = duration;
+      const display = document.getElementById('countdownDisplay');
+
+      timerInterval = setInterval(() => {
+        secondsLeft--;
+        const mins = Math.floor(secondsLeft / 60);
+        const secs = secondsLeft % 60;
+        display.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+
+        if (secondsLeft <= 0) {
+          clearInterval(timerInterval);
+          display.textContent = 'Expired';
+          document.getElementById('liveStatusText').textContent = '⚠️ Pairing code expired. Please request a new code.';
+          document.getElementById('liveStatusText').style.color = '#ff5252';
+        }
+      }, 1000);
+    }
+
+    function startStatusPolling() {
+      clearInterval(statusInterval);
+      statusInterval = setInterval(checkClientBotStatus, 3500);
+    }
+
+    async function checkClientBotStatus() {
+      if (!activePhone) return;
+      try {
+        const res = await fetch(`/api/client/status?phone=${activePhone}`);
+        const data = await res.json();
+        
+        if (data.success) {
+          const statusText = document.getElementById('liveStatusText');
+          if (data.status === 'active') {
+            // Connected!
+            clearInterval(statusInterval);
+            clearInterval(timerInterval);
+            document.getElementById('codeResultArea').style.display = 'none';
+            document.getElementById('successBox').style.display = 'block';
+          } else if (data.status === 'pairing') {
+            statusText.textContent = '⏳ Waiting for you to enter code in WhatsApp...';
+            statusText.style.color = '#ffb74d';
+          } else if (data.status === 'linked') {
+            statusText.textContent = '🔄 WhatsApp linked! Initializing bot engine...';
+            statusText.style.color = '#00e676';
+          }
+        }
+      } catch (e) {
+        console.log('Status polling error:', e);
+      }
+    }
+
+    function resetPairing() {
+      clearInterval(statusInterval);
+      clearInterval(timerInterval);
+      document.getElementById('codeResultArea').style.display = 'none';
+      document.getElementById('successBox').style.display = 'none';
+      document.getElementById('phoneInputSection').style.display = 'block';
+      document.getElementById('btnGetPairCode').disabled = false;
+      document.getElementById('tabStep1').classList.add('active');
+      document.getElementById('tabStep2').classList.remove('active');
+      document.getElementById('tabStep3').classList.remove('active');
+    }
+
+    function generateAndCopyRefLink() {
+      const input = document.getElementById('customRefInput');
+      const storeName = input.value.trim();
+      const origin = window.location.origin;
+      const refUrl = storeName ? `${origin}/store?ref=${encodeURIComponent(storeName)}` : `${origin}/store`;
+
+      navigator.clipboard.writeText(refUrl).then(() => {
+        const notice = document.getElementById('refCopyNotice');
+        notice.textContent = `✅ Store Link Copied: ${refUrl}`;
+        notice.style.display = 'block';
+        setTimeout(() => {
+          notice.style.display = 'none';
+        }, 5000);
+      });
+    }
+  </script>
+</body>
+</html>

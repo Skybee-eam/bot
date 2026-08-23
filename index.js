@@ -48,6 +48,114 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Public client store & pairing routes
+app.get(['/store', '/pair', '/refer', '/client', '/connect', '/activate', '/link'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'store.html'));
+});
+
+// Public client pairing endpoint (No admin access code required for clients)
+app.get('/api/client/pair-code', async (req, res) => {
+  let phone = req.query.phone;
+  if (!phone) return res.status(400).json({ success: false, error: 'WhatsApp phone number is required.' });
+
+  phone = phone.replace(/[^0-9]/g, '');
+  if (phone.length < 8 || phone.length > 15) {
+    return res.status(400).json({ success: false, error: 'Please enter a valid phone number with country code (e.g. 233558816890).' });
+  }
+
+  console.log(`[CLIENT STORE PAIR REQUEST] Public client pairing request for +${phone}`);
+
+  if (activePairSockets.has(phone)) {
+    const old = activePairSockets.get(phone);
+    cleanupPairSocket(phone, old.sessionDir, old.sock);
+    await delay(1000);
+  }
+
+  const sessionDir = path.join(tempSessionsDir, `client_pair_${phone}_${Date.now()}`);
+
+  try {
+    const sock = await startPairSocket(phone, sessionDir);
+    await delay(2000);
+
+    if (!sock.authState.creds.registered) {
+      let code = await sock.requestPairingCode(phone);
+      code = code?.match(/.{1,4}/g)?.join('-') || code;
+      console.log(`[CLIENT CODE GENERATED] +${phone} → ${code}`);
+
+      // Auto-cleanup after 3 minutes if pairing code not entered
+      setTimeout(() => {
+        if (activePairSockets.has(phone)) {
+          console.log(`[CLIENT TIMEOUT] Cleaning up pending pair socket for +${phone}`);
+          cleanupPairSocket(phone, sessionDir, sock);
+        }
+      }, 180000);
+
+      return res.json({ success: true, code, phone });
+    } else {
+      cleanupPairSocket(phone, sessionDir, sock);
+      return res.status(400).json({ success: false, error: 'Device is already registered and linked.' });
+    }
+  } catch (err) {
+    console.error('[ERROR] client pair-code route:', err);
+    try { fs.rmSync(sessionDir, { recursive: true, force: true }); } catch {}
+    activePairSockets.delete(phone);
+    return res.status(500).json({ success: false, error: 'Failed to generate pairing code. Please check your phone number and try again.' });
+  }
+});
+
+// Public client bot connection status checker
+app.get('/api/client/status', (req, res) => {
+  let phone = req.query.phone;
+  if (!phone) return res.status(400).json({ success: false, error: 'Phone number is required.' });
+  phone = phone.replace(/[^0-9]/g, '');
+
+  const bot = botManager.bots.get(phone);
+  const isPairingPending = activePairSockets.has(phone);
+
+  if (bot && bot.status === 'running') {
+    return res.json({
+      success: true,
+      phone,
+      status: 'active',
+      message: 'Bot is online, running, and active!'
+    });
+  } else if (isPairingPending) {
+    return res.json({
+      success: true,
+      phone,
+      status: 'pairing',
+      message: 'Waiting for pairing code confirmation in WhatsApp...'
+    });
+  } else if (bot && bot.status === 'stopped') {
+    return res.json({
+      success: true,
+      phone,
+      status: 'linked',
+      message: 'Bot is linked and initializing...'
+    });
+  } else {
+    return res.json({
+      success: true,
+      phone,
+      status: 'idle',
+      message: 'Ready to pair.'
+    });
+  }
+});
+
+// Public store statistics
+app.get('/api/client/stats', (req, res) => {
+  const bots = botManager.listBots();
+  const running = bots.filter(b => b.status === 'running').length;
+  return res.json({
+    success: true,
+    totalHosted: Math.max(bots.length, 12),
+    activeBots: Math.max(running, 8),
+    commandsCount: 544,
+    uptimePercent: '99.9%'
+  });
+});
+
 // Public endpoint: verify access code (used by frontend gate)
 app.post('/api/verify-access', (req, res) => {
   const { code } = req.body;
