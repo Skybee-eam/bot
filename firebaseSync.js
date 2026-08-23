@@ -13,7 +13,8 @@ class FirebaseSyncManager {
 
   init() {
     try {
-      if (admin.apps.length === 0) {
+      const apps = admin.apps || [];
+      if (apps.length === 0) {
         // Look for service account json in project root
         let serviceAccount = null;
         const possibleFiles = ['serviceAccountKey.json', 'firebase-service-account.json', 'firebase-credentials.json'];
