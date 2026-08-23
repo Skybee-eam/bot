@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>RED DRAGON — WhatsApp Bot Activation & Client Store</title>
-  <meta name="description" content="Activate your 24/7 Cloud WhatsApp Bot in 60 seconds. 544+ commands, AI tools, media downloaders, and group security.">
+  <meta name="description" content="Activate your 24/7 Cloud WhatsApp Bot in 60 seconds via Pairing Code or QR Code. 544+ commands, AI tools, and media downloaders.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
@@ -51,7 +51,7 @@
 
     .store-hero {
       text-align: center;
-      margin-bottom: 36px;
+      margin-bottom: 32px;
     }
 
     .store-title {
@@ -78,7 +78,7 @@
       flex-wrap: wrap;
       justify-content: center;
       gap: 12px;
-      margin-bottom: 30px;
+      margin-bottom: 24px;
     }
 
     .trust-tag {
@@ -92,6 +92,42 @@
       font-size: 0.8rem;
       color: #cfd8dc;
       font-weight: 500;
+    }
+
+    /* ── Mode Switcher (Pairing Code vs QR Code) ── */
+    .mode-switcher {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .mode-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      border-radius: 14px;
+      border: 1.5px solid rgba(255, 255, 255, 0.12);
+      background: rgba(20, 16, 28, 0.7);
+      color: #94a3b8;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      backdrop-filter: blur(10px);
+    }
+
+    .mode-btn:hover {
+      border-color: rgba(255, 140, 0, 0.5);
+      color: #fff;
+    }
+
+    .mode-btn.active {
+      background: linear-gradient(135deg, rgba(255, 69, 0, 0.25) 0%, rgba(255, 140, 0, 0.25) 100%);
+      border-color: #ff8c00;
+      color: #fff;
+      box-shadow: 0 0 25px rgba(255, 100, 0, 0.3);
     }
 
     /* ── Store Pairing Card ── */
@@ -294,6 +330,34 @@
       gap: 6px;
     }
 
+    /* ── QR Section Styles ── */
+    .qr-container-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 16px 0;
+      text-align: center;
+    }
+
+    .qr-frame {
+      background: #ffffff;
+      padding: 14px;
+      border-radius: 18px;
+      box-shadow: 0 0 40px rgba(255, 140, 0, 0.35);
+      margin: 16px 0;
+      display: inline-block;
+      min-width: 240px;
+      min-height: 240px;
+    }
+
+    .qr-frame img {
+      width: 240px;
+      height: 240px;
+      display: block;
+      border-radius: 8px;
+    }
+
     /* ── Live Step Instructions ── */
     .steps-guide {
       background: rgba(255, 255, 255, 0.02);
@@ -454,7 +518,7 @@
       transform: scale(1.02);
     }
 
-    /* ── Success Celebration Modal / Toast ── */
+    /* ── Success Celebration Box ── */
     .success-celebration {
       display: none;
       background: rgba(0, 230, 118, 0.12);
@@ -472,7 +536,7 @@
       100% { transform: scale(1); }
     }
 
-    /* ── Support & Footer ── */
+    /* ── Footer ── */
     .store-footer {
       text-align: center;
       border-top: 1px solid rgba(255, 255, 255, 0.08);
@@ -491,7 +555,6 @@
       text-decoration: underline;
     }
 
-    /* Responsive adjustments */
     @media (max-width: 600px) {
       .ref-input-group {
         flex-direction: column;
@@ -499,6 +562,12 @@
       .code-text {
         font-size: 2.1rem;
         letter-spacing: 2px;
+      }
+      .mode-switcher {
+        flex-direction: column;
+      }
+      .mode-btn {
+        justify-content: center;
       }
     }
   </style>
@@ -540,6 +609,7 @@
 
       <div class="trust-badges">
         <div class="trust-tag">⚡ Instant Pairing</div>
+        <div class="trust-tag">📷 Scan QR Code</div>
         <div class="trust-tag">🛡️ 100% Encrypted & Safe</div>
         <div class="trust-tag">☁️ No Phone Battery Drain</div>
         <div class="trust-tag">🎵 HD Media Downloader</div>
@@ -547,85 +617,175 @@
       </div>
     </div>
 
-    <!-- ════ MAIN PAIRING CODE CONSOLE ════ -->
+    <!-- ════ METHOD SELECTOR TABS ════ -->
+    <div class="mode-switcher">
+      <button class="mode-btn active" id="btnModePair" onclick="switchMode('pair')">
+        <span>📱</span> <span>8-Digit Pairing Code</span>
+      </button>
+      <button class="mode-btn" id="btnModeQr" onclick="switchMode('qr')">
+        <span>📷</span> <span>Scan QR Code</span>
+      </button>
+    </div>
+
+    <!-- ════ MAIN ACTIVATION CARD ════ -->
     <div class="pair-main-card">
 
-      <div class="pair-step-tabs">
-        <div class="step-badge active" id="tabStep1">
-          <div class="step-num">1</div>
-          <span>Enter WhatsApp Number</span>
-        </div>
-        <div class="step-badge" id="tabStep2">
-          <div class="step-num">2</div>
-          <span>Get 8-Digit Code</span>
-        </div>
-        <div class="step-badge" id="tabStep3">
-          <div class="step-num">3</div>
-          <span>Link in WhatsApp</span>
-        </div>
-      </div>
+      <!-- ── SECTION A: PAIRING CODE ── -->
+      <div id="sectionPairMode">
 
-      <!-- Phone Entry Input -->
-      <div id="phoneInputSection">
-        <div class="input-row">
-          <label style="color:#e2e8f0; font-size:0.92rem; font-weight:600;">
-            Enter Your WhatsApp Phone Number (with Country Code)
-          </label>
-          <div class="phone-input-wrapper">
-            <span class="phone-prefix-icon">📱</span>
-            <input 
-              type="tel" 
-              id="clientPhoneInput" 
-              class="phone-field" 
-              placeholder="e.g. 233558816890 or 15551234567"
-              autocomplete="tel"
-              oninput="handlePhoneInput(this)"
-              onkeydown="if(event.key==='Enter') generateClientPairCode()"
-            >
+        <div class="pair-step-tabs">
+          <div class="step-badge active" id="tabStep1">
+            <div class="step-num">1</div>
+            <span>Enter WhatsApp Number</span>
           </div>
-          <div class="phone-hint">
-            💡 Do <strong>NOT</strong> include "+" or dashes. Examples: Ghana <code>233558816890</code>, Nigeria <code>2348012345678</code>, USA <code>15551234567</code>.
+          <div class="step-badge" id="tabStep2">
+            <div class="step-num">2</div>
+            <span>Get 8-Digit Code</span>
+          </div>
+          <div class="step-badge" id="tabStep3">
+            <div class="step-num">3</div>
+            <span>Link in WhatsApp</span>
           </div>
         </div>
 
-        <button class="btn-generate" id="btnGetPairCode" onclick="generateClientPairCode()">
-          <span>🚀 Generate WhatsApp Pairing Code</span>
-        </button>
-
-        <div id="errorMessage" style="display:none; margin-top:14px; padding:12px 16px; background:rgba(255,82,82,0.15); border:1px solid #ff5252; border-radius:10px; color:#ff8a80; font-size:0.88rem; text-align:center;"></div>
-      </div>
-
-      <!-- Loading State -->
-      <div id="loadingState" style="display:none; text-align:center; padding:30px 20px;">
-        <div style="font-size:2.5rem; margin-bottom:12px; animation: spin 1.2s linear infinite;">⏳</div>
-        <div style="font-size:1.1rem; font-weight:700; color:#fff; margin-bottom:6px;">Connecting to WhatsApp Cloud...</div>
-        <div style="font-size:0.85rem; color:#8892b0;">Generating your secure 8-digit device pairing code</div>
-      </div>
-
-      <!-- Pairing Code Display Area -->
-      <div class="code-result-area" id="codeResultArea">
-        
-        <div class="code-display-box">
-          <div style="font-size:0.8rem; text-transform:uppercase; letter-spacing:1.5px; color:#94a3b8; font-weight:700;">
-            Your 8-Digit Pairing Code
+        <!-- Phone Entry Input -->
+        <div id="phoneInputSection">
+          <div class="input-row">
+            <label style="color:#e2e8f0; font-size:0.92rem; font-weight:600;">
+              Enter Your WhatsApp Phone Number (with Country Code)
+            </label>
+            <div class="phone-input-wrapper">
+              <span class="phone-prefix-icon">📱</span>
+              <input 
+                type="tel" 
+                id="clientPhoneInput" 
+                class="phone-field" 
+                placeholder="e.g. 233558816890 or 15551234567"
+                autocomplete="tel"
+                oninput="handlePhoneInput(this)"
+                onkeydown="if(event.key==='Enter') generateClientPairCode()"
+              >
+            </div>
+            <div class="phone-hint">
+              💡 Do <strong>NOT</strong> include "+" or dashes. Examples: Ghana <code>233558816890</code>, Nigeria <code>2348012345678</code>, USA <code>15551234567</code>.
+            </div>
           </div>
+
+          <button class="btn-generate" id="btnGetPairCode" onclick="generateClientPairCode()">
+            <span>🚀 Generate WhatsApp Pairing Code</span>
+          </button>
+
+          <div id="errorMessage" style="display:none; margin-top:14px; padding:12px 16px; background:rgba(255,82,82,0.15); border:1px solid #ff5252; border-radius:10px; color:#ff8a80; font-size:0.88rem; text-align:center;"></div>
+        </div>
+
+        <!-- Loading State for Pair Code -->
+        <div id="loadingState" style="display:none; text-align:center; padding:30px 20px;">
+          <div style="font-size:2.5rem; margin-bottom:12px; animation: spin 1.2s linear infinite;">⏳</div>
+          <div style="font-size:1.1rem; font-weight:700; color:#fff; margin-bottom:6px;">Connecting to WhatsApp Cloud...</div>
+          <div style="font-size:0.85rem; color:#8892b0;">Generating your secure 8-digit device pairing code</div>
+        </div>
+
+        <!-- Pairing Code Display Area -->
+        <div class="code-result-area" id="codeResultArea">
           
-          <div class="code-text" id="pairCodeDisplay">---- ----</div>
+          <div class="code-display-box">
+            <div style="font-size:0.8rem; text-transform:uppercase; letter-spacing:1.5px; color:#94a3b8; font-weight:700;">
+              Your 8-Digit Pairing Code
+            </div>
+            
+            <div class="code-text" id="pairCodeDisplay">---- ----</div>
 
-          <div>
-            <button class="btn-copy-code" id="btnCopyCode" onclick="copyPairCode()">
-              <span>📋</span> <span id="copyBtnText">Tap to Copy Code</span>
+            <div>
+              <button class="btn-copy-code" id="btnCopyCode" onclick="copyPairCode()">
+                <span>📋</span> <span id="copyBtnText">Tap to Copy Code</span>
+              </button>
+            </div>
+
+            <div class="timer-pill" id="timerPill">
+              <span>⏱️ Code expires in:</span> <strong id="countdownDisplay">03:00</strong>
+            </div>
+          </div>
+
+          <!-- Step-by-Step Instructions -->
+          <div class="steps-guide">
+            <h4>📱 How to Link in WhatsApp:</h4>
+            
+            <div class="step-item">
+              <div class="step-item-icon">1</div>
+              <div>Open <strong>WhatsApp</strong> on your phone</div>
+            </div>
+            <div class="step-item">
+              <div class="step-item-icon">2</div>
+              <div>Tap the <strong>3 Dots (Android)</strong> or <strong>Settings (iPhone)</strong> → Tap <strong>Linked Devices</strong></div>
+            </div>
+            <div class="step-item">
+              <div class="step-item-icon">3</div>
+              <div>Tap <strong>"Link a Device"</strong> → Tap <strong>"Link with phone number instead"</strong> at the bottom</div>
+            </div>
+            <div class="step-item">
+              <div class="step-item-icon">4</div>
+              <div>Enter the <strong>8-Digit Code</strong> above into WhatsApp. That's it! 🎉</div>
+            </div>
+          </div>
+
+          <!-- Live Connection Status Tracker -->
+          <div class="live-status-box" id="liveStatusBox">
+            <div class="status-badge-inline">
+              <span class="status-dot dot-online" style="animation: pulseDot 1s infinite;"></span>
+              <span id="liveStatusText" style="color:#ffb74d;">Waiting for you to enter the code in WhatsApp...</span>
+            </div>
+            <button onclick="checkClientBotStatus()" style="background:transparent; border:1px solid rgba(255,255,255,0.2); color:#fff; border-radius:6px; padding:4px 10px; font-size:0.75rem; cursor:pointer;">
+              🔄 Refresh Status
             </button>
           </div>
 
-          <div class="timer-pill" id="timerPill">
-            <span>⏱️ Code expires in:</span> <strong id="countdownDisplay">03:00</strong>
+          <div style="margin-top:16px; text-align:center;">
+            <button onclick="resetPairing()" style="background:transparent; border:none; color:#8892b0; font-size:0.85rem; cursor:pointer; text-decoration:underline;">
+              Enter a different phone number
+            </button>
           </div>
+
         </div>
 
-        <!-- Step-by-Step Instructions -->
+      </div>
+
+      <!-- ── SECTION B: QR CODE SCANNER ── -->
+      <div id="sectionQrMode" style="display:none;">
+        
+        <div class="qr-container-box">
+          <div style="font-size:1.1rem; font-weight:700; color:#fff; margin-bottom:6px;">
+            Scan Live QR Code with WhatsApp
+          </div>
+          <div style="font-size:0.88rem; color:#8892b0; max-width:450px;">
+            Open WhatsApp on your phone, go to <strong>Linked Devices → Link a Device</strong>, and point your camera here.
+          </div>
+
+          <!-- Loading QR Spinner -->
+          <div id="qrLoadingBox" style="padding:40px 20px; text-align:center;">
+            <div style="font-size:2.5rem; margin-bottom:10px; animation: spin 1.2s linear infinite;">⏳</div>
+            <div style="color:#ffd54f; font-weight:600; font-size:0.95rem;">Generating Instant QR Code...</div>
+          </div>
+
+          <!-- QR Code Image -->
+          <div class="qr-frame" id="qrImageBox" style="display:none;">
+            <img id="qrImageElement" src="" alt="WhatsApp QR Code">
+          </div>
+
+          <div id="qrTimerPill" class="timer-pill" style="display:none;">
+            <span>⏱️ QR refreshes in:</span> <strong id="qrCountdownDisplay">00:45</strong>
+          </div>
+
+          <!-- QR Error Notice -->
+          <div id="qrErrorNotice" style="display:none; margin:12px 0; padding:10px 16px; background:rgba(255,82,82,0.15); border:1px solid #ff5252; border-radius:10px; color:#ff8a80; font-size:0.85rem;"></div>
+
+          <button onclick="startClientQrSession()" class="btn-copy-code" style="margin-top:14px; background:rgba(255,140,0,0.15); border-color:rgba(255,140,0,0.4); color:#ff9800;">
+            <span>🔄</span> <span>Refresh QR Code</span>
+          </button>
+        </div>
+
+        <!-- Step-by-Step Instructions for QR -->
         <div class="steps-guide">
-          <h4>📱 How to Link in WhatsApp:</h4>
+          <h4>📷 How to Scan with WhatsApp:</h4>
           
           <div class="step-item">
             <div class="step-item-icon">1</div>
@@ -633,38 +793,21 @@
           </div>
           <div class="step-item">
             <div class="step-item-icon">2</div>
-            <div>Tap the <strong>3 Dots (Android)</strong> or <strong>Settings (iPhone)</strong> → Tap <strong>Linked Devices</strong></div>
+            <div>Tap <strong>3 Dots (Android)</strong> or <strong>Settings (iPhone)</strong> → Tap <strong>Linked Devices</strong></div>
           </div>
           <div class="step-item">
             <div class="step-item-icon">3</div>
-            <div>Tap <strong>"Link a Device"</strong> → Tap <strong>"Link with phone number instead"</strong> at the bottom</div>
+            <div>Tap <strong>"Link a Device"</strong> to open camera scanner</div>
           </div>
           <div class="step-item">
             <div class="step-item-icon">4</div>
-            <div>Enter the <strong>8-Digit Code</strong> above into WhatsApp. That's it! 🎉</div>
+            <div>Point your camera at the <strong>QR Code</strong> above!</div>
           </div>
-        </div>
-
-        <!-- Live Connection Status Tracker -->
-        <div class="live-status-box" id="liveStatusBox">
-          <div class="status-badge-inline">
-            <span class="status-dot dot-online" style="animation: pulseDot 1s infinite;"></span>
-            <span id="liveStatusText" style="color:#ffb74d;">Waiting for you to enter the code in WhatsApp...</span>
-          </div>
-          <button onclick="checkClientBotStatus()" style="background:transparent; border:1px solid rgba(255,255,255,0.2); color:#fff; border-radius:6px; padding:4px 10px; font-size:0.75rem; cursor:pointer;">
-            🔄 Refresh Status
-          </button>
-        </div>
-
-        <div style="margin-top:16px; text-align:center;">
-          <button onclick="resetPairing()" style="background:transparent; border:none; color:#8892b0; font-size:0.85rem; cursor:pointer; text-decoration:underline;">
-            Enter a different phone number
-          </button>
         </div>
 
       </div>
 
-      <!-- Success Celebration Box -->
+      <!-- ── SUCCESS CELEBRATION BOX ── -->
       <div class="success-celebration" id="successBox">
         <div style="font-size:3rem; margin-bottom:8px;">🎉🐉</div>
         <h3 style="color:#00e676; font-size:1.5rem; font-weight:800; margin:0 0 8px;">BOT SUCCESSFULLY CONNECTED!</h3>
@@ -769,11 +912,18 @@
   </style>
 
   <script>
+    let currentMode = 'pair'; // 'pair' or 'qr'
     let activePhone = '';
     let currentPairCode = '';
     let statusInterval = null;
     let timerInterval = null;
     let secondsLeft = 180;
+
+    // QR State
+    let qrSessionId = null;
+    let qrPollInterval = null;
+    let qrTimerInterval = null;
+    let qrSecondsLeft = 45;
 
     // Initialize Referral Parameter from URL
     window.addEventListener('DOMContentLoaded', () => {
@@ -792,9 +942,28 @@
         document.getElementById('clientPhoneInput').value = phoneParam.replace(/[^0-9]/g, '');
       }
 
+      // Check mode param (e.g. ?mode=qr)
+      if (params.get('mode') === 'qr') {
+        switchMode('qr');
+      }
+
       // Fetch live cloud stats
       fetchStoreStats();
     });
+
+    // Switch between Pairing Code and QR Code Mode
+    function switchMode(mode) {
+      currentMode = mode;
+      document.getElementById('btnModePair').classList.toggle('active', mode === 'pair');
+      document.getElementById('btnModeQr').classList.toggle('active', mode === 'qr');
+
+      document.getElementById('sectionPairMode').style.display = mode === 'pair' ? 'block' : 'none';
+      document.getElementById('sectionQrMode').style.display = mode === 'qr' ? 'block' : 'none';
+
+      if (mode === 'qr' && !qrSessionId) {
+        startClientQrSession();
+      }
+    }
 
     async function fetchStoreStats() {
       try {
@@ -812,6 +981,9 @@
       input.value = input.value.replace(/[^0-9]/g, '');
     }
 
+    // ─────────────────────────────────────────────
+    // PAIRING CODE LOGIC
+    // ─────────────────────────────────────────────
     async function generateClientPairCode() {
       const phoneInput = document.getElementById('clientPhoneInput');
       let phone = phoneInput.value.replace(/[^0-9]/g, '');
@@ -861,16 +1033,12 @@
       document.getElementById('tabStep2').classList.add('active');
       document.getElementById('tabStep3').classList.add('active');
 
-      // Start Countdown
       startCountdown(180);
-
-      // Start Polling for Connection Status
       startStatusPolling();
     }
 
     function copyPairCode() {
       if (!currentPairCode) return;
-      const cleanCode = currentPairCode.replace('-', '');
       navigator.clipboard.writeText(currentPairCode).then(() => {
         const btnText = document.getElementById('copyBtnText');
         btnText.textContent = '✅ Copied to Clipboard!';
@@ -878,7 +1046,6 @@
           btnText.textContent = 'Tap to Copy Code';
         }, 3000);
       }).catch(() => {
-        // Fallback
         const el = document.createElement('textarea');
         el.value = currentPairCode;
         document.body.appendChild(el);
@@ -923,10 +1090,9 @@
         if (data.success) {
           const statusText = document.getElementById('liveStatusText');
           if (data.status === 'active') {
-            // Connected!
             clearInterval(statusInterval);
             clearInterval(timerInterval);
-            document.getElementById('codeResultArea').style.display = 'none';
+            document.getElementById('sectionPairMode').style.display = 'none';
             document.getElementById('successBox').style.display = 'block';
           } else if (data.status === 'pairing') {
             statusText.textContent = '⏳ Waiting for you to enter code in WhatsApp...';
@@ -953,6 +1119,93 @@
       document.getElementById('tabStep3').classList.remove('active');
     }
 
+    // ─────────────────────────────────────────────
+    // QR CODE SCANNER LOGIC
+    // ─────────────────────────────────────────────
+    async function startClientQrSession() {
+      clearInterval(qrPollInterval);
+      clearInterval(qrTimerInterval);
+
+      const loadingBox = document.getElementById('qrLoadingBox');
+      const imageBox = document.getElementById('qrImageBox');
+      const errorBox = document.getElementById('qrErrorNotice');
+      const timerPill = document.getElementById('qrTimerPill');
+
+      loadingBox.style.display = 'block';
+      imageBox.style.display = 'none';
+      errorBox.style.display = 'none';
+      timerPill.style.display = 'none';
+
+      try {
+        const res = await fetch('/api/client/qr-start', { method: 'POST' });
+        const data = await res.json();
+
+        if (data.success && data.sessionId) {
+          qrSessionId = data.sessionId;
+          startQrCountdown(45);
+          startQrPolling();
+        } else {
+          loadingBox.style.display = 'none';
+          errorBox.textContent = data.error || 'Failed to start QR code session.';
+          errorBox.style.display = 'block';
+        }
+      } catch (err) {
+        loadingBox.style.display = 'none';
+        errorBox.textContent = 'Network error while initializing QR Code.';
+        errorBox.style.display = 'block';
+      }
+    }
+
+    function startQrPolling() {
+      qrPollInterval = setInterval(async () => {
+        if (!qrSessionId) return;
+        try {
+          const res = await fetch(`/api/qr-status?sessionId=${qrSessionId}`);
+          const data = await res.json();
+
+          if (data.linked) {
+            // Connected successfully!
+            clearInterval(qrPollInterval);
+            clearInterval(qrTimerInterval);
+            document.getElementById('sectionQrMode').style.display = 'none';
+            document.getElementById('successBox').style.display = 'block';
+          } else if (data.qr) {
+            document.getElementById('qrLoadingBox').style.display = 'none';
+            document.getElementById('qrImageElement').src = data.qr;
+            document.getElementById('qrImageBox').style.display = 'inline-block';
+            document.getElementById('qrTimerPill').style.display = 'flex';
+          } else if (data.error) {
+            document.getElementById('qrLoadingBox').style.display = 'none';
+            const errEl = document.getElementById('qrErrorNotice');
+            errEl.textContent = data.error;
+            errEl.style.display = 'block';
+          }
+        } catch (e) {
+          console.log('QR poll error:', e);
+        }
+      }, 2000);
+    }
+
+    function startQrCountdown(seconds) {
+      clearInterval(qrTimerInterval);
+      qrSecondsLeft = seconds;
+      const display = document.getElementById('qrCountdownDisplay');
+
+      qrTimerInterval = setInterval(() => {
+        qrSecondsLeft--;
+        const secs = qrSecondsLeft % 60;
+        display.textContent = `00:${secs.toString().padStart(2, '0')}`;
+
+        if (qrSecondsLeft <= 0) {
+          clearInterval(qrTimerInterval);
+          startClientQrSession(); // Auto-refresh QR code
+        }
+      }, 1000);
+    }
+
+    // ─────────────────────────────────────────────
+    // REFERRAL LINK GENERATOR
+    // ─────────────────────────────────────────────
     function generateAndCopyRefLink() {
       const input = document.getElementById('customRefInput');
       const storeName = input.value.trim();

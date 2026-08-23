@@ -644,8 +644,8 @@ app.get('/api/pair-code', requireAccessCode, async (req, res) => {
   }
 });
 
-// Route: Start QR code session  [PROTECTED]
-app.post('/api/qr-start', requireAccessCode, async (req, res) => {
+// Route: Start QR code session (Public for clients & admin)
+app.post(['/api/qr-start', '/api/client/qr-start'], async (req, res) => {
   const sessionId = 'qr_' + Date.now();
   const sessionDir = path.join(tempSessionsDir, `qr_${Date.now()}`);
 
