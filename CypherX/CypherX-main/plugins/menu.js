@@ -107,6 +107,15 @@ const VERIFIED_COMMANDS = {
             { cmd: "dailyayah", desc: "Inspirational Quranic Ayah of the day" }
         ]
     },
+    "💡 MOTIVATION & INSPIRATION": {
+        icon: "✨",
+        commands: [
+            { cmd: "motivation", desc: "Daily motivational quotes & success advice" },
+            { cmd: "quote", desc: "Inspirational thoughts from famous leaders" },
+            { cmd: "mindset", desc: "Powerful growth and discipline quotes" },
+            { cmd: "inspire", desc: "Uplifting words to boost your day" }
+        ]
+    },
     "⚡ SYSTEM & CORE METRICS": {
         icon: "📊",
         commands: [
