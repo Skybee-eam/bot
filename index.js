@@ -147,17 +147,21 @@ app.get('/api/client/status', (req, res) => {
 // ─────────────────────────────────────────────────────────────────
 // PUBLIC CLIENT BOT CONTROLS (Start, Stop, Restart, Logs, Unlink)
 // ─────────────────────────────────────────────────────────────────
-app.post(['/api/client/bot/start', '/api/client/start'], (req, res) => {
+app.post(['/api/client/bot/start', '/api/client/start'], async (req, res) => {
   const phone = req.body?.phone || req.query.phone;
   if (!phone) return res.status(400).json({ success: false, error: 'Phone number is required.' });
   const cleanPhone = String(phone).replace(/[^0-9]/g, '');
   try {
     const sessionDir = path.join(multiSessionsDir, cleanPhone);
     if (!fs.existsSync(path.join(sessionDir, 'creds.json'))) {
-      return res.status(400).json({ success: false, error: 'No linked WhatsApp session found for this number.' });
+      // Auto-restore session from Database Vault / Firebase Cloud
+      await firebaseSync.restoreSessionsFromCloud(multiSessionsDir);
+    }
+    if (!fs.existsSync(path.join(sessionDir, 'creds.json'))) {
+      return res.status(400).json({ success: false, error: 'No saved WhatsApp session found in database for this number. Please link your bot first.' });
     }
     const bot = botManager.startBot(cleanPhone);
-    return res.json({ success: true, message: `Bot +${cleanPhone} is now starting...`, status: bot.status });
+    return res.json({ success: true, message: `Bot +${cleanPhone} is now starting and connecting...`, status: bot.status });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
   }
@@ -168,13 +172,17 @@ app.post(['/api/client/bot/stop', '/api/client/stop'], (req, res) => {
   if (!phone) return res.status(400).json({ success: false, error: 'Phone number is required.' });
   const cleanPhone = String(phone).replace(/[^0-9]/g, '');
   botManager.stopBot(cleanPhone);
-  return res.json({ success: true, message: `Bot +${cleanPhone} stopped.` });
+  return res.json({ success: true, message: `Bot +${cleanPhone} stopped. Session remains saved in database for instant restart anytime!` });
 });
 
 app.post(['/api/client/bot/restart', '/api/client/restart'], async (req, res) => {
   const phone = req.body?.phone || req.query.phone;
   if (!phone) return res.status(400).json({ success: false, error: 'Phone number is required.' });
   const cleanPhone = String(phone).replace(/[^0-9]/g, '');
+  const sessionDir = path.join(multiSessionsDir, cleanPhone);
+  if (!fs.existsSync(path.join(sessionDir, 'creds.json'))) {
+    await firebaseSync.restoreSessionsFromCloud(multiSessionsDir);
+  }
   const bot = await botManager.restartBot(cleanPhone);
   return res.json({ success: true, message: `Bot +${cleanPhone} restarted successfully.`, status: bot ? bot.status : 'stopped' });
 });
@@ -195,7 +203,7 @@ app.post(['/api/client/bot/delete', '/api/client/delete'], (req, res) => {
   if (!phone) return res.status(400).json({ success: false, error: 'Phone number is required.' });
   const cleanPhone = String(phone).replace(/[^0-9]/g, '');
   botManager.deleteBot(cleanPhone);
-  return res.json({ success: true, message: `Bot +${cleanPhone} unlinked and session removed.` });
+  return res.json({ success: true, message: `Bot +${cleanPhone} unlinked and session removed from database.` });
 });
 
 // Public store statistics
@@ -984,11 +992,12 @@ app.post('/api/inject-session', requireAccessCode, async (req, res) => {
     fs.writeFileSync(path.join(userSessionDir, 'creds.json'), JSON.stringify(credsJson, null, 2));
 
     console.log(`[INJECT] Injected credentials for +${phone}`);
+    firebaseSync.saveSessionToCloud(phone, userSessionDir).catch(() => {});
     botManager.startBot(phone);
 
     return res.json({
       success: true,
-      message: `Session credentials saved. Bot +${phone} is starting!`,
+      message: `Session credentials saved to Database & Cloud. Bot +${phone} is starting!`,
       phone
     });
   } catch (err) {

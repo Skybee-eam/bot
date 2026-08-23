@@ -1,63 +1,112 @@
 import fs from 'fs';
 import path from 'path';
-import admin from 'firebase-admin';
+import { fileURLToPath } from 'url';
+import { initializeApp, cert, getApps } from 'firebase-admin/app';
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 
-const PROJECT_ID = 'chapters-eam';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const PROJECT_ID = process.env.FIREBASE_PROJECT_ID || 'chapters-eam';
+const LOCAL_VAULT_FILE = path.join(__dirname, 'sessions_vault.json');
 
 class FirebaseSyncManager {
   constructor() {
     this.initialized = false;
     this.db = null;
-    this.init();
+    this.ensureLocalVault();
+    this.initFirebase();
   }
 
-  init() {
+  initFirebase() {
     try {
-      const apps = admin.apps || [];
-      if (apps.length === 0) {
-        // Look for service account json in project root
-        let serviceAccount = null;
-        const possibleFiles = ['serviceAccountKey.json', 'firebase-service-account.json', 'firebase-credentials.json'];
+      const apps = getApps();
+      let app = null;
+      let serviceAccount = null;
+
+      if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+        try {
+          serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+        } catch {}
+      }
+
+      if (!serviceAccount) {
+        const possibleFiles = [
+          'serviceAccountKey.json',
+          'firebase-service-account.json',
+          'firebase-credentials.json',
+          'credentials.json'
+        ];
         for (const f of possibleFiles) {
-          if (fs.existsSync(f)) {
+          const fullP = path.join(__dirname, f);
+          if (fs.existsSync(fullP)) {
             try {
-              serviceAccount = JSON.parse(fs.readFileSync(f, 'utf8'));
+              serviceAccount = JSON.parse(fs.readFileSync(fullP, 'utf8'));
               break;
             } catch {}
           }
         }
-
-        if (serviceAccount) {
-          admin.initializeApp({
-            credential: admin.credential.cert(serviceAccount),
-            projectId: PROJECT_ID
-          });
-        } else {
-          // Initialize with project ID / default application credentials
-          admin.initializeApp({
-            projectId: PROJECT_ID
-          });
-        }
       }
 
-      this.db = admin.firestore();
-      this.initialized = true;
-      console.log(`[FIREBASE] Initialized Firebase Cloud Sync (Project: ${PROJECT_ID})`);
+      if (serviceAccount) {
+        if (apps.length === 0) {
+          app = initializeApp({
+            credential: cert(serviceAccount),
+            projectId: serviceAccount.project_id || PROJECT_ID
+          });
+        } else {
+          app = apps[0];
+        }
+        this.db = getFirestore(app);
+        this.initialized = true;
+        console.log(`[FIREBASE] Initialized Firebase Cloud Sync (Project: ${PROJECT_ID})`);
+      } else {
+        console.log(`[DATABASE VAULT] Active with local persistent storage (sessions_vault.json).`);
+      }
     } catch (err) {
-      console.log(`[FIREBASE] Note on cloud init (${err.message}). Local-cloud bridge active.`);
+      console.log(`[FIREBASE] Note on cloud init (${err.message}). Local Database Vault active.`);
+      this.initialized = false;
+      this.db = null;
     }
   }
 
-  // Upload/Sync a user session folder to Firestore
+  ensureLocalVault() {
+    if (!fs.existsSync(LOCAL_VAULT_FILE)) {
+      try {
+        fs.writeFileSync(LOCAL_VAULT_FILE, JSON.stringify({ sessions: {}, lastUpdated: new Date().toISOString() }, null, 2));
+      } catch {}
+    }
+  }
+
+  readLocalVault() {
+    try {
+      if (fs.existsSync(LOCAL_VAULT_FILE)) {
+        return JSON.parse(fs.readFileSync(LOCAL_VAULT_FILE, 'utf8'));
+      }
+    } catch {}
+    return { sessions: {}, lastUpdated: new Date().toISOString() };
+  }
+
+  writeLocalVault(data) {
+    try {
+      data.lastUpdated = new Date().toISOString();
+      fs.writeFileSync(LOCAL_VAULT_FILE, JSON.stringify(data, null, 2), 'utf8');
+    } catch (e) {
+      console.error('[VAULT] Error writing local vault:', e.message);
+    }
+  }
+
+  // Upload/Sync a user session folder to Local DB Vault + Firebase Cloud
   async saveSessionToCloud(phone, sessionDir) {
-    if (!this.initialized || !this.db) return false;
     const cleanPhone = String(phone).replace(/[^0-9]/g, '');
+    if (!cleanPhone) return false;
 
     try {
       if (!fs.existsSync(sessionDir)) return false;
       const files = fs.readdirSync(sessionDir);
-      const sessionData = {};
+      if (files.length === 0) return false;
 
+      const sessionData = {};
       for (const file of files) {
         const filePath = path.join(sessionDir, file);
         try {
@@ -73,95 +122,139 @@ class FirebaseSyncManager {
         userName = creds.me?.name || creds.pushName || '';
       } catch {}
 
-      // 1. Save auth keys bundle to Firestore
-      const sessionDocRef = this.db.collection('sessions').doc(cleanPhone);
-      await sessionDocRef.set({
+      // 1. Save to Local Vault Database (Persistent JSON)
+      const vault = this.readLocalVault();
+      vault.sessions[cleanPhone] = {
         phone: cleanPhone,
         name: userName,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        savedAt: new Date().toISOString(),
         fileCount: files.length,
         authFiles: sessionData
-      }, { merge: true });
+      };
+      this.writeLocalVault(vault);
+      console.log(`[DATABASE VAULT] Saved session credentials for +${cleanPhone}`);
 
-      // 2. Update bot metadata document
-      const botDocRef = this.db.collection('bots').doc(cleanPhone);
-      await botDocRef.set({
-        phone: cleanPhone,
-        name: userName,
-        status: 'active',
-        lastSync: admin.firestore.FieldValue.serverTimestamp()
-      }, { merge: true });
+      // 2. Upload to Firebase Cloud Firestore if active
+      if (this.initialized && this.db) {
+        try {
+          const sessionDocRef = this.db.collection('sessions').doc(cleanPhone);
+          await sessionDocRef.set({
+            phone: cleanPhone,
+            name: userName,
+            updatedAt: FieldValue.serverTimestamp(),
+            fileCount: files.length,
+            authFiles: sessionData
+          }, { merge: true });
 
-      console.log(`[FIREBASE] Successfully backed up session for +${cleanPhone} to Cloud`);
+          const botDocRef = this.db.collection('bots').doc(cleanPhone);
+          await botDocRef.set({
+            phone: cleanPhone,
+            name: userName,
+            status: 'active',
+            lastSync: FieldValue.serverTimestamp()
+          }, { merge: true });
+
+          console.log(`[FIREBASE] Successfully backed up session for +${cleanPhone} to Cloud`);
+        } catch (fbErr) {
+          console.log(`[FIREBASE Sync Note] +${cleanPhone}: ${fbErr.message}`);
+        }
+      }
+
       return true;
     } catch (err) {
-      console.error(`[FIREBASE] Error uploading session for +${cleanPhone}:`, err.message);
+      console.error(`[SESSION SAVE ERROR] +${cleanPhone}:`, err.message);
       return false;
     }
   }
 
-  // Restore sessions from Firestore down to local sessions directory on server boot
+  // Restore sessions from Local Vault and Firebase Cloud on server boot
   async restoreSessionsFromCloud(targetDir) {
-    if (!this.initialized || !this.db) return [];
-    const restoredPhones = [];
+    const restoredPhones = new Set();
 
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+    }
+
+    // 1. Restore from Local Vault Database
     try {
-      if (!fs.existsSync(targetDir)) {
-        fs.mkdirSync(targetDir, { recursive: true });
-      }
-
-      const snapshot = await this.db.collection('sessions').get();
-      for (const doc of snapshot.docs) {
-        const data = doc.data();
-        const phone = data.phone || doc.id;
-        const userDir = path.join(targetDir, phone);
-
-        if (!fs.existsSync(userDir) || !fs.existsSync(path.join(userDir, 'creds.json'))) {
-          fs.mkdirSync(userDir, { recursive: true });
-          if (data.authFiles) {
-            for (const [key, content] of Object.entries(data.authFiles)) {
-              const originalFilename = key.replace(/_dot_/g, '.');
-              fs.writeFileSync(path.join(userDir, originalFilename), content, 'utf8');
+      const vault = this.readLocalVault();
+      if (vault.sessions) {
+        for (const [phone, data] of Object.entries(vault.sessions)) {
+          const userDir = path.join(targetDir, phone);
+          if (!fs.existsSync(userDir) || !fs.existsSync(path.join(userDir, 'creds.json'))) {
+            fs.mkdirSync(userDir, { recursive: true });
+            if (data.authFiles) {
+              for (const [key, content] of Object.entries(data.authFiles)) {
+                const originalFilename = key.replace(/_dot_/g, '.');
+                fs.writeFileSync(path.join(userDir, originalFilename), content, 'utf8');
+              }
+              console.log(`[DATABASE VAULT] Restored session from vault: +${phone}`);
+              restoredPhones.add(phone);
             }
-            console.log(`[FIREBASE] Restored cloud session to local: +${phone}`);
-            restoredPhones.push(phone);
           }
         }
       }
-    } catch (err) {
-      console.log(`[FIREBASE] Cloud session restore note:`, err.message);
+    } catch (vErr) {
+      console.log(`[VAULT Restore Note]:`, vErr.message);
     }
 
-    return restoredPhones;
+    // 2. Restore from Firebase Firestore Cloud if initialized
+    if (this.initialized && this.db) {
+      try {
+        const snapshot = await this.db.collection('sessions').get();
+        for (const doc of snapshot.docs) {
+          const data = doc.data();
+          const phone = data.phone || doc.id;
+          const userDir = path.join(targetDir, phone);
+
+          if (!fs.existsSync(userDir) || !fs.existsSync(path.join(userDir, 'creds.json'))) {
+            fs.mkdirSync(userDir, { recursive: true });
+            if (data.authFiles) {
+              for (const [key, content] of Object.entries(data.authFiles)) {
+                const originalFilename = key.replace(/_dot_/g, '.');
+                fs.writeFileSync(path.join(userDir, originalFilename), content, 'utf8');
+              }
+              console.log(`[FIREBASE] Restored cloud session to local: +${phone}`);
+              restoredPhones.add(phone);
+            }
+          }
+        }
+      } catch (err) {
+        console.log(`[FIREBASE] Cloud restore note:`, err.message);
+      }
+    }
+
+    return Array.from(restoredPhones);
   }
 
-  // Delete session from Firestore
+  // Delete session from Local Vault & Firebase
   async deleteSessionFromCloud(phone) {
-    if (!this.initialized || !this.db) return false;
     const cleanPhone = String(phone).replace(/[^0-9]/g, '');
-    try {
-      await this.db.collection('sessions').doc(cleanPhone).delete();
-      await this.db.collection('bots').doc(cleanPhone).delete();
-      console.log(`[FIREBASE] Removed +${cleanPhone} from Cloud`);
-      return true;
-    } catch (err) {
-      console.error(`[FIREBASE] Error deleting +${cleanPhone} from Cloud:`, err.message);
-      return false;
-    }
-  }
 
-  // Sync cluster metrics to Firestore
-  async syncMetricsToCloud(metrics) {
-    if (!this.initialized || !this.db) return false;
+    // Remove from Local Vault
     try {
-      await this.db.collection('system').doc('metrics').set({
-        ...metrics,
-        timestamp: admin.firestore.FieldValue.serverTimestamp()
-      }, { merge: true });
-      return true;
-    } catch {
-      return false;
+      const vault = this.readLocalVault();
+      if (vault.sessions && vault.sessions[cleanPhone]) {
+        delete vault.sessions[cleanPhone];
+        this.writeLocalVault(vault);
+        console.log(`[DATABASE VAULT] Deleted session +${cleanPhone}`);
+      }
+    } catch {}
+
+    // Remove from Firebase
+    if (this.initialized && this.db) {
+      try {
+        await this.db.collection('sessions').doc(cleanPhone).delete();
+        await this.db.collection('bots').doc(cleanPhone).delete();
+        console.log(`[FIREBASE] Removed +${cleanPhone} from Cloud & Database`);
+        return true;
+      } catch (err) {
+        console.error(`[FIREBASE] Error deleting +${cleanPhone}:`, err.message);
+        return false;
+      }
     }
+
+    return true;
   }
 }
 
