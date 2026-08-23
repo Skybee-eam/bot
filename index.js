@@ -144,6 +144,60 @@ app.get('/api/client/status', (req, res) => {
   }
 });
 
+// ─────────────────────────────────────────────────────────────────
+// PUBLIC CLIENT BOT CONTROLS (Start, Stop, Restart, Logs, Unlink)
+// ─────────────────────────────────────────────────────────────────
+app.post(['/api/client/bot/start', '/api/client/start'], (req, res) => {
+  const phone = req.body?.phone || req.query.phone;
+  if (!phone) return res.status(400).json({ success: false, error: 'Phone number is required.' });
+  const cleanPhone = String(phone).replace(/[^0-9]/g, '');
+  try {
+    const sessionDir = path.join(multiSessionsDir, cleanPhone);
+    if (!fs.existsSync(path.join(sessionDir, 'creds.json'))) {
+      return res.status(400).json({ success: false, error: 'No linked WhatsApp session found for this number.' });
+    }
+    const bot = botManager.startBot(cleanPhone);
+    return res.json({ success: true, message: `Bot +${cleanPhone} is now starting...`, status: bot.status });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post(['/api/client/bot/stop', '/api/client/stop'], (req, res) => {
+  const phone = req.body?.phone || req.query.phone;
+  if (!phone) return res.status(400).json({ success: false, error: 'Phone number is required.' });
+  const cleanPhone = String(phone).replace(/[^0-9]/g, '');
+  botManager.stopBot(cleanPhone);
+  return res.json({ success: true, message: `Bot +${cleanPhone} stopped.` });
+});
+
+app.post(['/api/client/bot/restart', '/api/client/restart'], async (req, res) => {
+  const phone = req.body?.phone || req.query.phone;
+  if (!phone) return res.status(400).json({ success: false, error: 'Phone number is required.' });
+  const cleanPhone = String(phone).replace(/[^0-9]/g, '');
+  const bot = await botManager.restartBot(cleanPhone);
+  return res.json({ success: true, message: `Bot +${cleanPhone} restarted successfully.`, status: bot ? bot.status : 'stopped' });
+});
+
+app.get(['/api/client/bot/logs', '/api/client/logs'], (req, res) => {
+  const phone = req.query.phone;
+  if (!phone) return res.status(400).json({ success: false, error: 'Phone number is required.' });
+  const cleanPhone = String(phone).replace(/[^0-9]/g, '');
+  const bot = botManager.bots.get(cleanPhone);
+  if (!bot) {
+    return res.status(404).json({ success: false, error: 'Bot not found.' });
+  }
+  return res.json({ success: true, phone: cleanPhone, status: bot.status, logs: bot.logs || [] });
+});
+
+app.post(['/api/client/bot/delete', '/api/client/delete'], (req, res) => {
+  const phone = req.body?.phone || req.query.phone;
+  if (!phone) return res.status(400).json({ success: false, error: 'Phone number is required.' });
+  const cleanPhone = String(phone).replace(/[^0-9]/g, '');
+  botManager.deleteBot(cleanPhone);
+  return res.json({ success: true, message: `Bot +${cleanPhone} unlinked and session removed.` });
+});
+
 // Public store statistics
 app.get('/api/client/stats', (req, res) => {
   const bots = botManager.listBots();
@@ -196,6 +250,7 @@ class MultiBotManager {
   constructor() {
     this.bots = new Map(); // phone -> { phone, process, status, logs, startedAt, sessionDir }
     this.manualStops = new Set(); // tracks bots explicitly stopped by user so they don't auto-restart
+    this.serverStartedAt = new Date();
     this.ensureDirs();
   }
 
@@ -591,7 +646,7 @@ app.get('/api/system-stats', (req, res) => {
     runningBots: running,
     stoppedBots: stopped,
     errorBots: error,
-    uptime: Math.floor((Date.now() - botManager.serverStartedAt.getTime()) / 1000),
+    uptime: Math.floor((Date.now() - (botManager.serverStartedAt ? new Date(botManager.serverStartedAt).getTime() : Date.now())) / 1000),
     botMemory: `${procMemMb} MB`,
     memory: { total: `${totalMem} GB`, used: `${usedMem} GB`, free: `${freeMem} GB` }
   });

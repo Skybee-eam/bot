@@ -557,6 +557,74 @@
       text-decoration: underline;
     }
 
+    /* ── Bot Management Control Styles ── */
+    .manage-bot-card {
+      background: rgba(0, 0, 0, 0.55);
+      border: 1px solid rgba(0, 210, 255, 0.3);
+      border-radius: 16px;
+      padding: 20px;
+      margin-top: 16px;
+      text-align: left;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+    }
+    .manage-status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+    .badge-running { background: rgba(0, 230, 118, 0.15); color: #00e676; border: 1px solid rgba(0, 230, 118, 0.4); }
+    .badge-stopped { background: rgba(255, 82, 82, 0.15); color: #ff5252; border: 1px solid rgba(255, 82, 82, 0.4); }
+    .badge-pairing { background: rgba(255, 183, 77, 0.15); color: #ffb74d; border: 1px solid rgba(255, 183, 77, 0.4); }
+    .bot-ctrl-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+      gap: 10px;
+      margin-top: 16px;
+    }
+    .btn-ctrl {
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 0.86rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      border: none;
+      transition: all 0.2s ease;
+      color: #fff;
+    }
+    .btn-ctrl:hover:not(:disabled) { transform: translateY(-2px); }
+    .btn-ctrl:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-ctrl-start { background: linear-gradient(135deg, #00c853, #00e676); color: #000; box-shadow: 0 4px 15px rgba(0, 230, 118, 0.3); }
+    .btn-ctrl-stop { background: linear-gradient(135deg, #d50000, #ff1744); box-shadow: 0 4px 15px rgba(255, 23, 68, 0.3); }
+    .btn-ctrl-restart { background: linear-gradient(135deg, #0091ea, #00b0ff); box-shadow: 0 4px 15px rgba(0, 176, 255, 0.3); }
+    .btn-ctrl-logs { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); }
+    .btn-ctrl-delete { background: rgba(255, 82, 82, 0.15); border: 1px solid rgba(255, 82, 82, 0.4); color: #ff5252; }
+
+    /* Modal Overlay for Store Logs */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px);
+      z-index: 9999; display: none; align-items: center; justify-content: center; padding: 20px;
+    }
+    .modal-box {
+      background: #0d1117; border: 1px solid rgba(0, 210, 255, 0.35); border-radius: 16px;
+      width: 100%; max-width: 650px; max-height: 80vh; display: flex; flex-direction: column;
+      box-shadow: 0 0 50px rgba(0, 180, 255, 0.3); overflow: hidden; animation: bounceIn 0.3s ease;
+    }
+    .log-modal-header {
+      padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: space-between;
+    }
+    .log-modal-content {
+      flex: 1; overflow-y: auto; padding: 16px 20px; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem;
+      color: #7ee787; background: #010409; line-height: 1.5; white-space: pre-wrap; word-break: break-all; min-height: 250px;
+    }
+
     @media (max-width: 600px) {
       .ref-input-group {
         flex-direction: column;
@@ -589,7 +657,10 @@
         <img src="/logo.jpg" alt="SKYBEE BOT" style="width:38px; height:38px; border-radius:10px; object-fit:cover; border:1.5px solid rgba(0,195,255,0.4); box-shadow:0 0 15px rgba(0,180,255,0.35);">
         <span class="logo-text">SKYBEE <span class="logo-ofc" style="color:#00b4d8; text-shadow:0 0 10px rgba(0,180,255,0.5);">STORE</span></span>
       </div>
-      <div style="display:flex; align-items:center; gap:10px;">
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <a href="/" style="background:rgba(0,180,255,0.12); border:1px solid rgba(0,180,255,0.35); border-radius:8px; color:#48cae4; padding:6px 14px; font-size:0.82rem; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:6px; transition:all 0.2s ease;">
+          <span>🎛️</span> <span>Master Dashboard</span>
+        </a>
         <div class="status-pill" style="border-color: rgba(0,180,255,0.35); background: rgba(0,180,255,0.08);">
           <span class="status-dot dot-online"></span>
           <span id="cloudStatus">24/7 Cloud Active</span>
@@ -626,12 +697,15 @@
     </div>
 
     <!-- ════ METHOD SELECTOR TABS ════ -->
-    <div class="mode-switcher">
+    <div class="mode-switcher" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:10px;">
       <button class="mode-btn active" id="btnModePair" onclick="switchMode('pair')">
-        <span>📱</span> <span>8-Digit Pairing Code</span>
+        <span>📱</span> <span>Pairing Code</span>
       </button>
       <button class="mode-btn" id="btnModeQr" onclick="switchMode('qr')">
-        <span>📷</span> <span>Scan QR Code</span>
+        <span>📷</span> <span>Scan QR</span>
+      </button>
+      <button class="mode-btn" id="btnModeManage" onclick="switchMode('manage')">
+        <span>⚡</span> <span>Manage Bot (Start/Stop)</span>
       </button>
     </div>
 
@@ -759,42 +833,36 @@
 
       <!-- ── SECTION B: QR CODE SCANNER ── -->
       <div id="sectionQrMode" style="display:none;">
-        
+
         <div class="qr-container-box">
-          <div style="font-size:1.1rem; font-weight:700; color:#fff; margin-bottom:6px;">
-            Scan Live QR Code with WhatsApp
-          </div>
-          <div style="font-size:0.88rem; color:#8892b0; max-width:450px;">
-            Open WhatsApp on your phone, go to <strong>Linked Devices → Link a Device</strong>, and point your camera here.
-          </div>
-
-          <!-- Loading QR Spinner -->
-          <div id="qrLoadingBox" style="padding:40px 20px; text-align:center;">
-            <div style="font-size:2.5rem; margin-bottom:10px; animation: spin 1.2s linear infinite;">⏳</div>
-            <div style="color:#ffd54f; font-weight:600; font-size:0.95rem;">Generating Instant QR Code...</div>
+          <div id="qrLoadingBox">
+            <div style="font-size:2.5rem; margin-bottom:12px; animation: spin 1.2s linear infinite;">⏳</div>
+            <div style="font-size:1.1rem; font-weight:700; color:#fff; margin-bottom:6px;">Generating WhatsApp QR Code...</div>
+            <div style="font-size:0.85rem; color:#8892b0;">Connecting to Skybee Multi-Device Cloud</div>
           </div>
 
-          <!-- QR Code Image -->
-          <div class="qr-frame" id="qrImageBox" style="display:none;">
-            <img id="qrImageElement" src="" alt="WhatsApp QR Code">
+          <div id="qrImageBox" style="display:none;">
+            <div class="qr-frame">
+              <img id="qrImageElement" src="" alt="WhatsApp QR Code" style="width:240px; height:240px; display:block;">
+            </div>
           </div>
 
-          <div id="qrTimerPill" class="timer-pill" style="display:none;">
-            <span>⏱️ QR refreshes in:</span> <strong id="qrCountdownDisplay">00:45</strong>
+          <div class="timer-pill" id="qrTimerPill" style="display:none; margin-top:8px;">
+            <span>⏳ QR Code refreshes in:</span> <strong id="qrCountdownDisplay">00:45</strong>
           </div>
 
-          <!-- QR Error Notice -->
-          <div id="qrErrorNotice" style="display:none; margin:12px 0; padding:10px 16px; background:rgba(255,82,82,0.15); border:1px solid #ff5252; border-radius:10px; color:#ff8a80; font-size:0.85rem;"></div>
+          <div id="qrErrorNotice" style="display:none; margin-top:14px; padding:12px 16px; background:rgba(255,82,82,0.15); border:1px solid #ff5252; border-radius:10px; color:#ff8a80; font-size:0.88rem;"></div>
 
-          <button onclick="startClientQrSession()" class="btn-copy-code" style="margin-top:14px; background:rgba(255,140,0,0.15); border-color:rgba(255,140,0,0.4); color:#ff9800;">
-            <span>🔄</span> <span>Refresh QR Code</span>
-          </button>
+          <div style="margin-top:14px;">
+            <button onclick="startClientQrSession()" style="background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.25); color:#fff; border-radius:8px; padding:8px 18px; font-size:0.85rem; font-weight:600; cursor:pointer;">
+              🔄 Refresh QR Code
+            </button>
+          </div>
         </div>
 
-        <!-- Step-by-Step Instructions for QR -->
-        <div class="steps-guide">
+        <!-- QR Guide -->
+        <div class="steps-guide" style="margin-top:20px;">
           <h4>📷 How to Scan with WhatsApp:</h4>
-          
           <div class="step-item">
             <div class="step-item-icon">1</div>
             <div>Open <strong>WhatsApp</strong> on your phone</div>
@@ -815,6 +883,74 @@
 
       </div>
 
+      <!-- ── SECTION C: BOT MANAGEMENT & CONTROLS (STOP / START / RESTART / LOGS) ── -->
+      <div id="sectionManageMode" style="display:none;">
+        <div style="text-align:center; margin-bottom:18px;">
+          <h3 style="color:#fff; font-size:1.3rem; font-weight:800; margin:0 0 6px;">⚡ Manage Your Skybee Bot</h3>
+          <p style="color:#8892b0; font-size:0.88rem; margin:0;">Start, stop, restart, or inspect live logs for your linked phone number.</p>
+        </div>
+
+        <div class="input-row">
+          <label style="color:#e2e8f0; font-size:0.92rem; font-weight:600;">
+            Enter Your Linked WhatsApp Number
+          </label>
+          <div class="phone-input-wrapper">
+            <span class="phone-prefix-icon">📱</span>
+            <input 
+              type="tel" 
+              id="managePhoneInput" 
+              class="phone-field" 
+              placeholder="e.g. 233558816890" 
+              autocomplete="tel"
+              oninput="handlePhoneInput(this)"
+              onkeydown="if(event.key==='Enter') lookupManageBot()"
+            >
+          </div>
+        </div>
+
+        <button class="btn-generate" onclick="lookupManageBot()" style="margin-top:8px;">
+          <span>🔍 Check & Control Bot</span>
+        </button>
+
+        <div id="manageNotice" style="display:none; margin-top:14px; padding:12px 16px; border-radius:10px; font-size:0.88rem; text-align:center;"></div>
+
+        <!-- Bot Management Card -->
+        <div id="manageCard" style="display:none;" class="manage-bot-card">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:12px;">
+            <div>
+              <div style="color:#fff; font-size:1.1rem; font-weight:800;" id="cardPhoneText">+233558816890</div>
+              <div style="color:#8892b0; font-size:0.8rem;">Skybee Multi-User Bot Instance</div>
+            </div>
+            <div id="cardStatusBadge" class="manage-status-badge badge-running">
+              <span class="status-dot dot-online"></span>
+              <span>Running</span>
+            </div>
+          </div>
+
+          <div style="margin-top:14px; font-size:0.88rem; color:#caf0f8;" id="cardMsg">
+            Bot is active and running 24/7 on Skybee Cloud.
+          </div>
+
+          <div class="bot-ctrl-grid">
+            <button class="btn-ctrl btn-ctrl-start" id="btnCtrlStart" onclick="runBotAction('start')">
+              ▶️ Start
+            </button>
+            <button class="btn-ctrl btn-ctrl-stop" id="btnCtrlStop" onclick="runBotAction('stop')">
+              ⏹️ Stop
+            </button>
+            <button class="btn-ctrl btn-ctrl-restart" id="btnCtrlRestart" onclick="runBotAction('restart')">
+              🔄 Restart
+            </button>
+            <button class="btn-ctrl btn-ctrl-logs" onclick="viewBotLogsModal()">
+              📋 Live Logs
+            </button>
+            <button class="btn-ctrl btn-ctrl-delete" onclick="runBotAction('delete')">
+              🗑️ Unlink
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- ── SUCCESS CELEBRATION BOX ── -->
       <div class="success-celebration" id="successBox">
         <div style="font-size:3rem; margin-bottom:8px;">🎉🐝</div>
@@ -823,11 +959,47 @@
           Your WhatsApp account is now linked to <strong>SKYBEE BOT CLOUD</strong>.<br>
           Your bot will stay active 24/7 in the cloud.
         </p>
+
+        <!-- Live Instant Controls inside Success Box -->
+        <div class="manage-bot-card" style="background:rgba(0,0,0,0.6); margin-bottom:16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+            <div style="color:#fff; font-weight:800;" id="successPhoneDisplay">+...</div>
+            <div class="manage-status-badge badge-running">
+              <span class="status-dot dot-online"></span>
+              <span>Online & Running</span>
+            </div>
+          </div>
+          <div class="bot-ctrl-grid" style="margin-top:12px;">
+            <button class="btn-ctrl btn-ctrl-stop" onclick="runSuccessBotAction('stop')">⏹️ Stop Bot</button>
+            <button class="btn-ctrl btn-ctrl-restart" onclick="runSuccessBotAction('restart')">🔄 Restart Bot</button>
+            <button class="btn-ctrl btn-ctrl-logs" onclick="viewSuccessBotLogs()">📋 View Console Logs</button>
+            <a href="/" class="btn-ctrl" style="background:rgba(0,180,255,0.2); border:1px solid rgba(0,180,255,0.4); text-decoration:none;">🎛️ Master Panel</a>
+          </div>
+        </div>
+
         <div style="display:inline-block; background:rgba(0,0,0,0.4); border-radius:10px; padding:12px 20px; font-size:0.9rem; color:#ffd54f;">
           👉 <strong>Quick Test:</strong> Open WhatsApp and send <code>.menu</code> or <code>.ping</code> in your chat!
         </div>
       </div>
 
+    </div>
+
+    <!-- ═══════ MODAL: Store Live Logs Viewer ═══════ -->
+    <div class="modal-overlay" id="storeLogsModal" onclick="if(event.target===this) closeStoreLogsModal()">
+      <div class="modal-box">
+        <div class="log-modal-header">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:1.3rem;">📋</span>
+            <span style="font-weight:800; color:#fff; font-size:1.1rem;" id="modalLogsPhone">Bot Console Logs</span>
+          </div>
+          <button onclick="closeStoreLogsModal()" style="background:transparent; border:none; color:#888; font-size:1.4rem; cursor:pointer;">✕</button>
+        </div>
+        <div class="log-modal-content" id="storeLogContent">Loading live console logs...</div>
+        <div style="padding:12px 16px; background:#0d1117; border-top:1px solid rgba(255,255,255,0.1); display:flex; justify-content:space-between; align-items:center;">
+          <button class="btn-ctrl" style="background:rgba(255,255,255,0.1); font-size:0.8rem;" onclick="copyStoreLogs()">📋 Copy Logs</button>
+          <button class="btn-ctrl btn-ctrl-stop" style="font-size:0.8rem;" onclick="closeStoreLogsModal()">Close</button>
+        </div>
+      </div>
     </div>
 
     <!-- ════ FEATURES SHOWCASE ════ -->
@@ -920,7 +1092,7 @@
   </style>
 
   <script>
-    let currentMode = 'pair'; // 'pair' or 'qr'
+    let currentMode = 'pair'; // 'pair', 'qr', or 'manage'
     let activePhone = '';
     let currentPairCode = '';
     let statusInterval = null;
@@ -932,6 +1104,10 @@
     let qrPollInterval = null;
     let qrTimerInterval = null;
     let qrSecondsLeft = 45;
+
+    // Logs Polling State
+    let logsPollInterval = null;
+    let currentLogsPhone = '';
 
     // Initialize Referral Parameter from URL
     window.addEventListener('DOMContentLoaded', () => {
@@ -947,26 +1123,34 @@
       // Pre-fill phone if in URL
       const phoneParam = params.get('phone') || params.get('number');
       if (phoneParam) {
-        document.getElementById('clientPhoneInput').value = phoneParam.replace(/[^0-9]/g, '');
+        const cleanP = phoneParam.replace(/[^0-9]/g, '');
+        document.getElementById('clientPhoneInput').value = cleanP;
+        document.getElementById('managePhoneInput').value = cleanP;
       }
 
-      // Check mode param (e.g. ?mode=qr)
+      // Check mode param (e.g. ?mode=qr or ?mode=manage)
       if (params.get('mode') === 'qr') {
         switchMode('qr');
+      } else if (params.get('mode') === 'manage' || params.get('mode') === 'control') {
+        switchMode('manage');
+        if (phoneParam) lookupManageBot();
       }
 
       // Fetch live cloud stats
       fetchStoreStats();
     });
 
-    // Switch between Pairing Code and QR Code Mode
+    // Switch between Pairing Code, QR Code, and Bot Manager Mode
     function switchMode(mode) {
       currentMode = mode;
       document.getElementById('btnModePair').classList.toggle('active', mode === 'pair');
       document.getElementById('btnModeQr').classList.toggle('active', mode === 'qr');
+      document.getElementById('btnModeManage').classList.toggle('active', mode === 'manage');
 
       document.getElementById('sectionPairMode').style.display = mode === 'pair' ? 'block' : 'none';
       document.getElementById('sectionQrMode').style.display = mode === 'qr' ? 'block' : 'none';
+      document.getElementById('sectionManageMode').style.display = mode === 'manage' ? 'block' : 'none';
+      document.getElementById('successBox').style.display = 'none';
 
       if (mode === 'qr' && !qrSessionId) {
         startClientQrSession();
@@ -1101,6 +1285,7 @@
             clearInterval(statusInterval);
             clearInterval(timerInterval);
             document.getElementById('sectionPairMode').style.display = 'none';
+            document.getElementById('successPhoneDisplay').textContent = `+${activePhone}`;
             document.getElementById('successBox').style.display = 'block';
           } else if (data.status === 'pairing') {
             statusText.textContent = '⏳ Waiting for you to enter code in WhatsApp...';
@@ -1125,6 +1310,151 @@
       document.getElementById('tabStep1').classList.add('active');
       document.getElementById('tabStep2').classList.remove('active');
       document.getElementById('tabStep3').classList.remove('active');
+    }
+
+    // ─────────────────────────────────────────────
+    // BOT MANAGEMENT ACTIONS (START / STOP / RESTART / LOGS)
+    // ─────────────────────────────────────────────
+    let managedPhone = '';
+
+    async function lookupManageBot() {
+      const inp = document.getElementById('managePhoneInput');
+      let phone = inp.value.replace(/[^0-9]/g, '');
+      const notice = document.getElementById('manageNotice');
+      const card = document.getElementById('manageCard');
+      notice.style.display = 'none';
+      card.style.display = 'none';
+
+      if (!phone || phone.length < 8) {
+        notice.style.display = 'block';
+        notice.style.background = 'rgba(255,82,82,0.15)';
+        notice.style.color = '#ff8a80';
+        notice.style.border = '1px solid #ff5252';
+        notice.textContent = '⚠️ Please enter a valid phone number with country code.';
+        return;
+      }
+
+      managedPhone = phone;
+      try {
+        const res = await fetch(`/api/client/status?phone=${phone}`);
+        const data = await res.json();
+
+        if (data.success) {
+          card.style.display = 'block';
+          document.getElementById('cardPhoneText').textContent = `+${phone}`;
+          document.getElementById('cardMsg').textContent = data.message || 'Bot is registered.';
+
+          const badge = document.getElementById('cardStatusBadge');
+          const isRunning = data.status === 'active';
+          badge.className = `manage-status-badge ${isRunning ? 'badge-running' : (data.status === 'pairing' ? 'badge-pairing' : 'badge-stopped')}`;
+          badge.innerHTML = `<span class="status-dot ${isRunning ? 'dot-online' : ''}"></span> <span>${isRunning ? 'Online & Running' : (data.status === 'pairing' ? 'Pairing' : 'Stopped')}</span>`;
+
+          document.getElementById('btnCtrlStart').disabled = isRunning;
+          document.getElementById('btnCtrlStop').disabled = !isRunning;
+        } else {
+          notice.style.display = 'block';
+          notice.style.background = 'rgba(255,82,82,0.15)';
+          notice.style.color = '#ff8a80';
+          notice.style.border = '1px solid #ff5252';
+          notice.textContent = data.error || 'No bot instance found for this number. Link your bot first.';
+        }
+      } catch (err) {
+        notice.style.display = 'block';
+        notice.style.background = 'rgba(255,82,82,0.15)';
+        notice.style.color = '#ff8a80';
+        notice.style.border = '1px solid #ff5252';
+        notice.textContent = 'Network error looking up bot status.';
+      }
+    }
+
+    async function runBotAction(action) {
+      if (!managedPhone) return;
+      const notice = document.getElementById('manageNotice');
+      notice.style.display = 'block';
+      notice.style.background = 'rgba(0,180,255,0.15)';
+      notice.style.color = '#48cae4';
+      notice.style.border = '1px solid rgba(0,180,255,0.4)';
+      notice.textContent = `Executing ${action} for +${managedPhone}...`;
+
+      try {
+        const res = await fetch(`/api/client/bot/${action}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: managedPhone })
+        });
+        const data = await res.json();
+        notice.textContent = data.message || (data.success ? `Action ${action} succeeded!` : data.error);
+        if (data.success) {
+          notice.style.color = '#00e676';
+          notice.style.border = '1px solid #00e676';
+          setTimeout(() => lookupManageBot(), 1200);
+        } else {
+          notice.style.color = '#ff8a80';
+          notice.style.border = '1px solid #ff5252';
+        }
+      } catch (e) {
+        notice.textContent = `Error executing ${action}.`;
+      }
+    }
+
+    async function runSuccessBotAction(action) {
+      if (!activePhone) return;
+      try {
+        const res = await fetch(`/api/client/bot/${action}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: activePhone })
+        });
+        const data = await res.json();
+        alert(data.message || `Action ${action} executed.`);
+      } catch (e) {
+        alert('Network error executing action.');
+      }
+    }
+
+    function viewBotLogsModal() {
+      if (!managedPhone) return;
+      openStoreLogs(managedPhone);
+    }
+
+    function viewSuccessBotLogs() {
+      if (!activePhone) return;
+      openStoreLogs(activePhone);
+    }
+
+    function openStoreLogs(phone) {
+      currentLogsPhone = phone;
+      document.getElementById('modalLogsPhone').textContent = `Console Logs: +${phone}`;
+      document.getElementById('storeLogsModal').style.display = 'flex';
+      fetchLogsContent(phone);
+      clearInterval(logsPollInterval);
+      logsPollInterval = setInterval(() => fetchLogsContent(phone), 2500);
+    }
+
+    async function fetchLogsContent(phone) {
+      try {
+        const res = await fetch(`/api/client/bot/logs?phone=${phone}`);
+        const data = await res.json();
+        const container = document.getElementById('storeLogContent');
+        if (data.success && data.logs && data.logs.length > 0) {
+          container.textContent = data.logs.join('\n');
+          container.scrollTop = container.scrollHeight;
+        } else {
+          container.textContent = data.logs?.length === 0 ? 'No activity logs yet. Waiting for WhatsApp messages...' : (data.error || 'No logs available.');
+        }
+      } catch (e) {
+        document.getElementById('storeLogContent').textContent = 'Error connecting to console stream.';
+      }
+    }
+
+    function copyStoreLogs() {
+      const text = document.getElementById('storeLogContent').textContent;
+      navigator.clipboard.writeText(text).then(() => alert('✅ Logs copied to clipboard!'));
+    }
+
+    function closeStoreLogsModal() {
+      clearInterval(logsPollInterval);
+      document.getElementById('storeLogsModal').style.display = 'none';
     }
 
     // ─────────────────────────────────────────────
@@ -1176,6 +1506,8 @@
             clearInterval(qrPollInterval);
             clearInterval(qrTimerInterval);
             document.getElementById('sectionQrMode').style.display = 'none';
+            document.getElementById('successPhoneDisplay').textContent = data.phone ? `+${data.phone}` : 'Connected';
+            if (data.phone) activePhone = data.phone;
             document.getElementById('successBox').style.display = 'block';
           } else if (data.qr) {
             document.getElementById('qrLoadingBox').style.display = 'none';

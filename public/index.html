@@ -92,8 +92,11 @@
         <span class="logo-text">SKYBEE <span class="logo-ofc" style="color:#00b4d8; text-shadow:0 0 10px rgba(0,180,255,0.5);">BOT</span></span>
       </div>
       <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-        <button onclick="copyClientStoreLink()" style="background: linear-gradient(135deg, #00b4d8, #0077b6); border:none; border-radius:8px; color:#fff; padding:6px 14px; font-size:0.82rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:6px; box-shadow:0 0 15px rgba(0,180,255,0.3);">
-          <span>🔗</span> <span id="clientLinkBtnText">Copy Client Store Link</span>
+        <a href="/store" target="_blank" style="background: linear-gradient(135deg, #00b4d8, #0077b6); border:none; border-radius:8px; color:#fff; padding:6px 14px; font-size:0.82rem; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:6px; box-shadow:0 0 15px rgba(0,180,255,0.3);">
+          <span>🛍️</span> <span>Open Client Store ↗</span>
+        </a>
+        <button onclick="copyClientStoreLink()" style="background: rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.18); border-radius:8px; color:#fff; padding:6px 14px; font-size:0.82rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+          <span>📋</span> <span id="clientLinkBtnText">Copy Store Link</span>
         </button>
         <div class="status-pill" style="border-color: rgba(0,180,255,0.35); background: rgba(0,180,255,0.08);">
           <span style="font-size:0.8rem;">☁️</span>
