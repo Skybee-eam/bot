@@ -68,6 +68,7 @@ const VERIFIED_COMMANDS = {
     "👁️ PRIVACY & UTILITIES": {
         icon: "🛠️",
         commands: [
+            { cmd: "anticall decline/block/off", desc: "Auto-reject and block incoming WhatsApp calls" },
             { cmd: "antidelete private/chat/off", desc: "Recover deleted messages, photos & audio" },
             { cmd: "antidelete status", desc: "Check current anti-delete mode" },
             { cmd: "autostatus on/off", desc: "Toggle 24/7 automatic status viewing" },

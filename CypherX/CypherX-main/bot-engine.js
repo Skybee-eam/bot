@@ -857,6 +857,60 @@ function getArg(name) {
       console.error('[GROUP-UPDATE Error]:', err);
     }
   });
+
+  // 7. Handle Anti-Call Protection Event
+  Cypher.ev.on('call', async (calls) => {
+    try {
+      const antiCallMode = global.db?.settings?.anticall || 'decline';
+      if (!antiCallMode || antiCallMode === 'off' || antiCallMode === false) return;
+
+      for (const call of calls) {
+        if (call.status === 'offer') {
+          const callerJid = call.from;
+          const botOwner = jidNormalizedUser(Cypher.user?.id || '');
+
+          // Do not block or decline bot owner
+          if (callerJid === botOwner) continue;
+
+          // 1. Reject incoming audio/video call
+          try {
+            await Cypher.rejectCall(call.id, call.from);
+          } catch {}
+
+          const callerClean = callerJid.split('@')[0];
+          const isBlockMode = antiCallMode === 'block';
+
+          // 2. Send warning notice to caller
+          const notice =
+            `╭━━━〔 📵 *ANTI-CALL PROTECTION* 〕━━━╮\n` +
+            `│ 👤 *User:* @${callerClean}\n` +
+            `│ ⚠️ *Notice:* WhatsApp audio & video calls\n` +
+            `│ are strictly prohibited on this bot.\n` +
+            `│ ${isBlockMode ? '🚫 *Action:* You have been blocked automatically.' : '💡 *Action:* Call rejected.'}\n` +
+            `╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯`;
+
+          try {
+            await Cypher.sendMessage(callerJid, {
+              text: notice,
+              mentions: [callerJid]
+            });
+          } catch {}
+
+          // 3. Block caller if configured
+          if (isBlockMode) {
+            try {
+              await Cypher.updateBlockStatus(callerJid, 'block');
+              console.log(`[ANTI-CALL] Blocked caller: ${callerClean}`);
+            } catch (blockErr) {
+              console.warn('[ANTI-CALL Block Note]:', blockErr.message);
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[ANTI-CALL Error]:', err.message);
+    }
+  });
 }
 
 startCypherBot().catch((err) => {
