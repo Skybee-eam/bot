@@ -75,7 +75,7 @@ app.get('/api/client/pair-code', async (req, res) => {
 
   try {
     const sock = await startPairSocket(phone, sessionDir);
-    await delay(2000);
+    await delay(3000);
 
     if (!sock.authState.creds.registered) {
       let code = await sock.requestPairingCode(phone);
@@ -403,7 +403,11 @@ const botManager = new MultiBotManager();
 
 function cleanupPairSocket(phone, sessionDir, sock) {
   try { sock?.ws?.close(); } catch {}
-  try { fs.rmSync(sessionDir, { recursive: true, force: true }); } catch {}
+  try {
+    if (fs.existsSync(sessionDir)) {
+      fs.rmSync(sessionDir, { recursive: true, force: true });
+    }
+  } catch {}
   activePairSockets.delete(phone);
 }
 
@@ -447,14 +451,18 @@ async function startPairSocket(phone, sessionDir) {
     version,
     logger: pino({ level: 'silent' }),
     printQRInTerminal: false,
-    auth: state,
-    browser: Browsers.macOS('Desktop'),
+    auth: {
+      creds: state.creds,
+      keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' }))
+    },
+    browser: ['Ubuntu', 'Chrome', '20.0.04'],
     msgRetryCounterCache,
     generateHighQualityLinkPreview: false,
     syncFullHistory: false,
     markOnlineOnConnect: false,
     connectTimeoutMs: 60000,
-    keepAliveIntervalMs: 10000,
+    defaultQueryTimeoutMs: 0,
+    keepAliveIntervalMs: 25000,
   });
 
   activePairSockets.set(phone, { sock, sessionDir });
@@ -466,7 +474,7 @@ async function startPairSocket(phone, sessionDir) {
     if (connection === 'open') {
       console.log(`[PAIR LINKED] Successfully connected WhatsApp for +${phone}`);
       try {
-        await delay(3000);
+        await delay(2500);
         const credsPath = path.join(sessionDir, 'creds.json');
         if (!fs.existsSync(credsPath)) return;
 
@@ -474,32 +482,46 @@ async function startPairSocket(phone, sessionDir) {
         promoteToPermanentSession(phone, sessionDir);
 
         // Notify the user on WhatsApp
-        const rawId = sock.user?.id || '';
-        const userJid = rawId.includes(':') ? `${rawId.split(':')[0]}@s.whatsapp.net` : rawId;
-        await sock.sendMessage(userJid, {
-          text: `✅ *SKYBEE BOT Connected!* 🐝\n\n` +
-                `*Phone:* +${phone}\n` +
-                `*Status:* Active & Hosted on Skybee Cloud\n\n` +
-                `🤖 Your bot is now active and ready to process commands! Type *.menu* to get started.`
-        });
+        try {
+          const rawId = sock.user?.id || '';
+          const userJid = rawId.includes(':') ? `${rawId.split(':')[0]}@s.whatsapp.net` : rawId;
+          if (userJid) {
+            await sock.sendMessage(userJid, {
+              text: `✅ *SKYBEE BOT Connected!* 🐝\n\n` +
+                    `*Phone:* +${phone}\n` +
+                    `*Status:* Active & Hosted on Skybee Cloud\n\n` +
+                    `🤖 Your bot is now active and ready to process commands! Type *.menu* to get started.`
+            });
+          }
+        } catch (sendErr) {
+          console.warn('[PAIR Notify Note]:', sendErr.message);
+        }
       } catch (e) {
         console.error('[ERROR] Post-pairing error:', e);
       } finally {
-        await delay(4000);
-        cleanupPairSocket(phone, sessionDir, sock);
+        await delay(3000);
+        try { sock?.ws?.close(); } catch {}
+        activePairSockets.delete(phone);
       }
 
     } else if (connection === 'close') {
       const code = lastDisconnect?.error?.output?.statusCode;
+      const reason = lastDisconnect?.error?.message || 'unknown';
+      console.log(`[PAIR DISCONNECTED] +${phone}, code=${code}, reason=${reason}`);
+
       if (code === DisconnectReason.loggedOut || code === 401) {
         console.log(`[PAIR LOGGED OUT] +${phone}`);
         cleanupPairSocket(phone, sessionDir, sock);
       } else {
-        console.log(`[PAIR DISCONNECTED] +${phone}, code=${code}`);
-        if (sock.authState?.creds?.registered && activePairSockets.has(phone)) {
-          startPairSocket(phone, sessionDir);
-        } else {
-          cleanupPairSocket(phone, sessionDir, sock);
+        // Critical: WhatsApp drops connection temporarily during pairing to switch to registered state
+        // Reconnect instead of deleting the session directory!
+        if (activePairSockets.has(phone)) {
+          console.log(`[PAIR RECONNECTING] Re-establishing handshake socket for +${phone}...`);
+          setTimeout(() => {
+            if (activePairSockets.has(phone)) {
+              startPairSocket(phone, sessionDir);
+            }
+          }, 2000);
         }
       }
     }
@@ -616,7 +638,7 @@ app.get('/api/pair-code', requireAccessCode, async (req, res) => {
 
   try {
     const sock = await startPairSocket(phone, sessionDir);
-    await delay(2000);
+    await delay(3000);
 
     if (!sock.authState.creds.registered) {
       let code = await sock.requestPairingCode(phone);
@@ -657,14 +679,18 @@ app.post(['/api/qr-start', '/api/client/qr-start'], async (req, res) => {
       version,
       logger: pino({ level: 'silent' }),
       printQRInTerminal: false,
-      auth: state,
-      browser: Browsers.macOS('Desktop'),
+      auth: {
+        creds: state.creds,
+        keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' }))
+      },
+      browser: ['Ubuntu', 'Chrome', '20.0.04'],
       msgRetryCounterCache,
       generateHighQualityLinkPreview: false,
       syncFullHistory: false,
       markOnlineOnConnect: false,
       connectTimeoutMs: 120000,
-      keepAliveIntervalMs: 15000,
+      defaultQueryTimeoutMs: 0,
+      keepAliveIntervalMs: 25000,
     });
 
     qrSessions.set(sessionId, { qrDataUrl: null, linked: false, phone: null, sock, sessionDir, error: null });
