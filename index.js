@@ -56,7 +56,13 @@ function requireAccessCode(req, res, next) {
 }
 
 app.use(cors({
-  origin: [VERCEL_FRONTEND_URL, 'http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:8080'],
+  origin: function (origin, callback) {
+    if (!origin || origin.includes('localhost') || origin.includes('127.0.0.1') || origin.endsWith('.vercel.app')) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true
 }));
 app.use(express.json({ limit: '10mb' }));

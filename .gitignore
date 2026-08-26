@@ -11,3 +11,5 @@ CypherX/CypherX-main/src/Session/
 sessions/
 *.db
 
+
+.vercel
