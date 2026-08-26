@@ -1179,6 +1179,9 @@
   </style>
 
   <script>
+        // 🚀 THE URL OF YOUR RENDER/RAILWAY BOT BACKEND 🚀
+        const BACKEND_URL = 'https://bot-z47t.onrender.com';
+
     let currentMode = 'pair'; // 'pair', 'qr', 'session', or 'manage'
     let activePhone = '';
     let currentPairCode = '';
@@ -1246,7 +1249,7 @@
 
     async function fetchStoreStats() {
       try {
-        const res = await fetch('/api/client/stats');
+        const res = await fetch(`${BACKEND_URL}/api/client/stats`);
         const data = await res.json();
         if (data.success) {
           document.getElementById('cloudStatus').textContent = `${data.activeBots} Cloud Bots Online • 99.9% Uptime`;
@@ -1282,7 +1285,7 @@
       document.getElementById('loadingState').style.display = 'block';
 
       try {
-        const response = await fetch(`/api/client/pair-code?phone=${phone}`);
+        const response = await fetch(`${BACKEND_URL}/api/client/pair-code?phone=${phone}`);
         const data = await response.json();
 
         document.getElementById('loadingState').style.display = 'none';
@@ -1363,7 +1366,7 @@
     async function checkClientBotStatus() {
       if (!activePhone) return;
       try {
-        const res = await fetch(`/api/client/status?phone=${activePhone}`);
+        const res = await fetch(`${BACKEND_URL}/api/client/status?phone=${activePhone}`);
         const data = await res.json();
         
         if (data.success) {
@@ -1431,7 +1434,7 @@
 
       managedPhone = phone;
       try {
-        const res = await fetch(`/api/client/status?phone=${phone}`);
+        const res = await fetch(`${BACKEND_URL}/api/client/status?phone=${phone}`);
         const data = await res.json();
 
         if (data.success) {
@@ -1472,7 +1475,7 @@
       notice.textContent = `Executing ${action} for +${managedPhone}...`;
 
       try {
-        const res = await fetch(`/api/client/bot/${action}`, {
+        const res = await fetch(`${BACKEND_URL}/api/client/bot/${action}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ phone: managedPhone })
@@ -1495,7 +1498,7 @@
     async function runSuccessBotAction(action) {
       if (!activePhone) return;
       try {
-        const res = await fetch(`/api/client/bot/${action}`, {
+        const res = await fetch(`${BACKEND_URL}/api/client/bot/${action}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ phone: activePhone })
@@ -1528,7 +1531,7 @@
 
     async function fetchLogsContent(phone) {
       try {
-        const res = await fetch(`/api/client/bot/logs?phone=${phone}`);
+        const res = await fetch(`${BACKEND_URL}/api/client/bot/logs?phone=${phone}`);
         const data = await res.json();
         const container = document.getElementById('storeLogContent');
         if (data.success && data.logs && data.logs.length > 0) {
@@ -1570,7 +1573,7 @@
       timerPill.style.display = 'none';
 
       try {
-        const res = await fetch('/api/client/qr-start', { method: 'POST' });
+        const res = await fetch(`${BACKEND_URL}/api/client/qr-start`, { method: 'POST' });
         const data = await res.json();
 
         if (data.success && data.sessionId) {
@@ -1593,7 +1596,7 @@
       qrPollInterval = setInterval(async () => {
         if (!qrSessionId) return;
         try {
-          const res = await fetch(`/api/qr-status?sessionId=${qrSessionId}`);
+          const res = await fetch(`${BACKEND_URL}/api/qr-status?sessionId=${qrSessionId}`);
           const data = await res.json();
 
           if (data.linked) {
@@ -1666,7 +1669,7 @@
       btn.innerHTML = '<span>⏳ Restoring Session & Connecting Bot...</span>';
 
       try {
-        const res = await fetch('/api/client/connect-session', {
+        const res = await fetch(`${BACKEND_URL}/api/client/connect-session`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ sessionId: input, phone: phoneInput })

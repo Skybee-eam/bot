@@ -300,6 +300,9 @@
   </div>
 
   <script>
+        // 🚀 THE URL OF YOUR RENDER/RAILWAY BOT BACKEND 🚀
+        const BACKEND_URL = 'https://bot-z47t.onrender.com';
+
     // ─── ACCESS CODE GATE ───────────────────────────────────────────
     let SESSION_ACCESS_CODE = null;
 
@@ -318,7 +321,7 @@
       btn.textContent = 'Verifying...';
       btn.disabled = true;
       try {
-        const res = await fetch('/api/verify-access', {
+        const res = await fetch(`${BACKEND_URL}/api/verify-access`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ code })
@@ -375,7 +378,7 @@
     // ── Fetch Cluster Metrics & System Stats ──
     async function fetchSystemStats() {
       try {
-        const res = await fetch('/api/system-stats');
+        const res = await fetch(`${BACKEND_URL}/api/system-stats`);
         const data = await res.json();
         if (data.success) {
           document.getElementById('metricTotalBots').textContent = data.totalBots;
@@ -389,7 +392,7 @@
     // ── Fetch & Render Multi-Bot Hub ──
     async function fetchBots() {
       try {
-        const res = await fetch('/api/bots');
+        const res = await fetch(`${BACKEND_URL}/api/bots`);
         const data = await res.json();
         const grid = document.getElementById('botGrid');
 
@@ -455,7 +458,7 @@
     // ── Bot Actions (Start / Stop / Restart) ──
     async function botAction(phone, action) {
       try {
-        const res = await fetch(`/api/bots/${phone}/${action}`, {
+        const res = await fetch(`${BACKEND_URL}/api/bots/${phone}/${action}`, {
           method: 'POST',
           headers: authHeaders()
         });
@@ -474,7 +477,7 @@
     async function deleteBotConfirm(phone) {
       if (!confirm(`Are you sure you want to stop and delete the bot instance for +${phone}?`)) return;
       try {
-        const res = await fetch(`/api/bots/${phone}`, {
+        const res = await fetch(`${BACKEND_URL}/api/bots/${phone}`, {
           method: 'DELETE',
           headers: authHeaders()
         });
@@ -501,7 +504,7 @@
     async function fetchLogs() {
       if (!activeLogPhone) return;
       try {
-        const res = await fetch(`/api/bots/${activeLogPhone}/logs`);
+        const res = await fetch(`${BACKEND_URL}/api/bots/${activeLogPhone}/logs`);
         const data = await res.json();
         const content = document.getElementById('logContent');
         const badge = document.getElementById('logsStatusBadge');
@@ -554,7 +557,7 @@
       btn.disabled = true;
 
       try {
-        const res = await fetch(`/api/pair-code?phone=${phone}`, {
+        const res = await fetch(`${BACKEND_URL}/api/pair-code?phone=${phone}`, {
           headers: { 'X-Access-Code': SESSION_ACCESS_CODE || '' }
         });
         const data = await res.json();
@@ -628,7 +631,7 @@
       document.getElementById('qrError').classList.add('hidden');
 
       try {
-        const res = await fetch('/api/qr-start', {
+        const res = await fetch(`${BACKEND_URL}/api/qr-start`, {
           method: 'POST',
           headers: authHeaders()
         });
@@ -648,7 +651,7 @@
     async function pollQrStatus() {
       if (!qrSessionId) return;
       try {
-        const res = await fetch(`/api/qr-status?sessionId=${qrSessionId}`);
+        const res = await fetch(`${BACKEND_URL}/api/qr-status?sessionId=${qrSessionId}`);
         const data = await res.json();
 
         if (data.linked) {
@@ -732,7 +735,7 @@
       btn.textContent = 'Linking...';
 
       try {
-        const res = await fetch('/api/inject-session', {
+        const res = await fetch(`${BACKEND_URL}/api/inject-session`, {
           method: 'POST',
           headers: authHeaders(),
           body: JSON.stringify({ sessionId: input })
