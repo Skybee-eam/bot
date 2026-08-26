@@ -46,192 +46,13 @@ function requireAccessCode(req, res, next) {
 }
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Public client store & pairing routes
-app.get(['/store', '/pair', '/refer', '/client', '/connect', '/activate', '/link'], (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'store.html'));
-});
-
-// Public client pairing endpoint (No admin access code required for clients)
-app.get('/api/client/pair-code', async (req, res) => {
-  let phone = req.query.phone;
-  if (!phone) return res.status(400).json({ success: false, error: 'WhatsApp phone number is required.' });
-
-  phone = phone.replace(/[^0-9]/g, '');
-  if (phone.length < 8 || phone.length > 15) {
-    return res.status(400).json({ success: false, error: 'Please enter a valid phone number with country code (e.g. 233558816890).' });
-  }
-
-  console.log(`[CLIENT STORE PAIR REQUEST] Public client pairing request for +${phone}`);
-
-  if (activePairSockets.has(phone)) {
-    const old = activePairSockets.get(phone);
-    cleanupPairSocket(phone, old.sessionDir, old.sock);
-    await delay(1000);
-  }
-
-  const sessionDir = path.join(tempSessionsDir, `client_pair_${phone}_${Date.now()}`);
-
-  try {
-    const sock = await startPairSocket(phone, sessionDir);
-    await delay(3000);
-
-    if (!sock.authState.creds.registered) {
-      let code = await sock.requestPairingCode(phone);
-      code = code?.match(/.{1,4}/g)?.join('-') || code;
-      console.log(`[CLIENT CODE GENERATED] +${phone} → ${code}`);
-
-      // Auto-cleanup after 3 minutes if pairing code not entered
-      setTimeout(() => {
-        if (activePairSockets.has(phone)) {
-          console.log(`[CLIENT TIMEOUT] Cleaning up pending pair socket for +${phone}`);
-          cleanupPairSocket(phone, sessionDir, sock);
-        }
-      }, 180000);
-
-      return res.json({ success: true, code, phone });
-    } else {
-      cleanupPairSocket(phone, sessionDir, sock);
-      return res.status(400).json({ success: false, error: 'Device is already registered and linked.' });
-    }
-  } catch (err) {
-    console.error('[ERROR] client pair-code route:', err);
-    try { fs.rmSync(sessionDir, { recursive: true, force: true }); } catch {}
-    activePairSockets.delete(phone);
-    return res.status(500).json({ success: false, error: 'Failed to generate pairing code. Please check your phone number and try again.' });
-  }
-});
-
-// Public client bot connection status checker
-app.get('/api/client/status', (req, res) => {
-  let phone = req.query.phone;
-  if (!phone) return res.status(400).json({ success: false, error: 'Phone number is required.' });
-  phone = phone.replace(/[^0-9]/g, '');
-
-  const bot = botManager.bots.get(phone);
-  const isPairingPending = activePairSockets.has(phone);
-
-  if (bot && bot.status === 'running') {
-    return res.json({
-      success: true,
-      phone,
-      status: 'active',
-      message: 'Bot is online, running, and active!'
-    });
-  } else if (isPairingPending) {
-    return res.json({
-      success: true,
-      phone,
-      status: 'pairing',
-      message: 'Waiting for pairing code confirmation in WhatsApp...'
-    });
-  } else if (bot && bot.status === 'stopped') {
-    return res.json({
-      success: true,
-      phone,
-      status: 'linked',
-      message: 'Bot is linked and initializing...'
-    });
-  } else {
-    return res.json({
-      success: true,
-      phone,
-      status: 'idle',
-      message: 'Ready to pair.'
-    });
-  }
-});
-
 // ─────────────────────────────────────────────────────────────────
-// PUBLIC CLIENT BOT CONTROLS (Start, Stop, Restart, Logs, Unlink)
+// BASE DIRECTORIES & GLOBAL STATE
 // ─────────────────────────────────────────────────────────────────
-app.post(['/api/client/bot/start', '/api/client/start'], async (req, res) => {
-  const phone = req.body?.phone || req.query.phone;
-  if (!phone) return res.status(400).json({ success: false, error: 'Phone number is required.' });
-  const cleanPhone = String(phone).replace(/[^0-9]/g, '');
-  try {
-    const sessionDir = path.join(multiSessionsDir, cleanPhone);
-    if (!fs.existsSync(path.join(sessionDir, 'creds.json'))) {
-      // Auto-restore session from Database Vault / Firebase Cloud
-      await firebaseSync.restoreSessionsFromCloud(multiSessionsDir);
-    }
-    if (!fs.existsSync(path.join(sessionDir, 'creds.json'))) {
-      return res.status(400).json({ success: false, error: 'No saved WhatsApp session found in database for this number. Please link your bot first.' });
-    }
-    const bot = botManager.startBot(cleanPhone);
-    return res.json({ success: true, message: `Bot +${cleanPhone} is now starting and connecting...`, status: bot.status });
-  } catch (err) {
-    return res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-app.post(['/api/client/bot/stop', '/api/client/stop'], (req, res) => {
-  const phone = req.body?.phone || req.query.phone;
-  if (!phone) return res.status(400).json({ success: false, error: 'Phone number is required.' });
-  const cleanPhone = String(phone).replace(/[^0-9]/g, '');
-  botManager.stopBot(cleanPhone);
-  return res.json({ success: true, message: `Bot +${cleanPhone} stopped. Session remains saved in database for instant restart anytime!` });
-});
-
-app.post(['/api/client/bot/restart', '/api/client/restart'], async (req, res) => {
-  const phone = req.body?.phone || req.query.phone;
-  if (!phone) return res.status(400).json({ success: false, error: 'Phone number is required.' });
-  const cleanPhone = String(phone).replace(/[^0-9]/g, '');
-  const sessionDir = path.join(multiSessionsDir, cleanPhone);
-  if (!fs.existsSync(path.join(sessionDir, 'creds.json'))) {
-    await firebaseSync.restoreSessionsFromCloud(multiSessionsDir);
-  }
-  const bot = await botManager.restartBot(cleanPhone);
-  return res.json({ success: true, message: `Bot +${cleanPhone} restarted successfully.`, status: bot ? bot.status : 'stopped' });
-});
-
-app.get(['/api/client/bot/logs', '/api/client/logs'], (req, res) => {
-  const phone = req.query.phone;
-  if (!phone) return res.status(400).json({ success: false, error: 'Phone number is required.' });
-  const cleanPhone = String(phone).replace(/[^0-9]/g, '');
-  const bot = botManager.bots.get(cleanPhone);
-  if (!bot) {
-    return res.status(404).json({ success: false, error: 'Bot not found.' });
-  }
-  return res.json({ success: true, phone: cleanPhone, status: bot.status, logs: bot.logs || [] });
-});
-
-app.post(['/api/client/bot/delete', '/api/client/delete'], (req, res) => {
-  const phone = req.body?.phone || req.query.phone;
-  if (!phone) return res.status(400).json({ success: false, error: 'Phone number is required.' });
-  const cleanPhone = String(phone).replace(/[^0-9]/g, '');
-  botManager.deleteBot(cleanPhone);
-  return res.json({ success: true, message: `Bot +${cleanPhone} unlinked and session removed from database.` });
-});
-
-// Public store statistics
-app.get('/api/client/stats', (req, res) => {
-  const bots = botManager.listBots();
-  const running = bots.filter(b => b.status === 'running').length;
-  return res.json({
-    success: true,
-    totalHosted: Math.max(bots.length, 12),
-    activeBots: Math.max(running, 8),
-    commandsCount: 544,
-    uptimePercent: '99.9%'
-  });
-});
-
-// Public endpoint: verify access code (used by frontend gate)
-app.post('/api/verify-access', (req, res) => {
-  const { code } = req.body;
-  if (!code) return res.status(400).json({ success: false, error: 'No code provided.' });
-  if (String(code).trim() === ACCESS_CODE) {
-    console.log(`[ACCESS] Successful access code entry from ${req.ip}`);
-    return res.json({ success: true });
-  }
-  console.warn(`[SECURITY] Failed access code attempt from ${req.ip}`);
-  return res.status(403).json({ success: false, error: 'Wrong access code. Try again.' });
-});
-
-// Base directories
 const tempSessionsDir = path.join(__dirname, 'temp_sessions');
 if (!fs.existsSync(tempSessionsDir)) {
   fs.mkdirSync(tempSessionsDir, { recursive: true });
@@ -249,6 +70,137 @@ const BOT_ENTRY = path.join(BOT_DIR, 'bot-engine.js');
 const activePairSockets = new Map();
 const qrSessions = new Map();
 const msgRetryCounterCache = new NodeCache();
+
+// ─────────────────────────────────────────────────────────────────
+// SESSION ID HELPERS (ENCODE, DECODE, SEND PROMPTS, RESTORE)
+// ─────────────────────────────────────────────────────────────────
+
+// Generate portable base64 session string from creds.json in a directory
+function getSessionIdForDir(dirPath) {
+  try {
+    const credsPath = path.join(dirPath, 'creds.json');
+    if (fs.existsSync(credsPath)) {
+      const data = fs.readFileSync(credsPath, 'utf8');
+      return 'SKYBEE~' + Buffer.from(data.trim()).toString('base64');
+    }
+  } catch (e) {
+    console.warn('[SESSION ID] Error generating session string:', e.message);
+  }
+  return null;
+}
+
+// Generate portable base64 session string for a given phone number
+function getSessionIdForPhone(phone) {
+  const cleanPhone = String(phone).replace(/[^0-9]/g, '');
+  const dirPath = path.join(multiSessionsDir, cleanPhone);
+  return getSessionIdForDir(dirPath);
+}
+
+// Prompt and deliver the Session ID directly to WhatsApp chat upon linking
+async function sendSessionIdPrompt(sock, userJid, phone, sessionId) {
+  if (!sock || !userJid || !sessionId) return;
+  try {
+    // 1. Send detailed instruction prompt
+    await sock.sendMessage(userJid, {
+      text: `🐝 *SKYBEE BOT LINKED & CONNECTED!* 🐝\n\n` +
+            `📱 *Phone:* +${phone}\n` +
+            `☁️ *Status:* Active & Hosted 24/7 on Skybee Cloud\n\n` +
+            `🔑 *YOUR RECOVERY SESSION ID:*\n` +
+            `Please *SAVE* your Session ID below! If the bot crashes, sleeps, or the server/website restarts, you can paste this Session ID on the website under *"Paste Session ID"* to reconnect instantly without linking or scanning again.\n\n` +
+            `👇 *Your Session ID is sent in the next message for 1-tap copy:*`
+    });
+
+    await delay(1000);
+
+    // 2. Send standalone Session ID for 1-tap easy copying on WhatsApp mobile
+    await sock.sendMessage(userJid, {
+      text: sessionId
+    });
+
+    await delay(1000);
+
+    // 3. Send Quick start command instructions
+    await sock.sendMessage(userJid, {
+      text: `🤖 *Ready to use!* Type *.menu* to view 544+ commands or *.ping* to test speed.`
+    });
+  } catch (err) {
+    console.warn(`[SESSION PROMPT NOTE] +${phone}:`, err.message);
+  }
+}
+
+// Process and restore a bot instance from a pasted Session ID
+async function processSessionConnection(sessionIdInput, rawPhone = '') {
+  if (!sessionIdInput || typeof sessionIdInput !== 'string') {
+    throw new Error('Session ID string is required.');
+  }
+
+  let base64 = sessionIdInput.trim();
+  if (base64.includes('~')) {
+    base64 = base64.split('~')[1];
+  } else if (base64.startsWith('SESSION_')) {
+    base64 = base64.replace('SESSION_', '');
+  }
+
+  let credsJson;
+  try {
+    const decoded = Buffer.from(base64.trim(), 'base64').toString('utf-8');
+    credsJson = JSON.parse(decoded);
+  } catch {
+    // Fallback: test if input itself is already raw JSON
+    try {
+      credsJson = JSON.parse(sessionIdInput.trim());
+    } catch {
+      throw new Error('Invalid Session ID format. Please make sure you copied the complete SKYBEE~... session string.');
+    }
+  }
+
+  if (!credsJson || typeof credsJson !== 'object') {
+    throw new Error('Corrupted or invalid credentials in Session ID.');
+  }
+
+  // Determine phone number from creds or input
+  let phone = rawPhone ? String(rawPhone).replace(/[^0-9]/g, '') : '';
+  if (!phone && credsJson.me?.id) {
+    phone = credsJson.me.id.split(':')[0].replace(/[^0-9]/g, '');
+  }
+  if (!phone && credsJson.creds?.me?.id) {
+    phone = credsJson.creds.me.id.split(':')[0].replace(/[^0-9]/g, '');
+  }
+  if (!phone) {
+    phone = `user_${Date.now()}`;
+  }
+
+  const userSessionDir = path.join(multiSessionsDir, phone);
+  if (fs.existsSync(userSessionDir)) {
+    // Clean old files while preserving directory
+    try {
+      const files = fs.readdirSync(userSessionDir);
+      for (const f of files) {
+        fs.rmSync(path.join(userSessionDir, f), { recursive: true, force: true });
+      }
+    } catch {}
+  } else {
+    fs.mkdirSync(userSessionDir, { recursive: true });
+  }
+
+  fs.writeFileSync(path.join(userSessionDir, 'creds.json'), JSON.stringify(credsJson, null, 2));
+
+  console.log(`[CONNECT SESSION] Restored credentials for +${phone} from Session ID`);
+
+  // Sync to database vault and Firebase
+  await firebaseSync.saveSessionToCloud(phone, userSessionDir).catch(() => {});
+
+  // Start bot engine
+  const bot = botManager.startBot(phone);
+
+  const finalSessionId = `SKYBEE~` + Buffer.from(JSON.stringify(credsJson)).toString('base64');
+
+  return {
+    phone,
+    bot,
+    sessionId: finalSessionId
+  };
+}
 
 // ─────────────────────────────────────────────────────────────────
 // MULTI-TENANT BOT MANAGER
@@ -484,7 +436,8 @@ class MultiBotManager {
         startedAt: b.startedAt,
         uptime: b.startedAt && b.status === 'running' ? Math.floor((Date.now() - new Date(b.startedAt).getTime()) / 1000) : 0,
         logCount: b.logs.length,
-        hasCreds: fs.existsSync(path.join(multiSessionsDir, phone, 'creds.json'))
+        hasCreds: fs.existsSync(path.join(multiSessionsDir, phone, 'creds.json')),
+        sessionId: getSessionIdForPhone(phone)
       });
     }
     return list;
@@ -575,19 +528,17 @@ async function startPairSocket(phone, sessionDir) {
         if (!fs.existsSync(credsPath)) return;
 
         // Save to permanent sessions and start individual bot instance
-        promoteToPermanentSession(phone, sessionDir);
+        const permDir = promoteToPermanentSession(phone, sessionDir);
 
-        // Notify the user on WhatsApp
+        // Generate recovery Session ID
+        const sessionId = getSessionIdForDir(permDir) || getSessionIdForDir(sessionDir);
+
+        // Notify user and send Session ID prompt on WhatsApp
         try {
           const rawId = sock.user?.id || '';
           const userJid = rawId.includes(':') ? `${rawId.split(':')[0]}@s.whatsapp.net` : rawId;
-          if (userJid) {
-            await sock.sendMessage(userJid, {
-              text: `✅ *SKYBEE BOT Connected!* 🐝\n\n` +
-                    `*Phone:* +${phone}\n` +
-                    `*Status:* Active & Hosted on Skybee Cloud\n\n` +
-                    `🤖 Your bot is now active and ready to process commands! Type *.menu* to get started.`
-            });
+          if (userJid && sessionId) {
+            await sendSessionIdPrompt(sock, userJid, phone, sessionId);
           }
         } catch (sendErr) {
           console.warn('[PAIR Notify Note]:', sendErr.message);
@@ -627,7 +578,239 @@ async function startPairSocket(phone, sessionDir) {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// API ROUTES: MULTI-BOT DASHBOARD & CONTROLS
+// PUBLIC CLIENT STORE & RECONNECTION ENDPOINTS
+// ─────────────────────────────────────────────────────────────────
+
+// Public client store & pairing page
+app.get(['/store', '/pair', '/refer', '/client', '/connect', '/activate', '/link'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'store.html'));
+});
+
+// Public client pairing code endpoint
+app.get('/api/client/pair-code', async (req, res) => {
+  let phone = req.query.phone;
+  if (!phone) return res.status(400).json({ success: false, error: 'WhatsApp phone number is required.' });
+
+  phone = phone.replace(/[^0-9]/g, '');
+  if (phone.length < 8 || phone.length > 15) {
+    return res.status(400).json({ success: false, error: 'Please enter a valid phone number with country code (e.g. 233558816890).' });
+  }
+
+  console.log(`[CLIENT STORE PAIR REQUEST] Public client pairing request for +${phone}`);
+
+  if (activePairSockets.has(phone)) {
+    const old = activePairSockets.get(phone);
+    cleanupPairSocket(phone, old.sessionDir, old.sock);
+    await delay(1000);
+  }
+
+  const sessionDir = path.join(tempSessionsDir, `client_pair_${phone}_${Date.now()}`);
+
+  try {
+    const sock = await startPairSocket(phone, sessionDir);
+    await delay(3000);
+
+    if (!sock.authState.creds.registered) {
+      let code = await sock.requestPairingCode(phone);
+      code = code?.match(/.{1,4}/g)?.join('-') || code;
+      console.log(`[CLIENT CODE GENERATED] +${phone} → ${code}`);
+
+      // Auto-cleanup after 3 minutes if pairing code not entered
+      setTimeout(() => {
+        if (activePairSockets.has(phone)) {
+          console.log(`[CLIENT TIMEOUT] Cleaning up pending pair socket for +${phone}`);
+          cleanupPairSocket(phone, sessionDir, sock);
+        }
+      }, 180000);
+
+      return res.json({ success: true, code, phone });
+    } else {
+      cleanupPairSocket(phone, sessionDir, sock);
+      return res.status(400).json({ success: false, error: 'Device is already registered and linked.' });
+    }
+  } catch (err) {
+    console.error('[ERROR] client pair-code route:', err);
+    try { fs.rmSync(sessionDir, { recursive: true, force: true }); } catch {}
+    activePairSockets.delete(phone);
+    return res.status(500).json({ success: false, error: 'Failed to generate pairing code. Please check your phone number and try again.' });
+  }
+});
+
+// Public client bot connection status checker (Includes Session ID if linked)
+app.get('/api/client/status', (req, res) => {
+  let phone = req.query.phone;
+  if (!phone) return res.status(400).json({ success: false, error: 'Phone number is required.' });
+  phone = phone.replace(/[^0-9]/g, '');
+
+  const bot = botManager.bots.get(phone);
+  const isPairingPending = activePairSockets.has(phone);
+  const sessionId = getSessionIdForPhone(phone);
+
+  if (bot && bot.status === 'running') {
+    return res.json({
+      success: true,
+      phone,
+      status: 'active',
+      sessionId: sessionId || undefined,
+      message: 'Bot is online, running, and active!'
+    });
+  } else if (isPairingPending) {
+    return res.json({
+      success: true,
+      phone,
+      status: 'pairing',
+      message: 'Waiting for pairing code confirmation in WhatsApp...'
+    });
+  } else if ((bot && bot.status === 'stopped') || sessionId) {
+    return res.json({
+      success: true,
+      phone,
+      status: 'linked',
+      sessionId: sessionId || undefined,
+      message: 'Bot is linked and ready to start.'
+    });
+  } else {
+    return res.json({
+      success: true,
+      phone,
+      status: 'idle',
+      message: 'Ready to pair.'
+    });
+  }
+});
+
+// Public endpoint to retrieve Session ID for a given linked phone
+app.get('/api/client/session-id', (req, res) => {
+  let phone = req.query.phone;
+  if (!phone) return res.status(400).json({ success: false, error: 'Phone number is required.' });
+  phone = phone.replace(/[^0-9]/g, '');
+
+  const sessionId = getSessionIdForPhone(phone);
+  if (!sessionId) {
+    return res.status(404).json({ success: false, error: 'No active session found for this phone number.' });
+  }
+
+  return res.json({ success: true, phone, sessionId });
+});
+
+// ─────────────────────────────────────────────────────────────────
+// PUBLIC CLIENT SESSION RECONNECT / INJECT
+// (Paste Session ID to restore bot after crash/site restart)
+// ─────────────────────────────────────────────────────────────────
+app.post(['/api/client/connect-session', '/api/client/inject-session', '/api/connect-session'], async (req, res) => {
+  try {
+    const { sessionId, phone } = req.body;
+    if (!sessionId) {
+      return res.status(400).json({ success: false, error: 'Please paste your complete SKYBEE~... Session ID.' });
+    }
+
+    const result = await processSessionConnection(sessionId, phone);
+
+    return res.json({
+      success: true,
+      message: `🎉 WhatsApp Session restored successfully! Bot +${result.phone} is now online and connected.`,
+      phone: result.phone,
+      sessionId: result.sessionId,
+      status: result.bot.status
+    });
+  } catch (err) {
+    console.error('[CLIENT CONNECT SESSION ERROR]:', err.message);
+    return res.status(400).json({
+      success: false,
+      error: err.message || 'Failed to restore session. Please verify your Session ID.'
+    });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────
+// PUBLIC CLIENT BOT CONTROLS (Start, Stop, Restart, Logs, Unlink)
+// ─────────────────────────────────────────────────────────────────
+app.post(['/api/client/bot/start', '/api/client/start'], async (req, res) => {
+  const phone = req.body?.phone || req.query.phone;
+  if (!phone) return res.status(400).json({ success: false, error: 'Phone number is required.' });
+  const cleanPhone = String(phone).replace(/[^0-9]/g, '');
+  try {
+    const sessionDir = path.join(multiSessionsDir, cleanPhone);
+    if (!fs.existsSync(path.join(sessionDir, 'creds.json'))) {
+      // Auto-restore session from Database Vault / Firebase Cloud
+      await firebaseSync.restoreSessionsFromCloud(multiSessionsDir);
+    }
+    if (!fs.existsSync(path.join(sessionDir, 'creds.json'))) {
+      return res.status(400).json({ success: false, error: 'No saved WhatsApp session found in database for this number. Please link your bot or paste your Session ID.' });
+    }
+    const bot = botManager.startBot(cleanPhone);
+    return res.json({ success: true, message: `Bot +${cleanPhone} is now starting and connecting...`, status: bot.status });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post(['/api/client/bot/stop', '/api/client/stop'], (req, res) => {
+  const phone = req.body?.phone || req.query.phone;
+  if (!phone) return res.status(400).json({ success: false, error: 'Phone number is required.' });
+  const cleanPhone = String(phone).replace(/[^0-9]/g, '');
+  botManager.stopBot(cleanPhone);
+  return res.json({ success: true, message: `Bot +${cleanPhone} stopped. Session remains saved in database for instant restart anytime!` });
+});
+
+app.post(['/api/client/bot/restart', '/api/client/restart'], async (req, res) => {
+  const phone = req.body?.phone || req.query.phone;
+  if (!phone) return res.status(400).json({ success: false, error: 'Phone number is required.' });
+  const cleanPhone = String(phone).replace(/[^0-9]/g, '');
+  const sessionDir = path.join(multiSessionsDir, cleanPhone);
+  if (!fs.existsSync(path.join(sessionDir, 'creds.json'))) {
+    await firebaseSync.restoreSessionsFromCloud(multiSessionsDir);
+  }
+  const bot = await botManager.restartBot(cleanPhone);
+  return res.json({ success: true, message: `Bot +${cleanPhone} restarted successfully.`, status: bot ? bot.status : 'stopped' });
+});
+
+app.get(['/api/client/bot/logs', '/api/client/logs'], (req, res) => {
+  const phone = req.query.phone;
+  if (!phone) return res.status(400).json({ success: false, error: 'Phone number is required.' });
+  const cleanPhone = String(phone).replace(/[^0-9]/g, '');
+  const bot = botManager.bots.get(cleanPhone);
+  if (!bot) {
+    return res.status(404).json({ success: false, error: 'Bot not found.' });
+  }
+  return res.json({ success: true, phone: cleanPhone, status: bot.status, logs: bot.logs || [] });
+});
+
+app.post(['/api/client/bot/delete', '/api/client/delete'], (req, res) => {
+  const phone = req.body?.phone || req.query.phone;
+  if (!phone) return res.status(400).json({ success: false, error: 'Phone number is required.' });
+  const cleanPhone = String(phone).replace(/[^0-9]/g, '');
+  botManager.deleteBot(cleanPhone);
+  return res.json({ success: true, message: `Bot +${cleanPhone} unlinked and session removed from database.` });
+});
+
+// Public store statistics
+app.get('/api/client/stats', (req, res) => {
+  const bots = botManager.listBots();
+  const running = bots.filter(b => b.status === 'running').length;
+  return res.json({
+    success: true,
+    totalHosted: Math.max(bots.length, 12),
+    activeBots: Math.max(running, 8),
+    commandsCount: 544,
+    uptimePercent: '99.9%'
+  });
+});
+
+// Public endpoint: verify access code (used by admin gate)
+app.post('/api/verify-access', (req, res) => {
+  const { code } = req.body;
+  if (!code) return res.status(400).json({ success: false, error: 'No code provided.' });
+  if (String(code).trim() === ACCESS_CODE) {
+    console.log(`[ACCESS] Successful access code entry from ${req.ip}`);
+    return res.json({ success: true });
+  }
+  console.warn(`[SECURITY] Failed access code attempt from ${req.ip}`);
+  return res.status(403).json({ success: false, error: 'Wrong access code. Try again.' });
+});
+
+// ─────────────────────────────────────────────────────────────────
+// API ROUTES: MULTI-BOT DASHBOARD & CONTROLS (ADMIN PANEL)
 // ─────────────────────────────────────────────────────────────────
 
 // List all hosted bots
@@ -676,7 +859,7 @@ app.get('/api/bots/:phone/logs', (req, res) => {
   });
 });
 
-// Start a specific bot  [PROTECTED]
+// Start a specific bot [PROTECTED]
 app.post('/api/bots/:phone/start', requireAccessCode, (req, res) => {
   const { phone } = req.params;
   const cleanPhone = String(phone).replace(/[^0-9]/g, '');
@@ -704,7 +887,7 @@ app.post('/api/bots/:phone/restart', async (req, res) => {
   return res.json({ success: true, message: `Bot +${cleanPhone} restarted.` });
 });
 
-// Delete & unlink a specific bot  [PROTECTED]
+// Delete & unlink a specific bot [PROTECTED]
 app.delete('/api/bots/:phone', requireAccessCode, (req, res) => {
   const { phone } = req.params;
   const cleanPhone = String(phone).replace(/[^0-9]/g, '');
@@ -712,11 +895,7 @@ app.delete('/api/bots/:phone', requireAccessCode, (req, res) => {
   return res.json({ success: true, message: `Bot +${cleanPhone} session unlinked and deleted.` });
 });
 
-// ─────────────────────────────────────────────────────────────────
-// API ROUTES: PAIRING CODE & QR GENERATION
-// ─────────────────────────────────────────────────────────────────
-
-// Route: Get pairing code  [PROTECTED]
+// Route: Get pairing code [PROTECTED]
 app.get('/api/pair-code', requireAccessCode, async (req, res) => {
   let phone = req.query.phone;
   if (!phone) return res.status(400).json({ error: 'Phone number is required.' });
@@ -789,7 +968,7 @@ app.post(['/api/qr-start', '/api/client/qr-start'], async (req, res) => {
       keepAliveIntervalMs: 25000,
     });
 
-    qrSessions.set(sessionId, { qrDataUrl: null, linked: false, phone: null, sock, sessionDir, error: null });
+    qrSessions.set(sessionId, { qrDataUrl: null, linked: false, phone: null, generatedSessionId: null, sock, sessionDir, error: null });
     sock.ev.on('creds.update', saveCreds);
 
     sock.ev.on('connection.update', async (update) => {
@@ -825,12 +1004,17 @@ app.post(['/api/qr-start', '/api/client/qr-start'], async (req, res) => {
 
         try {
           await delay(3000);
-          promoteToPermanentSession(phone, sessionDir);
+          const permDir = promoteToPermanentSession(phone, sessionDir);
+          const genSessionId = getSessionIdForDir(permDir) || getSessionIdForDir(sessionDir);
+
+          if (session) {
+            session.generatedSessionId = genSessionId;
+          }
 
           const userJid = rawId.includes(':') ? `${rawId.split(':')[0]}@s.whatsapp.net` : rawId;
-          await sock.sendMessage(userJid, {
-            text: `✅ *SKYBEE BOT Connected via QR!* 🐝\n\n*Phone:* +${phone}\n🤖 Hosted & Active on Skybee Multi-User Cloud!`
-          });
+          if (userJid && genSessionId) {
+            await sendSessionIdPrompt(sock, userJid, phone, genSessionId);
+          }
         } catch (e) {
           console.error('[QR] Post-link save error:', e);
         } finally {
@@ -860,7 +1044,6 @@ app.post(['/api/qr-start', '/api/client/qr-start'], async (req, res) => {
           try {
             sock?.ws?.close();
           } catch {}
-          // brief pause then reconnect same session
           setTimeout(async () => {
             try {
               const newSess = qrSessions.get(sessionId);
@@ -897,11 +1080,13 @@ app.post(['/api/qr-start', '/api/client/qr-start'], async (req, res) => {
                   if (s) { s.linked = true; s.phone = phone2; }
                   try {
                     await delay(3000);
-                    promoteToPermanentSession(phone2, sessionDir);
+                    const permDir = promoteToPermanentSession(phone2, sessionDir);
+                    const genSessionId = getSessionIdForDir(permDir) || getSessionIdForDir(sessionDir);
+                    if (s) { s.generatedSessionId = genSessionId; }
                     const userJid = rawId.includes(':') ? `${rawId.split(':')[0]}@s.whatsapp.net` : rawId;
-                    await sock2.sendMessage(userJid, {
-                      text: `✅ *SKYBEE BOT Connected via QR!* 🐝\n\n*Phone:* +${phone2}\n🤖 Hosted & Active on Skybee Multi-User Cloud!`
-                    });
+                    if (userJid && genSessionId) {
+                      await sendSessionIdPrompt(sock2, userJid, phone2, genSessionId);
+                    }
                   } catch {} finally {
                     await delay(4000);
                     try { sock2?.ws?.close(); } catch {}
@@ -953,52 +1138,22 @@ app.get('/api/qr-status', (req, res) => {
   return res.json({
     linked: session.linked,
     phone: session.phone,
+    sessionId: session.generatedSessionId || (session.phone ? getSessionIdForPhone(session.phone) : null),
     qr: session.qrDataUrl || null,
     error: session.error || null,
   });
 });
 
-// Route: Inject Session ID directly  [PROTECTED]
+// Route: Inject Session ID directly [PROTECTED]
 app.post('/api/inject-session', requireAccessCode, async (req, res) => {
   try {
-    const { sessionId, phone: rawPhone } = req.body;
-    if (!sessionId || typeof sessionId !== 'string') {
-      return res.status(400).json({ error: 'Session ID string is required.' });
-    }
-
-    const base64 = sessionId.includes('~') ? sessionId.split('~')[1] : sessionId;
-    let credsJson;
-    try {
-      const decoded = Buffer.from(base64.trim(), 'base64').toString('utf-8');
-      credsJson = JSON.parse(decoded);
-    } catch {
-      return res.status(400).json({ error: 'Invalid base64 session credentials.' });
-    }
-
-    // Determine phone number from creds or input
-    let phone = rawPhone ? String(rawPhone).replace(/[^0-9]/g, '') : '';
-    if (!phone && credsJson.me?.id) {
-      phone = credsJson.me.id.split(':')[0].replace(/[^0-9]/g, '');
-    }
-    if (!phone) {
-      phone = `user_${Date.now()}`;
-    }
-
-    const userSessionDir = path.join(multiSessionsDir, phone);
-    if (fs.existsSync(userSessionDir)) {
-      fs.rmSync(userSessionDir, { recursive: true, force: true });
-    }
-    fs.mkdirSync(userSessionDir, { recursive: true });
-    fs.writeFileSync(path.join(userSessionDir, 'creds.json'), JSON.stringify(credsJson, null, 2));
-
-    console.log(`[INJECT] Injected credentials for +${phone}`);
-    firebaseSync.saveSessionToCloud(phone, userSessionDir).catch(() => {});
-    botManager.startBot(phone);
-
+    const { sessionId, phone } = req.body;
+    const result = await processSessionConnection(sessionId, phone);
     return res.json({
       success: true,
-      message: `Session credentials saved to Database & Cloud. Bot +${phone} is starting!`,
-      phone
+      message: `Session credentials saved to Database & Cloud. Bot +${result.phone} is starting!`,
+      phone: result.phone,
+      sessionId: result.sessionId
     });
   } catch (err) {
     console.error('[INJECT] Error:', err);
@@ -1074,4 +1229,42 @@ server.on('error', (err) => {
     console.error('[SERVER ERROR]', err);
   }
   process.exit(1);
+});
+
+// ─────────────────────────────────────────────────────────────────
+// GRACEFUL SHUTDOWN (SAVE SESSIONS ON CRASH/SLEEP)
+// ─────────────────────────────────────────────────────────────────
+async function backupAllSessionsAndExit(code = 0) {
+  console.log('[SHUTDOWN] Backing up all sessions before exit...');
+  try {
+    if (fs.existsSync(multiSessionsDir)) {
+      const dirs = fs.readdirSync(multiSessionsDir, { withFileTypes: true });
+      const promises = [];
+      for (const d of dirs) {
+        if (d.isDirectory() && fs.existsSync(path.join(multiSessionsDir, d.name, 'creds.json'))) {
+          promises.push(firebaseSync.saveSessionToCloud(d.name, path.join(multiSessionsDir, d.name)));
+        }
+      }
+      await Promise.all(promises);
+      console.log('[SHUTDOWN] All sessions backed up successfully.');
+    }
+  } catch (err) {
+    console.error('[SHUTDOWN] Error backing up sessions:', err);
+  }
+  process.exit(code);
+}
+
+process.on('SIGTERM', () => {
+  console.log('Received SIGTERM (Site sleep/restart). Graceful shutdown start...');
+  backupAllSessionsAndExit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('Received SIGINT (Ctrl+C). Graceful shutdown start...');
+  backupAllSessionsAndExit(0);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception (Crash):', err);
+  backupAllSessionsAndExit(1);
 });
