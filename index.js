@@ -57,7 +57,7 @@ function requireAccessCode(req, res, next) {
 
 app.use(cors({
   origin: function (origin, callback) {
-    if (!origin || origin.includes('localhost') || origin.includes('127.0.0.1') || origin.endsWith('.vercel.app') || origin.endsWith('.onrender.com') || origin.endsWith('.netlify.app') || origin.endsWith('.up.railway.app')) {
+    if (!origin || origin.includes('localhost') || origin.includes('127.0.0.1') || origin.endsWith('.vercel.app') || origin.endsWith('.onrender.com') || origin.endsWith('.netlify.app') || origin.endsWith('.up.railway.app') || origin.includes('replit.dev') || origin.includes('replit.app') || origin.includes('repl.co')) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
