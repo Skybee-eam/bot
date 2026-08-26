@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skybee Bot | Finding Optimal Server...</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #3b82f6;
+            --accent-glow: rgba(59, 130, 246, 0.5);
+            --card-bg: #1e293b;
+            --border: #334155;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            text-align: center;
+            background: var(--card-bg);
+            padding: 3rem 2rem;
+            border-radius: 1.5rem;
+            border: 1px solid var(--border);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 0 0 40px var(--accent-glow);
+            max-width: 400px;
+            width: 90%;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .logo {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 1.5rem;
+            background: var(--accent);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            box-shadow: 0 0 20px var(--accent-glow);
+            animation: pulse 2s infinite ease-in-out;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            margin: 0 0 0.5rem;
+            font-weight: 700;
+            letter-spacing: -0.025em;
+        }
+
+        p {
+            color: var(--text-muted);
+            margin: 0 0 2rem;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        .status-box {
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid var(--border);
+            border-radius: 0.75rem;
+            padding: 1rem;
+            text-align: left;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-family: monospace;
+            height: 80px;
+            overflow-y: auto;
+        }
+
+        .status-line {
+            margin: 0.25rem 0;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .status-line.success { color: #10b981; }
+        .status-line.error { color: #ef4444; }
+        .status-line.info { color: #3b82f6; }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 var(--accent-glow); }
+            70% { transform: scale(1); box-shadow: 0 0 0 15px rgba(59, 130, 246, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-5px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        /* Loading Dots */
+        .dots:after {
+            content: '.';
+            animation: dots 1.5s steps(5, end) infinite;
+        }
+        @keyframes dots {
+            0%, 20% { color: rgba(0,0,0,0); text-shadow: .25em 0 0 rgba(0,0,0,0), .5em 0 0 rgba(0,0,0,0); }
+            40% { color: inherit; text-shadow: .25em 0 0 rgba(0,0,0,0), .5em 0 0 rgba(0,0,0,0); }
+            60% { text-shadow: .25em 0 0 inherit, .5em 0 0 rgba(0,0,0,0); }
+            80%, 100% { text-shadow: .25em 0 0 inherit, .5em 0 0 inherit; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="logo">🐝</div>
+        <h1>Skybee Traffic Director</h1>
+        <p>Analyzing cloud nodes to find the fastest available server<span class="dots"></span></p>
+
+        <div class="status-box" id="statusLog">
+            <div class="status-line info">> Initializing load balancer...</div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 🚀 CONFIGURE YOUR MULTIPLE SERVERS HERE
+        // Add all your free hosting URLs below:
+        // ==========================================
+        const SERVERS = [
+            "https://bot-z47t.onrender.com",
+            // "https://your-second-bot-server.onrender.com", 
+            // "https://your-third-bot-server.up.railway.app"
+        ];
+        
+        // Pass any referral tags or params directly to the final server
+        const currentParams = window.location.search;
+
+        const logEl = document.getElementById('statusLog');
+        
+        function log(msg, type = 'info') {
+            const el = document.createElement('div');
+            el.className = `status-line ${type}`;
+            el.textContent = `> ${msg}`;
+            logEl.appendChild(el);
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        async function findOptimalServer() {
+            log(`Pinging ${SERVERS.length} servers...`, 'info');
+            
+            const checks = SERVERS.map(async (serverUrl) => {
+                try {
+                    const start = Date.now();
+                    // Timeout after 8 seconds
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 8000);
+                    
+                    const response = await fetch(`${serverUrl}/api/system-stats`, { signal: controller.signal });
+                    clearTimeout(timeoutId);
+                    
+                    if (!response.ok) throw new Error('HTTP error');
+                    
+                    const data = await response.json();
+                    const ping = Date.now() - start;
+                    const bots = data.runningBots || 0;
+                    
+                    log(`[${new URL(serverUrl).hostname}] Bots: ${bots} (${ping}ms)`, 'success');
+                    
+                    return {
+                        url: serverUrl,
+                        bots: bots,
+                        ping: ping,
+                        success: true
+                    };
+                } catch (err) {
+                    log(`[${new URL(serverUrl).hostname}] Offline or Timeout`, 'error');
+                    return { url: serverUrl, success: false, bots: 9999 }; // Penalize offline servers
+                }
+            });
+
+            const results = await Promise.allSettled(checks);
+            
+            // Filter valid results
+            const validServers = results
+                .filter(r => r.status === 'fulfilled' && r.value.success)
+                .map(r => r.value);
+
+            let bestServerUrl = SERVERS[0]; // Fallback
+
+            if (validServers.length > 0) {
+                // Sort by least number of bots running, then by lowest ping
+                validServers.sort((a, b) => {
+                    if (a.bots === b.bots) return a.ping - b.ping;
+                    return a.bots - b.bots;
+                });
+                bestServerUrl = validServers[0].url;
+                log(`Routing to optimal server: ${new URL(bestServerUrl).hostname}`, 'success');
+            } else {
+                log(`All servers unreachable, trying primary fallback.`, 'error');
+            }
+
+            // Redirect user after a tiny delay for visual effect
+            setTimeout(() => {
+                window.location.href = `${bestServerUrl}/store${currentParams}`;
+            }, 1000);
+        }
+
+        // Start process
+        setTimeout(findOptimalServer, 500);
+    </script>
+</body>
+</html>

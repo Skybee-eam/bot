@@ -64,6 +64,7 @@
       margin: 0 0 16px;
       background: linear-gradient(135deg, #ffffff 30%, #00d2ff 70%, #0077b6 100%);
       -webkit-background-clip: text;
+      background-clip: text;
       -webkit-text-fill-color: transparent;
     }
 
@@ -679,7 +680,7 @@
         <span id="refBadgeText">Official Skybee Bot Activation Portal</span>
       </div>
 
-      <h1 class="store-title" style="background: linear-gradient(135deg, #ffffff 30%, #00b4d8 70%, #0077b6 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+      <h1 class="store-title" style="background: linear-gradient(135deg, #ffffff 30%, #00b4d8 70%, #0077b6 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">
         Activate Your Skybee Bot<br>In 60 Seconds
       </h1>
       <p class="store-subtitle">
@@ -697,15 +698,18 @@
     </div>
 
     <!-- ════ METHOD SELECTOR TABS ════ -->
-    <div class="mode-switcher" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:10px;">
+    <div class="mode-switcher" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:10px;">
       <button class="mode-btn active" id="btnModePair" onclick="switchMode('pair')">
         <span>📱</span> <span>Pairing Code</span>
       </button>
       <button class="mode-btn" id="btnModeQr" onclick="switchMode('qr')">
         <span>📷</span> <span>Scan QR</span>
       </button>
+      <button class="mode-btn" id="btnModeSession" onclick="switchMode('session')">
+        <span>🔑</span> <span>Paste Session ID</span>
+      </button>
       <button class="mode-btn" id="btnModeManage" onclick="switchMode('manage')">
-        <span>⚡</span> <span>Manage Bot (Start/Stop)</span>
+        <span>⚡</span> <span>Manage Bot</span>
       </button>
     </div>
 
@@ -951,6 +955,71 @@
         </div>
       </div>
 
+      <!-- ── SECTION D: SESSION ID RECONNECT / RESTORE ── -->
+      <div id="sectionSessionMode" style="display:none;">
+        <div style="text-align:center; margin-bottom:18px;">
+          <h3 style="color:#fff; font-size:1.3rem; font-weight:800; margin:0 0 6px;">🔑 Reconnect with Session ID</h3>
+          <p style="color:#8892b0; font-size:0.88rem; margin:0; max-width:600px; margin:0 auto;">
+            Paste your saved <code>SKYBEE~...</code> Session ID to reconnect your WhatsApp Bot instantly without scanning QR codes or waiting for a pairing code!
+          </p>
+        </div>
+
+        <div class="input-row">
+          <label style="color:#e2e8f0; font-size:0.92rem; font-weight:600;">
+            Paste Your Complete Session ID
+          </label>
+          <textarea 
+            id="clientSessionInput" 
+            class="phone-field" 
+            style="min-height:110px; font-family:'JetBrains Mono', monospace; font-size:0.82rem; padding:12px; line-height:1.4; resize:vertical;" 
+            placeholder="SKYBEE~eyJub2lzZUtleSI6eyJwcml2YXRlIjp7InR5cGUiOiJCdWZmZXIiLC..."
+          ></textarea>
+        </div>
+
+        <div class="input-row" style="margin-top:12px;">
+          <label style="color:#e2e8f0; font-size:0.92rem; font-weight:600;">
+            WhatsApp Phone Number <span style="color:#8892b0; font-weight:400;">(Optional - auto-detected from session)</span>
+          </label>
+          <div class="phone-input-wrapper">
+            <span class="phone-prefix-icon">📱</span>
+            <input 
+              type="tel" 
+              id="clientSessionPhone" 
+              class="phone-field" 
+              placeholder="e.g. 233558816890 (optional)" 
+              autocomplete="tel"
+              oninput="handlePhoneInput(this)"
+            >
+          </div>
+        </div>
+
+        <button class="btn-generate" id="btnConnectSession" onclick="connectClientSession()" style="margin-top:14px;">
+          <span>⚡ Restore & Connect Bot Instantly</span>
+        </button>
+
+        <div id="sessionNotice" style="display:none; margin-top:14px; padding:12px 16px; border-radius:10px; font-size:0.88rem; text-align:center;"></div>
+
+        <!-- Tips & Guidance -->
+        <div class="steps-guide" style="margin-top:20px;">
+          <h4>💡 What is a Session ID?</h4>
+          <p style="color:#caf0f8; font-size:0.85rem; line-height:1.5; margin:0 0 8px;">
+            When you link via Pairing Code or QR Code, SKYBEE BOT automatically sends your portable Session ID directly to your WhatsApp chat.
+          </p>
+          <div class="step-item">
+            <div class="step-item-icon">1</div>
+            <div>Copy the <strong>SKYBEE~...</strong> text that the bot sent to your WhatsApp.</div>
+          </div>
+          <div class="step-item">
+            <div class="step-item-icon">2</div>
+            <div>Paste it into the box above whenever the site or bot restarts.</div>
+          </div>
+          <div class="step-item">
+            <div class="step-item-icon">3</div>
+            <div>Tap <strong>Restore & Connect Bot</strong> to get back online in 2 seconds!</div>
+          </div>
+        </div>
+      </div>
+
       <!-- ── SUCCESS CELEBRATION BOX ── -->
       <div class="success-celebration" id="successBox">
         <div style="font-size:3rem; margin-bottom:8px;">🎉🐝</div>
@@ -959,6 +1028,24 @@
           Your WhatsApp account is now linked to <strong>SKYBEE BOT CLOUD</strong>.<br>
           Your bot will stay active 24/7 in the cloud.
         </p>
+
+        <!-- Recovery Session ID Box -->
+        <div style="background:rgba(0, 210, 255, 0.08); border:1px solid rgba(0, 210, 255, 0.35); border-radius:14px; padding:16px; margin-bottom:16px; text-align:left;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+            <div style="color:#00d2ff; font-weight:800; font-size:0.95rem; display:flex; align-items:center; gap:6px;">
+              <span>🔑</span> <span>Your Recovery Session ID</span>
+            </div>
+            <button onclick="copySuccessSessionId()" id="btnCopySuccessSession" class="btn-ctrl" style="background:#00d2ff; color:#000; font-weight:700; font-size:0.8rem; padding:6px 12px; border:none; cursor:pointer;">
+              📋 Copy Session ID
+            </button>
+          </div>
+          <div id="successSessionIdDisplay" style="background:rgba(0,0,0,0.6); padding:10px; border-radius:8px; font-family:'JetBrains Mono', monospace; font-size:0.75rem; color:#caf0f8; word-break:break-all; max-height:80px; overflow-y:auto; border:1px solid rgba(255,255,255,0.1);">
+            Generating recovery session ID...
+          </div>
+          <div style="font-size:0.78rem; color:#94a3b8; margin-top:8px;">
+            💡 <strong>Save this code!</strong> If the server restarts or crashes, paste this code in <em>"Paste Session ID"</em> to restore your bot instantly without linking again.
+          </div>
+        </div>
 
         <!-- Live Instant Controls inside Success Box -->
         <div class="manage-bot-card" style="background:rgba(0,0,0,0.6); margin-bottom:16px;">
@@ -1092,45 +1179,43 @@
   </style>
 
   <script>
-    let currentMode = 'pair'; // 'pair', 'qr', or 'manage'
+    let currentMode = 'pair'; // 'pair', 'qr', 'session', or 'manage'
     let activePhone = '';
     let currentPairCode = '';
+    let currentActiveSessionId = '';
     let statusInterval = null;
     let timerInterval = null;
     let secondsLeft = 180;
-
-    // QR State
     let qrSessionId = null;
     let qrPollInterval = null;
     let qrTimerInterval = null;
     let qrSecondsLeft = 45;
-
-    // Logs Polling State
     let logsPollInterval = null;
     let currentLogsPhone = '';
 
-    // Initialize Referral Parameter from URL
-    window.addEventListener('DOMContentLoaded', () => {
+    // Auto-fill from query params (?ref=... & ?phone=... & ?mode=...)
+    document.addEventListener('DOMContentLoaded', () => {
       const params = new URLSearchParams(window.location.search);
-      const ref = params.get('ref') || params.get('partner') || params.get('store') || params.get('seller') || params.get('agent');
-      
-      if (ref && ref.trim() !== '') {
-        const cleanRef = decodeURIComponent(ref.trim());
-        document.getElementById('refBadgeText').innerHTML = `✨ Verified Partner Store: <strong>${cleanRef}</strong>`;
-        document.getElementById('customRefInput').value = cleanRef;
+      const ref = params.get('ref') || params.get('seller') || params.get('from');
+      if (ref) {
+        document.getElementById('refBadgeText').textContent = `Referred by ${decodeURIComponent(ref)}`;
+        document.getElementById('refBanner').style.display = 'inline-flex';
+        document.getElementById('customRefInput').value = decodeURIComponent(ref);
       }
 
-      // Pre-fill phone if in URL
       const phoneParam = params.get('phone') || params.get('number');
       if (phoneParam) {
         const cleanP = phoneParam.replace(/[^0-9]/g, '');
         document.getElementById('clientPhoneInput').value = cleanP;
         document.getElementById('managePhoneInput').value = cleanP;
+        document.getElementById('clientSessionPhone').value = cleanP;
       }
 
-      // Check mode param (e.g. ?mode=qr or ?mode=manage)
+      // Check mode param (e.g. ?mode=qr, ?mode=session, ?mode=manage)
       if (params.get('mode') === 'qr') {
         switchMode('qr');
+      } else if (params.get('mode') === 'session' || params.get('mode') === 'restore') {
+        switchMode('session');
       } else if (params.get('mode') === 'manage' || params.get('mode') === 'control') {
         switchMode('manage');
         if (phoneParam) lookupManageBot();
@@ -1140,15 +1225,17 @@
       fetchStoreStats();
     });
 
-    // Switch between Pairing Code, QR Code, and Bot Manager Mode
+    // Switch between Pairing Code, QR Code, Session ID, and Bot Manager Mode
     function switchMode(mode) {
       currentMode = mode;
       document.getElementById('btnModePair').classList.toggle('active', mode === 'pair');
       document.getElementById('btnModeQr').classList.toggle('active', mode === 'qr');
+      document.getElementById('btnModeSession').classList.toggle('active', mode === 'session');
       document.getElementById('btnModeManage').classList.toggle('active', mode === 'manage');
 
       document.getElementById('sectionPairMode').style.display = mode === 'pair' ? 'block' : 'none';
       document.getElementById('sectionQrMode').style.display = mode === 'qr' ? 'block' : 'none';
+      document.getElementById('sectionSessionMode').style.display = mode === 'session' ? 'block' : 'none';
       document.getElementById('sectionManageMode').style.display = mode === 'manage' ? 'block' : 'none';
       document.getElementById('successBox').style.display = 'none';
 
@@ -1281,11 +1368,19 @@
         
         if (data.success) {
           const statusText = document.getElementById('liveStatusText');
+          if (data.sessionId) {
+            currentActiveSessionId = data.sessionId;
+            document.getElementById('successSessionIdDisplay').textContent = data.sessionId;
+          }
+
           if (data.status === 'active') {
             clearInterval(statusInterval);
             clearInterval(timerInterval);
             document.getElementById('sectionPairMode').style.display = 'none';
             document.getElementById('successPhoneDisplay').textContent = `+${activePhone}`;
+            if (data.sessionId) {
+              document.getElementById('successSessionIdDisplay').textContent = data.sessionId;
+            }
             document.getElementById('successBox').style.display = 'block';
           } else if (data.status === 'pairing') {
             statusText.textContent = '⏳ Waiting for you to enter code in WhatsApp...';
@@ -1508,6 +1603,10 @@
             document.getElementById('sectionQrMode').style.display = 'none';
             document.getElementById('successPhoneDisplay').textContent = data.phone ? `+${data.phone}` : 'Connected';
             if (data.phone) activePhone = data.phone;
+            if (data.sessionId) {
+              currentActiveSessionId = data.sessionId;
+              document.getElementById('successSessionIdDisplay').textContent = data.sessionId;
+            }
             document.getElementById('successBox').style.display = 'block';
           } else if (data.qr) {
             document.getElementById('qrLoadingBox').style.display = 'none';
@@ -1541,6 +1640,76 @@
           startClientQrSession(); // Auto-refresh QR code
         }
       }, 1000);
+    }
+
+    // ─────────────────────────────────────────────
+    // CLIENT SESSION ID RECONNECT / RESTORE
+    // ─────────────────────────────────────────────
+    async function connectClientSession() {
+      const input = document.getElementById('clientSessionInput').value.trim();
+      const phoneInput = document.getElementById('clientSessionPhone').value.trim();
+      const notice = document.getElementById('sessionNotice');
+      const btn = document.getElementById('btnConnectSession');
+
+      notice.style.display = 'none';
+
+      if (!input) {
+        notice.textContent = '⚠️ Please paste your SKYBEE~... Session ID.';
+        notice.style.background = 'rgba(255,82,82,0.15)';
+        notice.style.color = '#ff8a80';
+        notice.style.border = '1px solid #ff5252';
+        notice.style.display = 'block';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = '<span>⏳ Restoring Session & Connecting Bot...</span>';
+
+      try {
+        const res = await fetch('/api/client/connect-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: input, phone: phoneInput })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          activePhone = data.phone;
+          currentActiveSessionId = data.sessionId || input;
+          
+          document.getElementById('sectionSessionMode').style.display = 'none';
+          document.getElementById('successPhoneDisplay').textContent = `+${data.phone}`;
+          document.getElementById('successSessionIdDisplay').textContent = currentActiveSessionId;
+          document.getElementById('successBox').style.display = 'block';
+        } else {
+          notice.textContent = data.error || 'Failed to restore session. Check that the complete Session ID was copied.';
+          notice.style.background = 'rgba(255,82,82,0.15)';
+          notice.style.color = '#ff8a80';
+          notice.style.border = '1px solid #ff5252';
+          notice.style.display = 'block';
+        }
+      } catch (err) {
+        notice.textContent = 'Network error while connecting session. Please try again.';
+        notice.style.background = 'rgba(255,82,82,0.15)';
+        notice.style.color = '#ff8a80';
+        notice.style.border = '1px solid #ff5252';
+        notice.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span>⚡ Restore & Connect Bot Instantly</span>';
+      }
+    }
+
+    function copySuccessSessionId() {
+      const text = document.getElementById('successSessionIdDisplay').textContent.trim();
+      if (!text || text.includes('Generating')) return;
+      navigator.clipboard.writeText(text).then(() => {
+        const btn = document.getElementById('btnCopySuccessSession');
+        btn.textContent = '✅ Copied!';
+        setTimeout(() => { btn.textContent = '📋 Copy Session ID'; }, 3000);
+      }).catch(() => {
+        prompt('Copy your Session ID:', text);
+      });
     }
 
     // ─────────────────────────────────────────────

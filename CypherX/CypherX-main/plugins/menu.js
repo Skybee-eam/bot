@@ -47,7 +47,6 @@ const VERIFIED_COMMANDS = {
         icon: "🎧",
         commands: [
             { cmd: "play <song title>", desc: "Download high quality MP3 audio" },
-            { cmd: "ytmp3 <url>", desc: "Extract & download YouTube audio" },
             { cmd: "song <title/url>", desc: "Search & download YouTube tracks" },
             { cmd: "music <title>", desc: "Stream & save song directly" },
             { cmd: "tomp3", desc: "Convert replied video/audio to MP3" }
@@ -76,7 +75,6 @@ const VERIFIED_COMMANDS = {
             { cmd: "setstatusemoji <emoji>", desc: "Customize auto reaction emoji (e.g. 💚)" },
             { cmd: "vv", desc: "Retrieve View-Once media permanently to DM" },
             { cmd: "sticker", desc: "Convert image/video into WhatsApp sticker" },
-            { cmd: "take <pack|author>", desc: "Customize sticker metadata" },
             { cmd: "react <emoji>", desc: "React to message with custom emoji" }
         ]
     },
@@ -88,7 +86,6 @@ const VERIFIED_COMMANDS = {
             { cmd: "tagall <message>", desc: "Tag all group members with a notice" },
             { cmd: "hidetag <message>", desc: "Broadcast message invisibly to all" },
             { cmd: "kick @user", desc: "Remove unwanted user from group" },
-            { cmd: "add <number>", desc: "Add new member to group" },
             { cmd: "promote @user", desc: "Grant administrator privileges" },
             { cmd: "demote @user", desc: "Revoke administrator privileges" },
             { cmd: "mute", desc: "Lock chat (Admins only)" },
@@ -126,7 +123,6 @@ const VERIFIED_COMMANDS = {
             { cmd: "store", desc: "Share bot referral link with friends" },
             { cmd: "ping", desc: "Check server latency & ping response" },
             { cmd: "alive", desc: "Display bot health & system status" },
-            { cmd: "runtime", desc: "Display active uptime duration" },
             { cmd: "clearsessions", desc: "Purge temporary cache files" },
             { cmd: "menu", desc: "Display the main control dashboard" }
         ]
