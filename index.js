@@ -1207,7 +1207,7 @@ function initKeepAliveWorker() {
 // ─────────────────────────────────────────────────────────────────
 // SERVER INITIALIZATION
 // ─────────────────────────────────────────────────────────────────
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n=================================================`);
   console.log(`🚀 SKYBEE Multi-User WhatsApp Bot Host Running!`);
   console.log(`🌐 Dashboard URL: http://localhost:${PORT}`);
