@@ -13,3 +13,6 @@ sessions/
 
 
 .vercel
+
+sessions_vault.json
+serviceAccountKey.json
