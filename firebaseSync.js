@@ -217,6 +217,9 @@ class FirebaseSyncManager {
     // 2. Restore from Firebase Firestore Cloud if initialized
     if (this.initialized && this.db) {
       try {
+        const vault = this.readLocalVault();
+        if (!vault.sessions) vault.sessions = {};
+
         const snapshot = await this.db.collection('sessions').get();
         for (const doc of snapshot.docs) {
           const data = doc.data();
@@ -232,9 +235,34 @@ class FirebaseSyncManager {
               }
               console.log(`[FIREBASE] Restored cloud session to local: +${phone}`);
               restoredPhones.add(phone);
+
+              // Rebuild the basic vault entry
+              if (!vault.sessions[phone]) {
+                vault.sessions[phone] = {
+                  phone: phone,
+                  name: data.name || '',
+                  savedAt: new Date().toISOString(),
+                  fileCount: data.fileCount || 0,
+                  approvalStatus: 'pending', // default, will overwrite below
+                  authFiles: data.authFiles
+                };
+              }
             }
           }
         }
+
+        // Fetch approval status from 'bots' collection to ensure approved bots auto-start
+        const botsSnapshot = await this.db.collection('bots').get();
+        for (const doc of botsSnapshot.docs) {
+          const botData = doc.data();
+          const phone = botData.phone || doc.id;
+          if (vault.sessions[phone] && botData.approvalStatus) {
+            vault.sessions[phone].approvalStatus = botData.approvalStatus;
+          }
+        }
+
+        this.writeLocalVault(vault);
+
       } catch (err) {
         console.log(`[FIREBASE] Cloud restore note:`, err.message);
       }
