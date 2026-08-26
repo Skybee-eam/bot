@@ -82,15 +82,35 @@
   <div class="bg-grid"></div>
   <div class="glow-orb glow-orb-1"></div>
   <div class="glow-orb glow-orb-2"></div>
+  <div class="cloud-container">
+    <div class="cloud cloud-1"></div>
+    <div class="cloud cloud-2"></div>
+    <div class="cloud cloud-3"></div>
+  </div>
 
-  <div class="page-wrapper" id="pageWrapper" style="pointer-events:none; user-select:none; filter:blur(4px); transition: filter 0.4s;">
-
-    <!-- Header -->
-    <header class="site-header">
-      <div class="logo-badge">
+  <div class="admin-layout" id="pageWrapper" style="pointer-events:none; user-select:none; filter:blur(4px); transition: filter 0.4s;">
+    <!-- Sidebar -->
+    <aside class="admin-sidebar">
+      <div class="logo-badge" style="margin-bottom: 12px; display:flex; gap:12px;">
         <img src="/logo.jpg" alt="SKYBEE Logo" style="width:38px; height:38px; border-radius:10px; object-fit:cover; border:1.5px solid rgba(0,195,255,0.4); box-shadow:0 0 15px rgba(0,180,255,0.35);">
-        <span class="logo-text">SKYBEE <span class="logo-ofc" style="color:#00b4d8; text-shadow:0 0 10px rgba(0,180,255,0.5);">BOT</span></span>
+        <span class="logo-text">SKYBEE <span class="logo-ofc" style="color:#00b4d8; text-shadow:0 0 10px rgba(0,180,255,0.5);">ADMIN</span></span>
       </div>
+      
+      <nav class="sidebar-nav">
+        <a href="#" class="active" onclick="switchAdminTab('dashboard')"><span>📊</span> Dashboard</a>
+        <a href="#bots" onclick="switchAdminTab('bots')"><span>🤖</span> Bot Management</a>
+        <a href="#logs" onclick="switchAdminTab('logs')"><span>📋</span> Global Logs</a>
+        <a href="#db" onclick="switchAdminTab('db')"><span>🗄️</span> Database Vault</a>
+        <a href="/store" target="_blank" style="margin-top:20px; background:rgba(0,180,255,0.1); border:1px solid rgba(0,180,255,0.3);"><span>🛍️</span> Open Store</a>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="admin-main">
+      <div class="page-wrapper">
+        <!-- Header -->
+        <header class="site-header" style="justify-content: space-between;">
+      <button class="hamburger-btn" onclick="toggleSidebar()" style="background:transparent; border:none; color:#fff; font-size:1.5rem; cursor:pointer;">☰</button>
       <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
         <a href="/store" target="_blank" style="background: linear-gradient(135deg, #00b4d8, #0077b6); border:none; border-radius:8px; color:#fff; padding:6px 14px; font-size:0.82rem; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:6px; box-shadow:0 0 15px rgba(0,180,255,0.3);">
           <span>🛍️</span> <span>Open Client Store ↗</span>
@@ -109,6 +129,7 @@
       </div>
     </header>
 
+    <div id="tab-dashboard" class="admin-tab active">
     <!-- Hero -->
     <section class="hero">
       <div class="hero-avatar" style="background: linear-gradient(135deg, #00b4d8, #0077b6); box-shadow: 0 0 40px rgba(0,180,255,0.4);">
@@ -182,26 +203,50 @@
 
     </div>
 
-    <!-- ═══ Multi-Bot Management Hub ═══ -->
-    <section class="bot-hub">
-      <div class="bot-hub-header">
-        <div class="bot-hub-title">
-          <span>🤖 Hosted Bot Instances</span>
-          <span class="bot-status-badge badge-running" id="activeBadge">0 Online</span>
-        </div>
-        <button class="btn-mini btn-mini-restart" onclick="fetchBots()" style="padding: 8px 16px; border-radius: 999px;">
-          🔄 Refresh Instances
-        </button>
-      </div>
+    </div>
 
-      <div class="bot-grid" id="botGrid">
-        <div class="empty-bots">
-          <div class="empty-bots-icon">🚀</div>
-          <p><strong>No active bots linked yet.</strong></p>
-          <p style="font-size:0.8rem; margin-top:4px;">Use Pairing Code or QR Code above to connect the first WhatsApp account!</p>
+    <!-- ═══ Multi-Bot Management Hub ═══ -->
+    <div id="tab-bots" class="admin-tab" style="display:none;">
+      <section class="bot-hub">
+        <div class="bot-hub-header">
+          <div class="bot-hub-title">
+            <span>🤖 Hosted Bot Instances</span>
+            <span class="bot-status-badge badge-running" id="activeBadge">0 Online</span>
+          </div>
+          <button class="btn-mini btn-mini-restart" onclick="fetchBots()" style="padding: 8px 16px; border-radius: 999px;">
+            🔄 Refresh Instances
+          </button>
         </div>
-      </div>
-    </section>
+
+        <div class="bot-grid" id="botGrid">
+          <div class="empty-bots">
+            <div class="empty-bots-icon">🚀</div>
+            <p><strong>No active bots linked yet.</strong></p>
+            <p style="font-size:0.8rem; margin-top:4px;">Use Pairing Code or QR Code above to connect the first WhatsApp account!</p>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ═══ Global Logs ═══ -->
+    <div id="tab-logs" class="admin-tab" style="display:none;">
+      <section class="hero" style="margin-top:20px;">
+        <h2 class="hero-title" style="font-size:1.8rem;">📋 Global Cluster Logs</h2>
+        <p class="hero-sub">View aggregated logs across all hosted instances.</p>
+        <div class="log-modal-content" style="height:400px; text-align:left;">No global logs available yet...</div>
+      </section>
+    </div>
+
+    <!-- ═══ Database Vault ═══ -->
+    <div id="tab-db" class="admin-tab" style="display:none;">
+      <section class="hero" style="margin-top:20px;">
+        <h2 class="hero-title" style="font-size:1.8rem;">🗄️ Database Vault</h2>
+        <p class="hero-sub">Manage active session keys and bot metadata directly from the database.</p>
+        <div style="background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:40px; margin-top:20px;">
+          <p>Database management tools will appear here.</p>
+        </div>
+      </section>
+    </div>
 
     <footer class="site-footer">
       <p>Powered by <span class="text-fire" style="color:#00b4d8; text-shadow:0 0 10px rgba(0,180,255,0.4);">SKYBEE BOT</span> • Multi-Tenant WhatsApp Engine</p>
@@ -301,7 +346,15 @@
 
   <script>
         // 🚀 THE URL OF YOUR RENDER/RAILWAY BOT BACKEND 🚀
-        const BACKEND_URL = 'https://bot-z47t.onrender.com';
+        // Default to localhost for development, update to Render URL for production
+        let BACKEND_URL = 'http://localhost:3000';
+        if (window.location.hostname.includes('vercel.app')) {
+           BACKEND_URL = 'https://your-api.onrender.com';
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+          // Additional initialization logic
+        });
 
     // ─── ACCESS CODE GATE ───────────────────────────────────────────
     let SESSION_ACCESS_CODE = null;
@@ -392,7 +445,9 @@
     // ── Fetch & Render Multi-Bot Hub ──
     async function fetchBots() {
       try {
-        const res = await fetch(`${BACKEND_URL}/api/bots`);
+        let url = `${BACKEND_URL}/api/bots`;
+        if (loggedInDiscordId) url += `?ownerId=${loggedInDiscordId}`;
+        const res = await fetch(url);
         const data = await res.json();
         const grid = document.getElementById('botGrid');
 
@@ -410,9 +465,18 @@
         grid.innerHTML = data.bots.map(bot => {
           const isRunning = bot.status === 'running';
           const isError = bot.status === 'error';
-          const badgeClass = isRunning ? 'badge-running' : (isError ? 'badge-error' : 'badge-stopped');
-          const dotClass = isRunning ? 'bot-dot-running' : (isError ? 'bot-dot-error' : 'bot-dot-stopped');
-          const statusLabel = isRunning ? 'Online' : (isError ? 'Error' : 'Stopped');
+          const isPending = bot.approvalStatus === 'pending' || bot.status === 'pending';
+          
+          let badgeClass = isRunning ? 'badge-running' : (isError ? 'badge-error' : 'badge-stopped');
+          let dotClass = isRunning ? 'bot-dot-running' : (isError ? 'bot-dot-error' : 'bot-dot-stopped');
+          let statusLabel = isRunning ? 'Online' : (isError ? 'Error' : 'Stopped');
+          
+          if (isPending) {
+            badgeClass = 'badge-pairing'; // Reuse pairing style (orange)
+            dotClass = 'bot-dot-stopped';
+            statusLabel = 'Pending Approval';
+          }
+          
           const uptimeText = isRunning ? `Uptime: ${formatUptime(bot.uptime)}` : 'Offline';
 
           return `
@@ -437,11 +501,13 @@
               </div>
 
               <div class="bot-card-actions">
-                ${isRunning 
-                  ? `<button class="btn-mini btn-mini-stop" onclick="botAction('${bot.phone}', 'stop')">■ Stop</button>`
-                  : `<button class="btn-mini btn-mini-start" onclick="botAction('${bot.phone}', 'start')">▶ Start</button>`
+                ${isPending 
+                  ? `<button class="btn-mini btn-mini-start" onclick="approveBot('${bot.phone}')" style="background: rgba(0, 230, 118, 0.2); border-color: #00e676; color: #00e676;">✅ Approve</button>`
+                  : (isRunning 
+                    ? `<button class="btn-mini btn-mini-stop" onclick="botAction('${bot.phone}', 'stop')">■ Stop</button>`
+                    : `<button class="btn-mini btn-mini-start" onclick="botAction('${bot.phone}', 'start')">▶ Start</button>`)
                 }
-                <button class="btn-mini btn-mini-restart" onclick="botAction('${bot.phone}', 'restart')">🔄 Restart</button>
+                ${!isPending ? `<button class="btn-mini btn-mini-restart" onclick="botAction('${bot.phone}', 'restart')">🔄 Restart</button>` : ''}
                 <button class="btn-mini btn-mini-log" onclick="openLogsModal('${bot.phone}')">📋 Logs</button>
                 ${bot.sessionId ? `<button class="btn-mini" style="background:rgba(0,210,255,0.15); border:1px solid rgba(0,210,255,0.4); color:#00d2ff;" title="Copy Recovery Session ID" onclick="copySessionString('${bot.sessionId}')">🔑 Session</button>` : ''}
                 <button class="btn-mini btn-mini-del" title="Delete & Unlink" onclick="deleteBotConfirm('${bot.phone}')">🗑️</button>
@@ -452,6 +518,27 @@
 
       } catch (err) {
         console.error('Error fetching bots:', err);
+      }
+    }
+
+    // ── Approve Bot ──
+    async function approveBot(phone) {
+      if (!confirm(`Are you sure you want to approve +${phone} and let their bot run?`)) return;
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/bots/approve/${phone}`, {
+          method: 'POST',
+          headers: authHeaders()
+        });
+        const data = await res.json();
+        if (!data.success && data.error) {
+          alert(`Error: ${data.error}`);
+        } else {
+          // fetch again
+          fetchBots();
+          fetchSystemStats();
+        }
+      } catch (err) {
+        alert('Could not reach server.');
       }
     }
 
@@ -557,7 +644,9 @@
       btn.disabled = true;
 
       try {
-        const res = await fetch(`${BACKEND_URL}/api/pair-code?phone=${phone}`, {
+        let url = `${BACKEND_URL}/api/pair-code?phone=${phone}`;
+        if (loggedInDiscordId) url += `&ownerId=${loggedInDiscordId}`;
+        const res = await fetch(url, {
           headers: { 'X-Access-Code': SESSION_ACCESS_CODE || '' }
         });
         const data = await res.json();
@@ -789,7 +878,6 @@
         prompt('Copy your Session ID:', str);
       });
     }
-
     // ── Client Store Link Helper ──
     function copyClientStoreLink() {
       const storeUrl = `${window.location.origin}/store`;
@@ -806,6 +894,35 @@
       });
     }
 
+    function toggleSidebar() {
+      const sidebar = document.querySelector('.admin-sidebar');
+      sidebar.classList.toggle('collapsed');
+      sidebar.classList.toggle('show');
+    }
+
+    function switchAdminTab(tabId) {
+      // Hide all tabs
+      document.querySelectorAll('.admin-tab').forEach(tab => {
+        tab.style.display = 'none';
+      });
+      // Show selected tab
+      const selected = document.getElementById('tab-' + tabId);
+      if (selected) selected.style.display = 'block';
+
+      // Update nav active state
+      document.querySelectorAll('.sidebar-nav a').forEach(link => {
+        link.classList.remove('active');
+        if (link.getAttribute('onclick') && link.getAttribute('onclick').includes(tabId)) {
+          link.classList.add('active');
+        }
+      });
+
+      // Close sidebar on mobile after clicking
+      if (window.innerWidth <= 900) {
+        document.querySelector('.admin-sidebar').classList.remove('show');
+      }
+    }
+
     // Initial load and polling
     fetchBots();
     fetchSystemStats();
@@ -814,5 +931,8 @@
       fetchSystemStats();
     }, 3000);
   </script>
+    </div> <!-- /page-wrapper -->
+  </main> <!-- /admin-main -->
+</div> <!-- /admin-layout -->
 </body>
 </html>

@@ -17,12 +17,22 @@ import pino from 'pino';
 import NodeCache from 'node-cache';
 import QRCode from 'qrcode';
 import firebaseSync from './firebaseSync.js';
+import dotenv from 'dotenv';
+import axios from 'axios';
+
+dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Discord OAuth Configuration
+const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID;
+const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
+const DISCORD_REDIRECT_URI = process.env.DISCORD_REDIRECT_URI || `http://localhost:${PORT}/api/auth/discord/callback`;
+const VERCEL_FRONTEND_URL = process.env.VERCEL_FRONTEND_URL || 'http://localhost:3000'; // Update this when deploying to Vercel
 
 // ─────────────────────────────────────────────────────────────────
 // ACCESS CODE PROTECTION
@@ -45,7 +55,10 @@ function requireAccessCode(req, res, next) {
   next();
 }
 
-app.use(cors());
+app.use(cors({
+  origin: [VERCEL_FRONTEND_URL, 'http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:8080'],
+  credentials: true
+}));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -188,7 +201,7 @@ async function processSessionConnection(sessionIdInput, rawPhone = '') {
   console.log(`[CONNECT SESSION] Restored credentials for +${phone} from Session ID`);
 
   // Sync to database vault and Firebase
-  await firebaseSync.saveSessionToCloud(phone, userSessionDir).catch(() => {});
+  await firebaseSync.saveSessionToCloud(phone, userSessionDir, 'pending').catch(() => {});
 
   // Start bot engine
   const bot = botManager.startBot(phone);
@@ -255,6 +268,16 @@ class MultiBotManager {
 
     this.manualStops.delete(cleanPhone);
     const bot = this.getOrCreate(cleanPhone, sessionDir);
+
+    // Check approval status
+    const vault = firebaseSync.readLocalVault();
+    const sessionData = vault.sessions[cleanPhone];
+    if (sessionData && sessionData.approvalStatus === 'pending') {
+      this.appendLog(cleanPhone, `Bot is PENDING ADMIN APPROVAL. Launch aborted.`);
+      bot.status = 'pending';
+      return bot;
+    }
+
     if (bot.process && bot.status === 'running') {
       this.appendLog(cleanPhone, `Bot is already running (PID: ${bot.process.pid})`);
       return bot;
@@ -421,7 +444,14 @@ class MultiBotManager {
     for (const [phone, b] of this.bots.entries()) {
       if (!phone || phone.trim() === '') continue;
       let userName = '';
+      let approvalStatus = 'approved';
       try {
+        const vault = firebaseSync.readLocalVault();
+        const sessionData = vault.sessions[phone];
+        if (sessionData && sessionData.approvalStatus) {
+           approvalStatus = sessionData.approvalStatus;
+        }
+
         const credPath = path.join(multiSessionsDir, phone, 'creds.json');
         if (fs.existsSync(credPath)) {
           const creds = JSON.parse(fs.readFileSync(credPath, 'utf8'));
@@ -432,6 +462,7 @@ class MultiBotManager {
       list.push({
         phone: b.phone,
         name: userName,
+        approvalStatus,
         status: b.status,
         startedAt: b.startedAt,
         uptime: b.startedAt && b.status === 'running' ? Math.floor((Date.now() - new Date(b.startedAt).getTime()) / 1000) : 0,
@@ -473,17 +504,12 @@ function promoteToPermanentSession(phone, sourceDir) {
     fs.cpSync(sourceDir, targetDir, { recursive: true });
     console.log(`[MULTI-SESSION] Saved permanent credentials to ${targetDir}`);
 
-    // Upload session to Firebase Cloud
-    firebaseSync.saveSessionToCloud(cleanPhone, targetDir).catch(() => {});
+    // Upload session to Firebase Cloud with pending status (add discordId if available from req)
+    // Note: To properly link it, we'd pass the discordId from the pairing request here,
+    // but for now we rely on the session being saved.
+    firebaseSync.saveSessionToCloud(cleanPhone, targetDir, 'pending').catch(() => {});
 
-    // Start user's isolated bot process
-    setTimeout(() => {
-      try {
-        botManager.startBot(cleanPhone);
-      } catch (err) {
-        console.error(`[MULTI-SESSION] Error auto-launching bot for +${cleanPhone}:`, err);
-      }
-    }, 2000);
+    console.log(`[MULTI-SESSION] Ready for independent bot deployment for +${cleanPhone}`);
 
     return targetDir;
   } catch (err) {
@@ -578,6 +604,65 @@ async function startPairSocket(phone, sessionDir) {
 }
 
 // ─────────────────────────────────────────────────────────────────
+// DISCORD OAUTH AUTHENTICATION ENDPOINTS
+// ─────────────────────────────────────────────────────────────────
+
+app.get('/api/auth/discord', (req, res) => {
+  if (!DISCORD_CLIENT_ID) {
+    return res.status(500).send('Discord OAuth is not configured on the server (missing DISCORD_CLIENT_ID).');
+  }
+  const authUrl = `https://discord.com/api/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(DISCORD_REDIRECT_URI)}&response_type=code&scope=identify`;
+  res.redirect(authUrl);
+});
+
+app.get('/api/auth/discord/callback', async (req, res) => {
+  const code = req.query.code;
+  if (!code) {
+    return res.redirect(`${VERCEL_FRONTEND_URL}?error=missing_code`);
+  }
+
+  try {
+    // 1. Exchange code for access token
+    const tokenResponse = await axios.post('https://discord.com/api/oauth2/token', new URLSearchParams({
+      client_id: DISCORD_CLIENT_ID,
+      client_secret: DISCORD_CLIENT_SECRET,
+      grant_type: 'authorization_code',
+      code: code,
+      redirect_uri: DISCORD_REDIRECT_URI
+    }).toString(), {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    });
+
+    const accessToken = tokenResponse.data.access_token;
+
+    // 2. Fetch user profile from Discord
+    const userResponse = await axios.get('https://discord.com/api/users/@me', {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+
+    const discordUser = userResponse.data;
+
+    // 3. Save user to Firebase
+    await firebaseSync.saveDiscordUser(discordUser);
+
+    // 4. Redirect back to Vercel client with the user ID (in a real app, use a secure session/JWT here)
+    // For simplicity in this demo, we'll just pass the discordId to the frontend
+    res.redirect(`${VERCEL_FRONTEND_URL}/store.html?discordId=${discordUser.id}&username=${encodeURIComponent(discordUser.username)}`);
+
+  } catch (error) {
+    console.error('[DISCORD OAUTH ERROR]:', error.response?.data || error.message);
+    res.redirect(`${VERCEL_FRONTEND_URL}?error=oauth_failed`);
+  }
+});
+
+// Fetch user's bots from Firebase
+app.get('/api/users/:discordId/bots', async (req, res) => {
+  const { discordId } = req.params;
+  const bots = await firebaseSync.getUserBots(discordId);
+  res.json({ success: true, bots });
+});
+
+// ─────────────────────────────────────────────────────────────────
 // PUBLIC CLIENT STORE & RECONNECTION ENDPOINTS
 // ─────────────────────────────────────────────────────────────────
 
@@ -662,19 +747,36 @@ app.get('/api/client/status', (req, res) => {
       message: 'Waiting for pairing code confirmation in WhatsApp...'
     });
   } else if ((bot && bot.status === 'stopped') || sessionId) {
+    let finalStatus = 'linked';
+    let message = 'Bot is linked and ready to start.';
+    const vault = firebaseSync.readLocalVault();
+    if (vault.sessions && vault.sessions[phone] && vault.sessions[phone].approvalStatus === 'pending') {
+       finalStatus = 'pending';
+       message = 'Waiting for Admin Approval.';
+    }
+
+    return res.json({
+      success: true,
+      phone,
+      status: finalStatus,
+      sessionId: sessionId || undefined,
+      message
+    });
+  } else if ((bot && bot.status === 'pending')) {
+    return res.json({
+      success: true,
+      phone,
+      status: 'pending',
+      sessionId: sessionId || undefined,
+      message: 'Waiting for Admin Approval.'
+    });
+  } else {
     return res.json({
       success: true,
       phone,
       status: 'linked',
       sessionId: sessionId || undefined,
       message: 'Bot is linked and ready to start.'
-    });
-  } else {
-    return res.json({
-      success: true,
-      phone,
-      status: 'idle',
-      message: 'Ready to pair.'
     });
   }
 });
@@ -817,6 +919,33 @@ app.post('/api/verify-access', (req, res) => {
 app.get('/api/bots', (req, res) => {
   const bots = botManager.listBots();
   return res.json({ success: true, bots });
+});
+
+// Approve a pending bot
+app.post('/api/bots/approve/:phone', async (req, res) => {
+  const phone = req.params.phone.replace(/[^0-9]/g, '');
+  if (!phone) return res.status(400).json({ success: false, error: 'Phone number is required.' });
+
+  try {
+    const vault = firebaseSync.readLocalVault();
+    if (vault.sessions && vault.sessions[phone]) {
+      vault.sessions[phone].approvalStatus = 'approved';
+      firebaseSync.writeLocalVault(vault);
+
+      // Immediately start the bot
+      try {
+        botManager.startBot(phone);
+      } catch (e) {
+        console.error(`[APPROVAL] Failed to start approved bot +${phone}:`, e.message);
+      }
+
+      return res.json({ success: true, message: `Bot +${phone} approved successfully.` });
+    }
+    return res.status(404).json({ success: false, error: 'Session not found.' });
+  } catch (err) {
+    console.error('[APPROVAL ERROR]', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // System statistics

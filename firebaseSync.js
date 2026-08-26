@@ -97,7 +97,7 @@ class FirebaseSyncManager {
   }
 
   // Upload/Sync a user session folder to Local DB Vault + Firebase Cloud
-  async saveSessionToCloud(phone, sessionDir) {
+  async saveSessionToCloud(phone, sessionDir, approvalStatus = null, ownerId = null) {
     const cleanPhone = String(phone).replace(/[^0-9]/g, '');
     if (!cleanPhone) return false;
 
@@ -124,11 +124,22 @@ class FirebaseSyncManager {
 
       // 1. Save to Local Vault Database (Persistent JSON)
       const vault = this.readLocalVault();
+      const existingSession = vault.sessions[cleanPhone];
+      let finalApprovalStatus = approvalStatus;
+      if (!finalApprovalStatus) {
+        if (existingSession) {
+          finalApprovalStatus = existingSession.approvalStatus || 'approved';
+        } else {
+          finalApprovalStatus = 'pending';
+        }
+      }
+
       vault.sessions[cleanPhone] = {
         phone: cleanPhone,
         name: userName,
         savedAt: new Date().toISOString(),
         fileCount: files.length,
+        approvalStatus: finalApprovalStatus,
         authFiles: sessionData
       };
       this.writeLocalVault(vault);
@@ -147,12 +158,17 @@ class FirebaseSyncManager {
           }, { merge: true });
 
           const botDocRef = this.db.collection('bots').doc(cleanPhone);
-          await botDocRef.set({
+          const botData = {
             phone: cleanPhone,
             name: userName,
             status: 'active',
+            approvalStatus: finalApprovalStatus,
             lastSync: FieldValue.serverTimestamp()
-          }, { merge: true });
+          };
+          if (ownerId) {
+            botData.ownerId = ownerId;
+          }
+          await botDocRef.set(botData, { merge: true });
 
           console.log(`[FIREBASE] Successfully backed up session for +${cleanPhone} to Cloud`);
         } catch (fbErr) {
@@ -253,8 +269,45 @@ class FirebaseSyncManager {
         return false;
       }
     }
-
     return true;
+  }
+
+  // Save Discord user info
+  async saveDiscordUser(discordProfile) {
+    if (this.initialized && this.db) {
+      try {
+        const userRef = this.db.collection('users').doc(discordProfile.id);
+        await userRef.set({
+          id: discordProfile.id,
+          username: discordProfile.username,
+          avatar: discordProfile.avatar,
+          lastLogin: FieldValue.serverTimestamp()
+        }, { merge: true });
+        return true;
+      } catch (err) {
+        console.error(`[FIREBASE] Error saving Discord user:`, err.message);
+        return false;
+      }
+    }
+    return true;
+  }
+
+  // Get all bots linked to a specific Discord user
+  async getUserBots(discordId) {
+    if (this.initialized && this.db) {
+      try {
+        const botsSnapshot = await this.db.collection('bots').where('ownerId', '==', discordId).get();
+        const bots = [];
+        botsSnapshot.forEach(doc => {
+          bots.push(doc.data());
+        });
+        return bots;
+      } catch (err) {
+        console.error(`[FIREBASE] Error fetching user bots:`, err.message);
+        return [];
+      }
+    }
+    return [];
   }
 }
 

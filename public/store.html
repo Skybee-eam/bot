@@ -1,13 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SKYBEE BOT — WhatsApp Bot Activation & Client Store</title>
-  <meta name="description" content="Activate your 24/7 Cloud WhatsApp Bot in 60 seconds via Pairing Code or QR Code. 544+ commands, AI tools, and media downloaders.">
+  <meta name="description"
+    content="Activate your 24/7 Cloud WhatsApp Bot in 60 seconds via Pairing Code or QR Code. 544+ commands, AI tools, and media downloaders.">
   <link rel="icon" type="image/jpeg" href="/logo.jpg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap"
+    rel="stylesheet">
   <link rel="stylesheet" href="style.css">
   <style>
     /* ── Client Store Specific Enhancements ── */
@@ -47,8 +51,15 @@
     }
 
     @keyframes pulseGlow {
-      0%, 100% { box-shadow: 0 0 15px rgba(0, 210, 255, 0.1); }
-      50% { box-shadow: 0 0 25px rgba(0, 210, 255, 0.3); }
+
+      0%,
+      100% {
+        box-shadow: 0 0 15px rgba(0, 210, 255, 0.1);
+      }
+
+      50% {
+        box-shadow: 0 0 25px rgba(0, 210, 255, 0.3);
+      }
     }
 
     .store-hero {
@@ -149,7 +160,9 @@
     .pair-main-card::before {
       content: '';
       position: absolute;
-      top: 0; left: 0; right: 0;
+      top: 0;
+      left: 0;
+      right: 0;
       height: 3px;
       background: linear-gradient(90deg, transparent, #00d2ff, #0088ff, #ffb703, transparent);
     }
@@ -278,8 +291,15 @@
     }
 
     @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     .code-display-box {
@@ -534,9 +554,19 @@
     }
 
     @keyframes bounceIn {
-      0% { transform: scale(0.9); opacity: 0; }
-      70% { transform: scale(1.03); opacity: 1; }
-      100% { transform: scale(1); }
+      0% {
+        transform: scale(0.9);
+        opacity: 0;
+      }
+
+      70% {
+        transform: scale(1.03);
+        opacity: 1;
+      }
+
+      100% {
+        transform: scale(1);
+      }
     }
 
     /* ── Footer ── */
@@ -568,6 +598,7 @@
       text-align: left;
       box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
     }
+
     .manage-status-badge {
       display: inline-flex;
       align-items: center;
@@ -577,15 +608,32 @@
       font-size: 0.8rem;
       font-weight: 700;
     }
-    .badge-running { background: rgba(0, 230, 118, 0.15); color: #00e676; border: 1px solid rgba(0, 230, 118, 0.4); }
-    .badge-stopped { background: rgba(255, 82, 82, 0.15); color: #ff5252; border: 1px solid rgba(255, 82, 82, 0.4); }
-    .badge-pairing { background: rgba(255, 183, 77, 0.15); color: #ffb74d; border: 1px solid rgba(255, 183, 77, 0.4); }
+
+    .badge-running {
+      background: rgba(0, 230, 118, 0.15);
+      color: #00e676;
+      border: 1px solid rgba(0, 230, 118, 0.4);
+    }
+
+    .badge-stopped {
+      background: rgba(255, 82, 82, 0.15);
+      color: #ff5252;
+      border: 1px solid rgba(255, 82, 82, 0.4);
+    }
+
+    .badge-pairing {
+      background: rgba(255, 183, 77, 0.15);
+      color: #ffb74d;
+      border: 1px solid rgba(255, 183, 77, 0.4);
+    }
+
     .bot-ctrl-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
       gap: 10px;
       margin-top: 16px;
     }
+
     .btn-ctrl {
       padding: 10px 14px;
       border-radius: 10px;
@@ -600,68 +648,136 @@
       transition: all 0.2s ease;
       color: #fff;
     }
-    .btn-ctrl:hover:not(:disabled) { transform: translateY(-2px); }
-    .btn-ctrl:disabled { opacity: 0.5; cursor: not-allowed; }
-    .btn-ctrl-start { background: linear-gradient(135deg, #00c853, #00e676); color: #000; box-shadow: 0 4px 15px rgba(0, 230, 118, 0.3); }
-    .btn-ctrl-stop { background: linear-gradient(135deg, #d50000, #ff1744); box-shadow: 0 4px 15px rgba(255, 23, 68, 0.3); }
-    .btn-ctrl-restart { background: linear-gradient(135deg, #0091ea, #00b0ff); box-shadow: 0 4px 15px rgba(0, 176, 255, 0.3); }
-    .btn-ctrl-logs { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); }
-    .btn-ctrl-delete { background: rgba(255, 82, 82, 0.15); border: 1px solid rgba(255, 82, 82, 0.4); color: #ff5252; }
+
+    .btn-ctrl:hover:not(:disabled) {
+      transform: translateY(-2px);
+    }
+
+    .btn-ctrl:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-ctrl-start {
+      background: linear-gradient(135deg, #00c853, #00e676);
+      color: #000;
+      box-shadow: 0 4px 15px rgba(0, 230, 118, 0.3);
+    }
+
+    .btn-ctrl-stop {
+      background: linear-gradient(135deg, #d50000, #ff1744);
+      box-shadow: 0 4px 15px rgba(255, 23, 68, 0.3);
+    }
+
+    .btn-ctrl-restart {
+      background: linear-gradient(135deg, #0091ea, #00b0ff);
+      box-shadow: 0 4px 15px rgba(0, 176, 255, 0.3);
+    }
+
+    .btn-ctrl-logs {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-ctrl-delete {
+      background: rgba(255, 82, 82, 0.15);
+      border: 1px solid rgba(255, 82, 82, 0.4);
+      color: #ff5252;
+    }
 
     /* Modal Overlay for Store Logs */
     .modal-overlay {
-      position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px);
-      z-index: 9999; display: none; align-items: center; justify-content: center; padding: 20px;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(8px);
+      z-index: 9999;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
     }
+
     .modal-box {
-      background: #0d1117; border: 1px solid rgba(0, 210, 255, 0.35); border-radius: 16px;
-      width: 100%; max-width: 650px; max-height: 80vh; display: flex; flex-direction: column;
-      box-shadow: 0 0 50px rgba(0, 180, 255, 0.3); overflow: hidden; animation: bounceIn 0.3s ease;
+      background: #0d1117;
+      border: 1px solid rgba(0, 210, 255, 0.35);
+      border-radius: 16px;
+      width: 100%;
+      max-width: 650px;
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 0 50px rgba(0, 180, 255, 0.3);
+      overflow: hidden;
+      animation: bounceIn 0.3s ease;
     }
+
     .log-modal-header {
-      padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
     }
+
     .log-modal-content {
-      flex: 1; overflow-y: auto; padding: 16px 20px; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem;
-      color: #7ee787; background: #010409; line-height: 1.5; white-space: pre-wrap; word-break: break-all; min-height: 250px;
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 20px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      color: #7ee787;
+      background: #010409;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-all;
+      min-height: 250px;
     }
 
     @media (max-width: 600px) {
       .ref-input-group {
         flex-direction: column;
       }
+
       .code-text {
         font-size: 2.1rem;
         letter-spacing: 2px;
       }
+
       .mode-switcher {
         flex-direction: column;
       }
+
       .mode-btn {
         justify-content: center;
       }
     }
   </style>
 </head>
+
 <body>
 
   <!-- Animated background particles -->
   <div class="bg-grid"></div>
   <div class="glow-orb glow-orb-1"></div>
   <div class="glow-orb glow-orb-2"></div>
+  <div class="cloud-container">
+    <div class="cloud cloud-1"></div>
+    <div class="cloud cloud-2"></div>
+    <div class="cloud cloud-3"></div>
+  </div>
 
   <div class="store-container">
 
     <!-- Store Navigation Bar -->
     <header class="site-header" style="margin-bottom: 28px;">
       <div class="logo-badge">
-        <img src="/logo.jpg" alt="SKYBEE BOT" style="width:38px; height:38px; border-radius:10px; object-fit:cover; border:1.5px solid rgba(0,195,255,0.4); box-shadow:0 0 15px rgba(0,180,255,0.35);">
-        <span class="logo-text">SKYBEE <span class="logo-ofc" style="color:#00b4d8; text-shadow:0 0 10px rgba(0,180,255,0.5);">STORE</span></span>
+        <img src="/logo.jpg" alt="SKYBEE BOT"
+          style="width:38px; height:38px; border-radius:10px; object-fit:cover; border:1.5px solid rgba(0,195,255,0.4); box-shadow:0 0 15px rgba(0,180,255,0.35);">
+        <span class="logo-text">SKYBEE <span class="logo-ofc"
+            style="color:#00b4d8; text-shadow:0 0 10px rgba(0,180,255,0.5);">STORE</span></span>
       </div>
       <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-        <a href="/" style="background:rgba(0,180,255,0.12); border:1px solid rgba(0,180,255,0.35); border-radius:8px; color:#48cae4; padding:6px 14px; font-size:0.82rem; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:6px; transition:all 0.2s ease;">
-          <span>🎛️</span> <span>Master Dashboard</span>
-        </a>
         <div class="status-pill" style="border-color: rgba(0,180,255,0.35); background: rgba(0,180,255,0.08);">
           <span class="status-dot dot-online"></span>
           <span id="cloudStatus">24/7 Cloud Active</span>
@@ -672,19 +788,23 @@
     <!-- Referral / Partner Store Badge -->
     <div class="store-hero">
       <div style="margin-bottom:18px;">
-        <img src="/logo.jpg" alt="SKYBEE BOT" style="width:100px; height:100px; border-radius:24px; object-fit:cover; border:2px solid rgba(0,195,255,0.5); box-shadow:0 0 35px rgba(0,180,255,0.35);">
+        <img src="/logo.jpg" alt="SKYBEE BOT"
+          style="width:100px; height:100px; border-radius:24px; object-fit:cover; border:2px solid rgba(0,195,255,0.5); box-shadow:0 0 35px rgba(0,180,255,0.35);">
       </div>
 
-      <div class="ref-banner" id="refBanner" style="background:rgba(0,180,255,0.1); border-color:rgba(0,180,255,0.35); color:#caf0f8; box-shadow:0 0 20px rgba(0,180,255,0.2);">
+      <div class="ref-banner" id="refBanner"
+        style="background:rgba(0,180,255,0.1); border-color:rgba(0,180,255,0.35); color:#caf0f8; box-shadow:0 0 20px rgba(0,180,255,0.2);">
         <span>✨</span>
         <span id="refBadgeText">Official Skybee Bot Activation Portal</span>
       </div>
 
-      <h1 class="store-title" style="background: linear-gradient(135deg, #ffffff 30%, #00b4d8 70%, #0077b6 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">
+      <h1 class="store-title"
+        style="background: linear-gradient(135deg, #ffffff 30%, #00b4d8 70%, #0077b6 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">
         Activate Your Skybee Bot<br>In 60 Seconds
       </h1>
       <p class="store-subtitle">
-        Connectivity and Automation. Cloud-hosted, ultra-fast 24/7 uptime. Unlock 544+ commands, AI chat, music/video downloaders, and automated group management directly on your phone.
+        Connectivity and Automation. Cloud-hosted, ultra-fast 24/7 uptime. Unlock 544+ commands, AI chat, music/video
+        downloaders, and automated group management directly on your phone.
       </p>
 
       <div class="trust-badges">
@@ -698,7 +818,8 @@
     </div>
 
     <!-- ════ METHOD SELECTOR TABS ════ -->
-    <div class="mode-switcher" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:10px;">
+    <div class="mode-switcher"
+      style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:10px;">
       <button class="mode-btn active" id="btnModePair" onclick="switchMode('pair')">
         <span>📱</span> <span>Pairing Code</span>
       </button>
@@ -742,18 +863,13 @@
             </label>
             <div class="phone-input-wrapper">
               <span class="phone-prefix-icon">📱</span>
-              <input 
-                type="tel" 
-                id="clientPhoneInput" 
-                class="phone-field" 
-                placeholder="e.g. 233558816890 or 15551234567"
-                autocomplete="tel"
-                oninput="handlePhoneInput(this)"
-                onkeydown="if(event.key==='Enter') generateClientPairCode()"
-              >
+              <input type="tel" id="clientPhoneInput" class="phone-field" placeholder="e.g. 233558816890 or 15551234567"
+                autocomplete="tel" oninput="handlePhoneInput(this)"
+                onkeydown="if(event.key==='Enter') generateClientPairCode()">
             </div>
             <div class="phone-hint">
-              💡 Do <strong>NOT</strong> include "+" or dashes. Examples: Ghana <code>233558816890</code>, Nigeria <code>2348012345678</code>, USA <code>15551234567</code>.
+              💡 Do <strong>NOT</strong> include "+" or dashes. Examples: Ghana <code>233558816890</code>, Nigeria
+              <code>2348012345678</code>, USA <code>15551234567</code>.
             </div>
           </div>
 
@@ -761,24 +877,28 @@
             <span>🚀 Generate WhatsApp Pairing Code</span>
           </button>
 
-          <div id="errorMessage" style="display:none; margin-top:14px; padding:12px 16px; background:rgba(255,82,82,0.15); border:1px solid #ff5252; border-radius:10px; color:#ff8a80; font-size:0.88rem; text-align:center;"></div>
+          <div id="errorMessage"
+            style="display:none; margin-top:14px; padding:12px 16px; background:rgba(255,82,82,0.15); border:1px solid #ff5252; border-radius:10px; color:#ff8a80; font-size:0.88rem; text-align:center;">
+          </div>
         </div>
 
         <!-- Loading State for Pair Code -->
         <div id="loadingState" style="display:none; text-align:center; padding:30px 20px;">
           <div style="font-size:2.5rem; margin-bottom:12px; animation: spin 1.2s linear infinite;">⏳</div>
-          <div style="font-size:1.1rem; font-weight:700; color:#fff; margin-bottom:6px;">Connecting to WhatsApp Cloud...</div>
+          <div style="font-size:1.1rem; font-weight:700; color:#fff; margin-bottom:6px;">Connecting to WhatsApp Cloud...
+          </div>
           <div style="font-size:0.85rem; color:#8892b0;">Generating your secure 8-digit device pairing code</div>
         </div>
 
         <!-- Pairing Code Display Area -->
         <div class="code-result-area" id="codeResultArea">
-          
+
           <div class="code-display-box">
-            <div style="font-size:0.8rem; text-transform:uppercase; letter-spacing:1.5px; color:#94a3b8; font-weight:700;">
+            <div
+              style="font-size:0.8rem; text-transform:uppercase; letter-spacing:1.5px; color:#94a3b8; font-weight:700;">
               Your 8-Digit Pairing Code
             </div>
-            
+
             <div class="code-text" id="pairCodeDisplay">---- ----</div>
 
             <div>
@@ -795,18 +915,20 @@
           <!-- Step-by-Step Instructions -->
           <div class="steps-guide">
             <h4>📱 How to Link in WhatsApp:</h4>
-            
+
             <div class="step-item">
               <div class="step-item-icon">1</div>
               <div>Open <strong>WhatsApp</strong> on your phone</div>
             </div>
             <div class="step-item">
               <div class="step-item-icon">2</div>
-              <div>Tap the <strong>3 Dots (Android)</strong> or <strong>Settings (iPhone)</strong> → Tap <strong>Linked Devices</strong></div>
+              <div>Tap the <strong>3 Dots (Android)</strong> or <strong>Settings (iPhone)</strong> → Tap <strong>Linked
+                  Devices</strong></div>
             </div>
             <div class="step-item">
               <div class="step-item-icon">3</div>
-              <div>Tap <strong>"Link a Device"</strong> → Tap <strong>"Link with phone number instead"</strong> at the bottom</div>
+              <div>Tap <strong>"Link a Device"</strong> → Tap <strong>"Link with phone number instead"</strong> at the
+                bottom</div>
             </div>
             <div class="step-item">
               <div class="step-item-icon">4</div>
@@ -820,13 +942,15 @@
               <span class="status-dot dot-online" style="animation: pulseDot 1s infinite;"></span>
               <span id="liveStatusText" style="color:#ffb74d;">Waiting for you to enter the code in WhatsApp...</span>
             </div>
-            <button onclick="checkClientBotStatus()" style="background:transparent; border:1px solid rgba(255,255,255,0.2); color:#fff; border-radius:6px; padding:4px 10px; font-size:0.75rem; cursor:pointer;">
+            <button onclick="checkClientBotStatus()"
+              style="background:transparent; border:1px solid rgba(255,255,255,0.2); color:#fff; border-radius:6px; padding:4px 10px; font-size:0.75rem; cursor:pointer;">
               🔄 Refresh Status
             </button>
           </div>
 
           <div style="margin-top:16px; text-align:center;">
-            <button onclick="resetPairing()" style="background:transparent; border:none; color:#8892b0; font-size:0.85rem; cursor:pointer; text-decoration:underline;">
+            <button onclick="resetPairing()"
+              style="background:transparent; border:none; color:#8892b0; font-size:0.85rem; cursor:pointer; text-decoration:underline;">
               Enter a different phone number
             </button>
           </div>
@@ -841,7 +965,8 @@
         <div class="qr-container-box">
           <div id="qrLoadingBox">
             <div style="font-size:2.5rem; margin-bottom:12px; animation: spin 1.2s linear infinite;">⏳</div>
-            <div style="font-size:1.1rem; font-weight:700; color:#fff; margin-bottom:6px;">Generating WhatsApp QR Code...</div>
+            <div style="font-size:1.1rem; font-weight:700; color:#fff; margin-bottom:6px;">Generating WhatsApp QR
+              Code...</div>
             <div style="font-size:0.85rem; color:#8892b0;">Connecting to Skybee Multi-Device Cloud</div>
           </div>
 
@@ -855,10 +980,13 @@
             <span>⏳ QR Code refreshes in:</span> <strong id="qrCountdownDisplay">00:45</strong>
           </div>
 
-          <div id="qrErrorNotice" style="display:none; margin-top:14px; padding:12px 16px; background:rgba(255,82,82,0.15); border:1px solid #ff5252; border-radius:10px; color:#ff8a80; font-size:0.88rem;"></div>
+          <div id="qrErrorNotice"
+            style="display:none; margin-top:14px; padding:12px 16px; background:rgba(255,82,82,0.15); border:1px solid #ff5252; border-radius:10px; color:#ff8a80; font-size:0.88rem;">
+          </div>
 
           <div style="margin-top:14px;">
-            <button onclick="startClientQrSession()" style="background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.25); color:#fff; border-radius:8px; padding:8px 18px; font-size:0.85rem; font-weight:600; cursor:pointer;">
+            <button onclick="startClientQrSession()"
+              style="background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.25); color:#fff; border-radius:8px; padding:8px 18px; font-size:0.85rem; font-weight:600; cursor:pointer;">
               🔄 Refresh QR Code
             </button>
           </div>
@@ -873,7 +1001,8 @@
           </div>
           <div class="step-item">
             <div class="step-item-icon">2</div>
-            <div>Tap <strong>3 Dots (Android)</strong> or <strong>Settings (iPhone)</strong> → Tap <strong>Linked Devices</strong></div>
+            <div>Tap <strong>3 Dots (Android)</strong> or <strong>Settings (iPhone)</strong> → Tap <strong>Linked
+                Devices</strong></div>
           </div>
           <div class="step-item">
             <div class="step-item-icon">3</div>
@@ -891,7 +1020,8 @@
       <div id="sectionManageMode" style="display:none;">
         <div style="text-align:center; margin-bottom:18px;">
           <h3 style="color:#fff; font-size:1.3rem; font-weight:800; margin:0 0 6px;">⚡ Manage Your Skybee Bot</h3>
-          <p style="color:#8892b0; font-size:0.88rem; margin:0;">Start, stop, restart, or inspect live logs for your linked phone number.</p>
+          <p style="color:#8892b0; font-size:0.88rem; margin:0;">Start, stop, restart, or inspect live logs for your
+            linked phone number.</p>
         </div>
 
         <div class="input-row">
@@ -900,15 +1030,8 @@
           </label>
           <div class="phone-input-wrapper">
             <span class="phone-prefix-icon">📱</span>
-            <input 
-              type="tel" 
-              id="managePhoneInput" 
-              class="phone-field" 
-              placeholder="e.g. 233558816890" 
-              autocomplete="tel"
-              oninput="handlePhoneInput(this)"
-              onkeydown="if(event.key==='Enter') lookupManageBot()"
-            >
+            <input type="tel" id="managePhoneInput" class="phone-field" placeholder="e.g. 233558816890"
+              autocomplete="tel" oninput="handlePhoneInput(this)" onkeydown="if(event.key==='Enter') lookupManageBot()">
           </div>
         </div>
 
@@ -916,11 +1039,14 @@
           <span>🔍 Check & Control Bot</span>
         </button>
 
-        <div id="manageNotice" style="display:none; margin-top:14px; padding:12px 16px; border-radius:10px; font-size:0.88rem; text-align:center;"></div>
+        <div id="manageNotice"
+          style="display:none; margin-top:14px; padding:12px 16px; border-radius:10px; font-size:0.88rem; text-align:center;">
+        </div>
 
         <!-- Bot Management Card -->
         <div id="manageCard" style="display:none;" class="manage-bot-card">
-          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:12px;">
+          <div
+            style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:12px;">
             <div>
               <div style="color:#fff; font-size:1.1rem; font-weight:800;" id="cardPhoneText">+233558816890</div>
               <div style="color:#8892b0; font-size:0.8rem;">Skybee Multi-User Bot Instance</div>
@@ -960,7 +1086,8 @@
         <div style="text-align:center; margin-bottom:18px;">
           <h3 style="color:#fff; font-size:1.3rem; font-weight:800; margin:0 0 6px;">🔑 Reconnect with Session ID</h3>
           <p style="color:#8892b0; font-size:0.88rem; margin:0; max-width:600px; margin:0 auto;">
-            Paste your saved <code>SKYBEE~...</code> Session ID to reconnect your WhatsApp Bot instantly without scanning QR codes or waiting for a pairing code!
+            Paste your saved <code>SKYBEE~...</code> Session ID to reconnect your WhatsApp Bot instantly without
+            scanning QR codes or waiting for a pairing code!
           </p>
         </div>
 
@@ -968,28 +1095,20 @@
           <label style="color:#e2e8f0; font-size:0.92rem; font-weight:600;">
             Paste Your Complete Session ID
           </label>
-          <textarea 
-            id="clientSessionInput" 
-            class="phone-field" 
-            style="min-height:110px; font-family:'JetBrains Mono', monospace; font-size:0.82rem; padding:12px; line-height:1.4; resize:vertical;" 
-            placeholder="SKYBEE~eyJub2lzZUtleSI6eyJwcml2YXRlIjp7InR5cGUiOiJCdWZmZXIiLC..."
-          ></textarea>
+          <textarea id="clientSessionInput" class="phone-field"
+            style="min-height:110px; font-family:'JetBrains Mono', monospace; font-size:0.82rem; padding:12px; line-height:1.4; resize:vertical;"
+            placeholder="SKYBEE~eyJub2lzZUtleSI6eyJwcml2YXRlIjp7InR5cGUiOiJCdWZmZXIiLC..."></textarea>
         </div>
 
         <div class="input-row" style="margin-top:12px;">
           <label style="color:#e2e8f0; font-size:0.92rem; font-weight:600;">
-            WhatsApp Phone Number <span style="color:#8892b0; font-weight:400;">(Optional - auto-detected from session)</span>
+            WhatsApp Phone Number <span style="color:#8892b0; font-weight:400;">(Optional - auto-detected from
+              session)</span>
           </label>
           <div class="phone-input-wrapper">
             <span class="phone-prefix-icon">📱</span>
-            <input 
-              type="tel" 
-              id="clientSessionPhone" 
-              class="phone-field" 
-              placeholder="e.g. 233558816890 (optional)" 
-              autocomplete="tel"
-              oninput="handlePhoneInput(this)"
-            >
+            <input type="tel" id="clientSessionPhone" class="phone-field" placeholder="e.g. 233558816890 (optional)"
+              autocomplete="tel" oninput="handlePhoneInput(this)">
           </div>
         </div>
 
@@ -997,13 +1116,16 @@
           <span>⚡ Restore & Connect Bot Instantly</span>
         </button>
 
-        <div id="sessionNotice" style="display:none; margin-top:14px; padding:12px 16px; border-radius:10px; font-size:0.88rem; text-align:center;"></div>
+        <div id="sessionNotice"
+          style="display:none; margin-top:14px; padding:12px 16px; border-radius:10px; font-size:0.88rem; text-align:center;">
+        </div>
 
         <!-- Tips & Guidance -->
         <div class="steps-guide" style="margin-top:20px;">
           <h4>💡 What is a Session ID?</h4>
           <p style="color:#caf0f8; font-size:0.85rem; line-height:1.5; margin:0 0 8px;">
-            When you link via Pairing Code or QR Code, SKYBEE BOT automatically sends your portable Session ID directly to your WhatsApp chat.
+            When you link via Pairing Code or QR Code, SKYBEE BOT automatically sends your portable Session ID directly
+            to your WhatsApp chat.
           </p>
           <div class="step-item">
             <div class="step-item-icon">1</div>
@@ -1030,20 +1152,25 @@
         </p>
 
         <!-- Recovery Session ID Box -->
-        <div style="background:rgba(0, 210, 255, 0.08); border:1px solid rgba(0, 210, 255, 0.35); border-radius:14px; padding:16px; margin-bottom:16px; text-align:left;">
-          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+        <div
+          style="background:rgba(0, 210, 255, 0.08); border:1px solid rgba(0, 210, 255, 0.35); border-radius:14px; padding:16px; margin-bottom:16px; text-align:left;">
+          <div
+            style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
             <div style="color:#00d2ff; font-weight:800; font-size:0.95rem; display:flex; align-items:center; gap:6px;">
               <span>🔑</span> <span>Your Recovery Session ID</span>
             </div>
-            <button onclick="copySuccessSessionId()" id="btnCopySuccessSession" class="btn-ctrl" style="background:#00d2ff; color:#000; font-weight:700; font-size:0.8rem; padding:6px 12px; border:none; cursor:pointer;">
+            <button onclick="copySuccessSessionId()" id="btnCopySuccessSession" class="btn-ctrl"
+              style="background:#00d2ff; color:#000; font-weight:700; font-size:0.8rem; padding:6px 12px; border:none; cursor:pointer;">
               📋 Copy Session ID
             </button>
           </div>
-          <div id="successSessionIdDisplay" style="background:rgba(0,0,0,0.6); padding:10px; border-radius:8px; font-family:'JetBrains Mono', monospace; font-size:0.75rem; color:#caf0f8; word-break:break-all; max-height:80px; overflow-y:auto; border:1px solid rgba(255,255,255,0.1);">
+          <div id="successSessionIdDisplay"
+            style="background:rgba(0,0,0,0.6); padding:10px; border-radius:8px; font-family:'JetBrains Mono', monospace; font-size:0.75rem; color:#caf0f8; word-break:break-all; max-height:80px; overflow-y:auto; border:1px solid rgba(255,255,255,0.1);">
             Generating recovery session ID...
           </div>
           <div style="font-size:0.78rem; color:#94a3b8; margin-top:8px;">
-            💡 <strong>Save this code!</strong> If the server restarts or crashes, paste this code in <em>"Paste Session ID"</em> to restore your bot instantly without linking again.
+            💡 <strong>Save this code!</strong> If the server restarts or crashes, paste this code in <em>"Paste Session
+              ID"</em> to restore your bot instantly without linking again.
           </div>
         </div>
 
@@ -1060,11 +1187,14 @@
             <button class="btn-ctrl btn-ctrl-stop" onclick="runSuccessBotAction('stop')">⏹️ Stop Bot</button>
             <button class="btn-ctrl btn-ctrl-restart" onclick="runSuccessBotAction('restart')">🔄 Restart Bot</button>
             <button class="btn-ctrl btn-ctrl-logs" onclick="viewSuccessBotLogs()">📋 View Console Logs</button>
-            <a href="/" class="btn-ctrl" style="background:rgba(0,180,255,0.2); border:1px solid rgba(0,180,255,0.4); text-decoration:none;">🎛️ Master Panel</a>
+            <a href="/" class="btn-ctrl"
+              style="background:rgba(0,180,255,0.2); border:1px solid rgba(0,180,255,0.4); text-decoration:none;">🎛️
+              Master Panel</a>
           </div>
         </div>
 
-        <div style="display:inline-block; background:rgba(0,0,0,0.4); border-radius:10px; padding:12px 20px; font-size:0.9rem; color:#ffd54f;">
+        <div
+          style="display:inline-block; background:rgba(0,0,0,0.4); border-radius:10px; padding:12px 20px; font-size:0.9rem; color:#ffd54f;">
           👉 <strong>Quick Test:</strong> Open WhatsApp and send <code>.menu</code> or <code>.ping</code> in your chat!
         </div>
       </div>
@@ -1079,19 +1209,24 @@
             <span style="font-size:1.3rem;">📋</span>
             <span style="font-weight:800; color:#fff; font-size:1.1rem;" id="modalLogsPhone">Bot Console Logs</span>
           </div>
-          <button onclick="closeStoreLogsModal()" style="background:transparent; border:none; color:#888; font-size:1.4rem; cursor:pointer;">✕</button>
+          <button onclick="closeStoreLogsModal()"
+            style="background:transparent; border:none; color:#888; font-size:1.4rem; cursor:pointer;">✕</button>
         </div>
         <div class="log-modal-content" id="storeLogContent">Loading live console logs...</div>
-        <div style="padding:12px 16px; background:#0d1117; border-top:1px solid rgba(255,255,255,0.1); display:flex; justify-content:space-between; align-items:center;">
-          <button class="btn-ctrl" style="background:rgba(255,255,255,0.1); font-size:0.8rem;" onclick="copyStoreLogs()">📋 Copy Logs</button>
-          <button class="btn-ctrl btn-ctrl-stop" style="font-size:0.8rem;" onclick="closeStoreLogsModal()">Close</button>
+        <div
+          style="padding:12px 16px; background:#0d1117; border-top:1px solid rgba(255,255,255,0.1); display:flex; justify-content:space-between; align-items:center;">
+          <button class="btn-ctrl" style="background:rgba(255,255,255,0.1); font-size:0.8rem;"
+            onclick="copyStoreLogs()">📋 Copy Logs</button>
+          <button class="btn-ctrl btn-ctrl-stop" style="font-size:0.8rem;"
+            onclick="closeStoreLogsModal()">Close</button>
         </div>
       </div>
     </div>
 
     <!-- ════ FEATURES SHOWCASE ════ -->
     <div style="text-align:center; margin-bottom: 24px;">
-      <h2 style="font-size:1.6rem; font-weight:800; color:#fff; margin:0 0 6px;">Everything Included in Your Skybee Bot</h2>
+      <h2 style="font-size:1.6rem; font-weight:800; color:#fff; margin:0 0 6px;">Everything Included in Your Skybee Bot
+      </h2>
       <p style="color:#8892b0; font-size:0.9rem; margin:0;">Supercharge your WhatsApp with 544+ automated tools</p>
     </div>
 
@@ -1099,61 +1234,65 @@
       <div class="store-feature-card">
         <div class="feature-icon-wrapper">🎵</div>
         <h3 class="feature-card-title">Music & Full Movies</h3>
-        <p class="feature-card-desc">Download songs (.play), videos (.video), TikToks, and full HD movies with one single command directly to your chat.</p>
+        <p class="feature-card-desc">Download songs (.play), videos (.video), TikToks, and full HD movies with one
+          single command directly to your chat.</p>
       </div>
 
       <div class="store-feature-card">
         <div class="feature-icon-wrapper">🧠</div>
         <h3 class="feature-card-title">AI & ChatGPT Assist</h3>
-        <p class="feature-card-desc">Instant AI question answering, text summarizer, coding assistant, and math problem solver inside WhatsApp.</p>
+        <p class="feature-card-desc">Instant AI question answering, text summarizer, coding assistant, and math problem
+          solver inside WhatsApp.</p>
       </div>
 
       <div class="store-feature-card">
         <div class="feature-icon-wrapper">🛡️</div>
         <h3 class="feature-card-title">Group Security & Anti-Link</h3>
-        <p class="feature-card-desc">Protect your WhatsApp groups with automatic anti-link detection, anti-spam, auto-kick, welcome messages, and @everyone tagging.</p>
+        <p class="feature-card-desc">Protect your WhatsApp groups with automatic anti-link detection, anti-spam,
+          auto-kick, welcome messages, and @everyone tagging.</p>
       </div>
 
       <div class="store-feature-card">
         <div class="feature-icon-wrapper">⚡</div>
         <h3 class="feature-card-title">24/7 Cloud Hosting</h3>
-        <p class="feature-card-desc">Runs entirely on our ultra-fast cloud server. Your bot stays active 24/7 even when your phone is turned off or has no internet.</p>
+        <p class="feature-card-desc">Runs entirely on our ultra-fast cloud server. Your bot stays active 24/7 even when
+          your phone is turned off or has no internet.</p>
       </div>
 
       <div class="store-feature-card">
         <div class="feature-icon-wrapper">🎭</div>
         <h3 class="feature-card-title">Stickers & Media Tools</h3>
-        <p class="feature-card-desc">Convert any image, GIF, or short video into an instant WhatsApp sticker (.sticker) with custom pack names.</p>
+        <p class="feature-card-desc">Convert any image, GIF, or short video into an instant WhatsApp sticker (.sticker)
+          with custom pack names.</p>
       </div>
 
       <div class="store-feature-card">
         <div class="feature-icon-wrapper">🔒</div>
         <h3 class="feature-card-title">Isolated & Private</h3>
-        <p class="feature-card-desc">Each user gets an isolated, private process. Your messages and media remain strictly end-to-end encrypted.</p>
+        <p class="feature-card-desc">Each user gets an isolated, private process. Your messages and media remain
+          strictly end-to-end encrypted.</p>
       </div>
     </div>
 
     <!-- ════ REFERRAL / STORE SHARE CREATOR ════ -->
     <div class="referral-maker-box">
       <div style="font-size:1.8rem; margin-bottom:8px;">🤝</div>
-      <h3 style="color:#fff; font-size:1.25rem; font-weight:800; margin:0 0 6px;">Share This Store Link With Your Customers</h3>
+      <h3 style="color:#fff; font-size:1.25rem; font-weight:800; margin:0 0 6px;">Share This Store Link With Your
+        Customers</h3>
       <p style="color:#ffd54f; font-size:0.88rem; margin:0; max-width:540px; margin:0 auto;">
-        Create your personalized client referral link. When your customers open it, they will see your store brand and can pair instantly!
+        Create your personalized client referral link. When your customers open it, they will see your store brand and
+        can pair instantly!
       </p>
 
       <div class="ref-input-group">
-        <input 
-          type="text" 
-          id="customRefInput" 
-          class="ref-input" 
-          placeholder="Enter Your Store or Name (e.g. FastLinkHub)"
-          value=""
-        >
+        <input type="text" id="customRefInput" class="ref-input"
+          placeholder="Enter Your Store or Name (e.g. FastLinkHub)" value="">
         <button class="ref-btn" onclick="generateAndCopyRefLink()">
           📋 Copy Store Link
         </button>
       </div>
-      <div id="refCopyNotice" style="display:none; color:#00e676; font-size:0.82rem; margin-top:10px; font-weight:600;"></div>
+      <div id="refCopyNotice" style="display:none; color:#00e676; font-size:0.82rem; margin-top:10px; font-weight:600;">
+      </div>
     </div>
 
     <!-- Footer -->
@@ -1162,7 +1301,8 @@
         Powered by <strong>SKYBEE BOT</strong> • Connectivity and Automation Multi-User Cloud Infrastructure
       </p>
       <p style="margin:0; font-size:0.8rem;">
-        Need assistance? Contact our <a href="https://whatsapp.com" target="_blank" id="supportLink">Support Channel ↗</a>
+        Need assistance? Contact our <a href="https://whatsapp.com" target="_blank" id="supportLink">Support Channel
+          ↗</a>
       </p>
     </footer>
 
@@ -1170,17 +1310,31 @@
 
   <style>
     @keyframes spin {
-      100% { transform: rotate(360deg); }
+      100% {
+        transform: rotate(360deg);
+      }
     }
+
     @keyframes pulseDot {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.3; }
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.3;
+      }
     }
   </style>
 
   <script>
-        // 🚀 THE URL OF YOUR RENDER/RAILWAY BOT BACKEND 🚀
-        const BACKEND_URL = 'https://bot-z47t.onrender.com';
+    // 🚀 THE URL OF YOUR RENDER/RAILWAY BOT BACKEND 🚀
+    // We will default to localhost for development, update to your Render URL for production
+    let BACKEND_URL = 'http://localhost:3000';
+    if (window.location.hostname.includes('vercel.app')) {
+      BACKEND_URL = 'https://your-api.onrender.com';
+    }
 
     let currentMode = 'pair'; // 'pair', 'qr', 'session', or 'manage'
     let activePhone = '';
@@ -1199,6 +1353,8 @@
     // Auto-fill from query params (?ref=... & ?phone=... & ?mode=...)
     document.addEventListener('DOMContentLoaded', () => {
       const params = new URLSearchParams(window.location.search);
+
+
       const ref = params.get('ref') || params.get('seller') || params.get('from');
       if (ref) {
         document.getElementById('refBadgeText').textContent = `Referred by ${decodeURIComponent(ref)}`;
@@ -1285,7 +1441,9 @@
       document.getElementById('loadingState').style.display = 'block';
 
       try {
-        const response = await fetch(`${BACKEND_URL}/api/client/pair-code?phone=${phone}`);
+        let url = `${BACKEND_URL}/api/client/pair-code?phone=${phone}`;
+        if (loggedInDiscordId) url += `&ownerId=${loggedInDiscordId}`;
+        const response = await fetch(url);
         const data = await response.json();
 
         document.getElementById('loadingState').style.display = 'none';
@@ -1368,7 +1526,7 @@
       try {
         const res = await fetch(`${BACKEND_URL}/api/client/status?phone=${activePhone}`);
         const data = await res.json();
-        
+
         if (data.success) {
           const statusText = document.getElementById('liveStatusText');
           if (data.sessionId) {
@@ -1388,6 +1546,9 @@
           } else if (data.status === 'pairing') {
             statusText.textContent = '⏳ Waiting for you to enter code in WhatsApp...';
             statusText.style.color = '#ffb74d';
+          } else if (data.status === 'pending') {
+            statusText.textContent = '⏳ Waiting for Admin Approval...';
+            statusText.style.color = '#ff9800';
           } else if (data.status === 'linked') {
             statusText.textContent = '🔄 WhatsApp linked! Initializing bot engine...';
             statusText.style.color = '#00e676';
@@ -1444,10 +1605,18 @@
 
           const badge = document.getElementById('cardStatusBadge');
           const isRunning = data.status === 'active';
-          badge.className = `manage-status-badge ${isRunning ? 'badge-running' : (data.status === 'pairing' ? 'badge-pairing' : 'badge-stopped')}`;
-          badge.innerHTML = `<span class="status-dot ${isRunning ? 'dot-online' : ''}"></span> <span>${isRunning ? 'Online & Running' : (data.status === 'pairing' ? 'Pairing' : 'Stopped')}</span>`;
+          const isPending = data.status === 'pending';
+          let badgeClass = 'badge-stopped';
+          let badgeText = 'Stopped';
 
-          document.getElementById('btnCtrlStart').disabled = isRunning;
+          if (isRunning) { badgeClass = 'badge-running'; badgeText = 'Online & Running'; }
+          else if (isPending) { badgeClass = 'badge-pairing'; badgeText = 'Pending Approval'; }
+          else if (data.status === 'pairing') { badgeClass = 'badge-pairing'; badgeText = 'Pairing'; }
+
+          badge.className = `manage-status-badge ${badgeClass}`;
+          badge.innerHTML = `<span class="status-dot ${isRunning ? 'dot-online' : (isPending ? 'dot-pending' : '')}"></span> <span>${badgeText}</span>`;
+
+          document.getElementById('btnCtrlStart').disabled = isRunning || isPending;
           document.getElementById('btnCtrlStop').disabled = !isRunning;
         } else {
           notice.style.display = 'block';
@@ -1573,7 +1742,9 @@
       timerPill.style.display = 'none';
 
       try {
-        const res = await fetch(`${BACKEND_URL}/api/client/qr-start`, { method: 'POST' });
+        let url = `${BACKEND_URL}/api/client/qr-start`;
+        if (loggedInDiscordId) url += `?ownerId=${loggedInDiscordId}`;
+        const res = await fetch(url, { method: 'POST' });
         const data = await res.json();
 
         if (data.success && data.sessionId) {
@@ -1679,7 +1850,7 @@
         if (data.success) {
           activePhone = data.phone;
           currentActiveSessionId = data.sessionId || input;
-          
+
           document.getElementById('sectionSessionMode').style.display = 'none';
           document.getElementById('successPhoneDisplay').textContent = `+${data.phone}`;
           document.getElementById('successSessionIdDisplay').textContent = currentActiveSessionId;
@@ -1735,4 +1906,5 @@
     }
   </script>
 </body>
+
 </html>
