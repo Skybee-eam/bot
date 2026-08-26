@@ -276,6 +276,10 @@ async function startCypherBot() {
   // Ensure default db structures exist
   if (!global.db) global.db = {};
   if (!global.db.settings) global.db.settings = { mode: 'public' };
+  
+  // Set default chatbot and motivation (automindset) to OFF for fresh links
+  if (global.db.settings.chatbot === undefined) global.db.settings.chatbot = false;
+  if (global.db.settings.automindset === undefined) global.db.settings.automindset = false;
   if (!global.db.chats) global.db.chats = {};
   if (!global.db.blacklist) global.db.blacklist = { blacklisted_numbers: [] };
   if (!global.db.sudo) global.db.sudo = [];

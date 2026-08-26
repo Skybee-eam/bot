@@ -804,6 +804,7 @@ await reply(`+${userToRemove.split('@')[0]} is not in the sudo list.`);
         autobio: false,
         anticall: false,
         chatbot: false,
+        automindset: false,
         antibug: false,
         autotype: false,
         autoread: false,
