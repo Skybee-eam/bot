@@ -983,8 +983,32 @@ body {
    RESPONSIVE
 ───────────────────────────────────── */
 @media (max-width: 900px) {
+  .hamburger-btn {
+    display: flex !important;
+  }
+  .admin-main {
+    padding: 15px;
+  }
+  .page-wrapper {
+    padding: 10px;
+  }
+  .site-header {
+    padding-left: 50px; /* Room for hamburger */
+    padding-top: 20px;
+  }
+  .sidebar-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 999;
+    display: none;
+    backdrop-filter: blur(2px);
+  }
+  .sidebar-overlay.show {
+    display: block;
+  }
   .admin-sidebar, .admin-sidebar.collapsed {
-    position: absolute;
+    position: fixed;
     z-index: 1000;
     left: 0;
     top: 0;
@@ -999,10 +1023,12 @@ body {
   }
   .admin-sidebar.show {
     transform: translateX(0);
+    box-shadow: 5px 0 25px rgba(0,0,0,0.5);
   }
 }
 
 @media (max-width: 680px) {
+  .bot-grid { grid-template-columns: 1fr; }
   .metrics-grid { grid-template-columns: 1fr; }
   .site-header { flex-direction: column; gap: 10px; text-align: center; }
   .method-grid { grid-template-columns: 1fr; }
@@ -1067,9 +1093,10 @@ body {
 
 /* Hamburger Menu Button */
 .hamburger-btn {
+  display: none; /* Hidden on desktop */
   position: fixed;
-  top: 20px;
-  left: 20px;
+  top: 15px;
+  left: 15px;
   z-index: 2000;
   background: var(--surface);
   border: 1px solid var(--border);

@@ -89,6 +89,8 @@
   </div>
 
   <div class="admin-layout" id="pageWrapper" style="pointer-events:none; user-select:none; filter:blur(4px); transition: filter 0.4s;">
+    <!-- Sidebar Overlay for Mobile -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar(event)"></div>
     <!-- Sidebar -->
     <aside class="admin-sidebar">
       <div class="logo-badge" style="margin-bottom: 12px; display:flex; gap:12px;">
@@ -945,18 +947,26 @@
     function toggleSidebar(e) {
       if (e) e.stopPropagation();
       const sidebar = document.querySelector('.admin-sidebar');
-      sidebar.classList.toggle('collapsed');
-      sidebar.classList.toggle('show');
+      const overlay = document.getElementById('sidebarOverlay');
+      
+      if (window.innerWidth <= 900) {
+        sidebar.classList.toggle('show');
+        overlay.classList.toggle('show');
+      } else {
+        sidebar.classList.toggle('collapsed');
+      }
     }
 
     // Close sidebar when clicking outside of it (if it's open on mobile, or in general)
     document.addEventListener('click', (e) => {
       const sidebar = document.querySelector('.admin-sidebar');
       const hamburger = document.getElementById('hamburgerBtn');
+      const overlay = document.getElementById('sidebarOverlay');
       // If sidebar is showing (has 'show' class or isn't collapsed on desktop)
       if (sidebar && !sidebar.contains(e.target) && e.target !== hamburger) {
         if (window.innerWidth <= 900 && sidebar.classList.contains('show')) {
           sidebar.classList.remove('show');
+          if (overlay) overlay.classList.remove('show');
         } else if (window.innerWidth > 900 && !sidebar.classList.contains('collapsed')) {
           sidebar.classList.add('collapsed');
         }
@@ -983,6 +993,8 @@
       // Close sidebar on mobile after clicking
       if (window.innerWidth <= 900) {
         document.querySelector('.admin-sidebar').classList.remove('show');
+        const overlay = document.getElementById('sidebarOverlay');
+        if (overlay) overlay.classList.remove('show');
       }
     }
 
