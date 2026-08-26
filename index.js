@@ -135,13 +135,6 @@ async function sendSessionIdPrompt(sock, userJid, phone, sessionId) {
     await sock.sendMessage(userJid, {
       text: sessionId
     });
-
-    await delay(1000);
-
-    // 3. Send Quick start command instructions
-    await sock.sendMessage(userJid, {
-      text: `🤖 *Ready to use!* Type *.menu* to view 544+ commands or *.ping* to test speed.`
-    });
   } catch (err) {
     console.warn(`[SESSION PROMPT NOTE] +${phone}:`, err.message);
   }
