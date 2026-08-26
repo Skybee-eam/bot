@@ -1332,7 +1332,7 @@
     // 🚀 THE URL OF YOUR RENDER/RAILWAY BOT BACKEND 🚀
     // We will default to localhost for development, update to your Render URL for production
     let BACKEND_URL = 'http://localhost:3000';
-    if (window.location.hostname.includes('vercel.app') || window.location.hostname.includes('onrender.com')) {
+    if (window.location.hostname.includes('vercel.app') || window.location.hostname.includes('onrender.com') || window.location.hostname.includes('netlify.app')) {
       BACKEND_URL = 'https://bot-z47t.onrender.com';
     }
 
