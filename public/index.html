@@ -263,8 +263,8 @@
       <section class="hero" style="margin-top:20px;">
         <h2 class="hero-title" style="font-size:1.8rem;">🗄️ Database Vault</h2>
         <p class="hero-sub">Manage active session keys and bot metadata directly from the database.</p>
-        <div style="background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:40px; margin-top:20px;">
-          <p>Database management tools will appear here.</p>
+        <div id="dbContainer" style="background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px; margin-top:20px; text-align:left; overflow-x:auto;">
+          <p style="color:var(--muted); text-align:center;">Loading Database Vault...</p>
         </div>
       </section>
     </div>
@@ -1067,6 +1067,10 @@
       const selected = document.getElementById('tab-' + tabId);
       if (selected) selected.style.display = 'block';
 
+      if (tabId === 'db') {
+        fetchVaultData();
+      }
+
       // Update nav active state
       document.querySelectorAll('.sidebar-nav a').forEach(link => {
         link.classList.remove('active');
@@ -1080,6 +1084,52 @@
         document.querySelector('.admin-sidebar').classList.remove('show');
         const overlay = document.getElementById('sidebarOverlay');
         if (overlay) overlay.classList.remove('show');
+      }
+    }
+
+    async function fetchVaultData() {
+      const container = document.getElementById('dbContainer');
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/vault`, { headers: authHeaders() });
+        const data = await res.json();
+        
+        if (data.success && data.vault && data.vault.sessions) {
+          const sessions = data.vault.sessions;
+          let html = `<table style="width:100%; border-collapse:collapse; color:white; font-size: 0.9rem;">
+                        <thead>
+                          <tr style="border-bottom: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2);">
+                            <th style="padding: 12px; text-align: left;">Phone</th>
+                            <th style="padding: 12px; text-align: left;">Name</th>
+                            <th style="padding: 12px; text-align: left;">Approval Status</th>
+                            <th style="padding: 12px; text-align: left;">Admin</th>
+                            <th style="padding: 12px; text-align: left;">Linked At</th>
+                          </tr>
+                        </thead>
+                        <tbody>`;
+          
+          for (let phone in sessions) {
+            const s = sessions[phone];
+            const dateStr = s.linkedAt ? new Date(s.linkedAt).toLocaleString() : 'N/A';
+            const statColor = s.approvalStatus === 'approved' ? '#00e676' : '#ff7b00';
+            html += `<tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                       <td style="padding: 12px;">+${phone}</td>
+                       <td style="padding: 12px;">${s.botName || 'Unknown'}</td>
+                       <td style="padding: 12px; color: ${statColor}; font-weight:bold;">${s.approvalStatus || 'pending'}</td>
+                       <td style="padding: 12px;">${s.adminName || 'N/A'}</td>
+                       <td style="padding: 12px; color:var(--muted);">${dateStr}</td>
+                     </tr>`;
+          }
+          html += `</tbody></table>`;
+          
+          if (Object.keys(sessions).length === 0) {
+            html = `<p style="color:var(--muted); text-align:center;">Vault is empty.</p>`;
+          }
+          container.innerHTML = html;
+        } else {
+          container.innerHTML = `<p style="color:red; text-align:center;">Failed to load vault data.</p>`;
+        }
+      } catch (e) {
+        container.innerHTML = `<p style="color:red; text-align:center;">Error fetching vault: ${e.message}</p>`;
       }
     }
 

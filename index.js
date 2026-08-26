@@ -914,6 +914,12 @@ app.post('/api/verify-access', (req, res) => {
 // API ROUTES: MULTI-BOT DASHBOARD & CONTROLS (ADMIN PANEL)
 // ─────────────────────────────────────────────────────────────────
 
+// Get Raw Database Vault contents
+app.get('/api/vault', (req, res) => {
+  const vault = firebaseSync.readLocalVault();
+  return res.json({ success: true, vault });
+});
+
 // List all hosted bots
 app.get('/api/bots', (req, res) => {
   const bots = botManager.listBots();
