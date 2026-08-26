@@ -810,6 +810,72 @@ body {
   font-size: 1.25rem;
   font-weight: 800;
 }
+/* Pending List Styles */
+.pending-list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+.pending-list-item {
+  background: var(--surface);
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: all var(--transition);
+  backdrop-filter: blur(14px);
+}
+.pending-list-item:hover {
+  border-color: #00b4d8;
+  background: rgba(0, 180, 216, 0.05);
+}
+.pending-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.pending-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f9a826, #ff7b00);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.2rem;
+  color: #fff;
+  box-shadow: 0 0 10px rgba(255, 123, 0, 0.4);
+}
+.pending-text h4 {
+  margin: 0 0 4px 0;
+  font-size: 1rem;
+  color: #fff;
+}
+.pending-text p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.pending-action {
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+.pending-list-item:hover .pending-action {
+  background: #00b4d8;
+}
+
 .bot-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));

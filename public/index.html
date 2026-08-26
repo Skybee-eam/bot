@@ -139,12 +139,12 @@
 
     <!-- APPROVALS TAB -->
     <div id="tab-approvals" class="admin-tab" style="display:none; width:100%;">
-      <div class="panel">
-        <h2 class="panel-title" style="margin-bottom:12px; display:flex; align-items:center; gap:8px;">
+      <div class="tab-content">
+        <h2 class="section-title" style="color:var(--text-bright);">
           <span>✅</span> Pending Admin Approvals
         </h2>
-        <p style="color:var(--muted); font-size:0.9rem; margin-bottom:24px;">Clients who connected via the store and are waiting for your approval to start their bot.</p>
-        <div class="bot-grid" id="approvalsGrid">
+        <p style="color:var(--muted); margin-bottom: 24px;">Clients who connected via the store and are waiting for your approval to start their bot.</p>
+        <div class="pending-list-container" id="approvalsGrid">
           <!-- Pending bots injected here -->
         </div>
       </div>
@@ -365,6 +365,41 @@
     </div>
   </div>
 
+  <!-- 🟢 MODAL: Approval Details 🟢 -->
+  <div class="modal-overlay" id="approvalModal" onclick="closeOnOverlay(event, 'approvalModal')">
+    <div class="modal-box">
+      <button class="modal-close" onclick="closeModal('approvalModal')">✕</button>
+      <div style="display:flex; align-items:center; gap:16px; margin-bottom: 20px;">
+        <div class="pending-avatar" style="width: 56px; height: 56px; font-size: 1.8rem;">🤖</div>
+        <div>
+          <h2 class="modal-title" style="margin: 0; margin-bottom: 4px;" id="apprModalName">Name</h2>
+          <p style="margin: 0; color: var(--muted);" id="apprModalPhone">+Phone</p>
+        </div>
+      </div>
+      <div style="background: rgba(0,0,0,0.3); border-radius: 8px; padding: 16px; margin-bottom: 24px; border: 1px solid rgba(255,255,255,0.05);">
+        <div style="display:flex; justify-content:space-between; margin-bottom: 12px;">
+          <span style="color:var(--muted);">Status</span>
+          <span style="color:#ff7b00; font-weight:600;">Pending Approval</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-bottom: 12px;">
+          <span style="color:var(--muted);">Uptime</span>
+          <span style="color:#fff;">Offline</span>
+        </div>
+        <div style="display:flex; justify-content:space-between;">
+          <span style="color:var(--muted);">Events</span>
+          <span style="color:#fff;">1</span>
+        </div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:12px;">
+        <button id="apprModalBtn" class="btn-primary" style="width:100%; justify-content:center;">✅ Approve Bot Instance</button>
+        <div style="display:flex; gap:12px;">
+          <button id="apprLogsBtn" class="btn-secondary" style="flex:1; justify-content:center; background: rgba(0,180,255,0.1); color: #00b4d8;">📋 View Logs</button>
+          <button id="apprDelBtn" class="btn-secondary" style="flex:1; justify-content:center; background: rgba(255,82,82,0.1); color: #ff5252;">🗑️ Reject</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
         // 🚀 THE URL OF YOUR RENDER/RAILWAY BOT BACKEND 🚀
         // Dynamic backend URL so it works locally and on deployed sites
@@ -464,13 +499,15 @@
       } catch (err) {}
     }
 
-    // ── Fetch & Render Multi-Bot Hub ──
+    // 🟢 Fetch & Render Multi-Bot Hub 🟢
+    let allBotsData = [];
     async function fetchBots() {
       try {
         let url = `${BACKEND_URL}/api/bots`;
         if (loggedInDiscordId) url += `?ownerId=${loggedInDiscordId}`;
         const res = await fetch(url);
         const data = await res.json();
+        allBotsData = data.bots || [];
         const grid = document.getElementById('botGrid');
         const approvalsGrid = document.getElementById('approvalsGrid');
         const approvalBadge = document.getElementById('approvalBadge');
@@ -510,12 +547,60 @@
         if (pendingBots.length === 0) {
           approvalsGrid.innerHTML = `<p style="color:var(--muted); font-size:0.9rem; padding: 20px;">No pending approvals.</p>`;
         } else {
-          approvalsGrid.innerHTML = pendingBots.map(bot => renderBotCard(bot, true)).join('');
+          approvalsGrid.innerHTML = pendingBots.map(bot => renderPendingListItem(bot)).join('');
         }
 
       } catch (err) {
         console.error('Error fetching bots:', err);
       }
+    }
+
+    function renderPendingListItem(bot) {
+      const displayName = bot.name || ('+' + bot.phone);
+      const displayPhone = bot.name ? ('+' + bot.phone) : 'Skybee Bot';
+      
+      return `
+        <div class="pending-list-item" onclick="openApprovalModal('${bot.phone}')">
+          <div class="pending-info">
+            <div class="pending-avatar">🤖</div>
+            <div class="pending-text">
+              <h4>${displayName}</h4>
+              <p>${displayPhone}</p>
+            </div>
+          </div>
+          <button class="pending-action">Review</button>
+        </div>
+      `;
+    }
+
+    function openApprovalModal(phone) {
+      const bot = allBotsData.find(b => b.phone === phone);
+      if (!bot) return;
+
+      document.getElementById('apprModalName').textContent = bot.name || ('+' + bot.phone);
+      document.getElementById('apprModalPhone').textContent = bot.name ? ('+' + bot.phone) : 'Skybee Bot';
+      
+      const apprBtn = document.getElementById('apprModalBtn');
+      apprBtn.onclick = () => {
+        closeModal('approvalModal');
+        approveBot(phone);
+      };
+
+      const logsBtn = document.getElementById('apprLogsBtn');
+      logsBtn.onclick = () => {
+        closeModal('approvalModal');
+        viewLogs(phone);
+      };
+
+      const delBtn = document.getElementById('apprDelBtn');
+      delBtn.onclick = () => {
+        if(confirm('Reject and delete this bot?')) {
+          closeModal('approvalModal');
+          deleteBot(phone);
+        }
+      };
+
+      openModal('approvalModal');
     }
 
     function renderBotCard(bot, isPending) {
