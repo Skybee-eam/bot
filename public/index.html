@@ -254,7 +254,7 @@
       <section class="hero" style="margin-top:20px;">
         <h2 class="hero-title" style="font-size:1.8rem;">📋 Global Cluster Logs</h2>
         <p class="hero-sub">View aggregated logs across all hosted instances.</p>
-        <div class="log-modal-content" style="height:400px; text-align:left;">No global logs available yet...</div>
+        <div id="globalLogsContainer" class="log-modal-content" style="height:400px; text-align:left;">Loading global logs...</div>
       </section>
     </div>
 
@@ -1069,6 +1069,8 @@
 
       if (tabId === 'db') {
         fetchVaultData();
+      } else if (tabId === 'logs') {
+        fetchGlobalLogs();
       }
 
       // Update nav active state
@@ -1084,6 +1086,25 @@
         document.querySelector('.admin-sidebar').classList.remove('show');
         const overlay = document.getElementById('sidebarOverlay');
         if (overlay) overlay.classList.remove('show');
+      }
+    }
+
+    async function fetchGlobalLogs() {
+      const container = document.getElementById('globalLogsContainer');
+      if (!container) return;
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/logs/global`, { headers: authHeaders() });
+        const data = await res.json();
+        if (data.success && data.logs) {
+          if (data.logs.length === 0) {
+            container.innerHTML = '<p style="color:var(--muted);">No global logs available yet...</p>';
+          } else {
+            container.innerHTML = data.logs.join('<br>');
+            container.scrollTop = container.scrollHeight;
+          }
+        }
+      } catch (err) {
+        // Silently fail on network error
       }
     }
 
@@ -1139,6 +1160,8 @@
     setInterval(() => {
       fetchBots();
       fetchSystemStats();
+      if (document.getElementById('tab-logs').style.display === 'block') fetchGlobalLogs();
+      if (document.getElementById('tab-db').style.display === 'block') fetchVaultData();
     }, 3000);
   </script>
     </div> <!-- /page-wrapper -->

@@ -223,6 +223,7 @@ class MultiBotManager {
     this.bots = new Map(); // phone -> { phone, process, status, logs, startedAt, sessionDir }
     this.manualStops = new Set(); // tracks bots explicitly stopped by user so they don't auto-restart
     this.serverStartedAt = new Date();
+    this.globalLogs = []; // Stores the latest 500 lines of global cluster logs
     this.ensureDirs();
   }
 
@@ -253,6 +254,12 @@ class MultiBotManager {
     const formatted = `[${timestamp}] ${line}`;
     bot.logs.push(formatted);
     if (bot.logs.length > 100) bot.logs.shift();
+    
+    // Also add to global logs
+    const globalFormatted = `[${timestamp}] [+${cleanPhone}] ${line}`;
+    this.globalLogs.push(globalFormatted);
+    if (this.globalLogs.length > 500) this.globalLogs.shift();
+
     process.stdout.write(`[BOT ${cleanPhone}] ${line}\n`);
   }
 
@@ -913,6 +920,11 @@ app.post('/api/verify-access', (req, res) => {
 // ─────────────────────────────────────────────────────────────────
 // API ROUTES: MULTI-BOT DASHBOARD & CONTROLS (ADMIN PANEL)
 // ─────────────────────────────────────────────────────────────────
+
+// Get Global Cluster Logs
+app.get('/api/logs/global', (req, res) => {
+  return res.json({ success: true, logs: botManager.globalLogs });
+});
 
 // Get Raw Database Vault contents
 app.get('/api/vault', (req, res) => {
