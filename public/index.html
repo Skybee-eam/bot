@@ -99,6 +99,12 @@
       <nav class="sidebar-nav">
         <a href="#" class="active" onclick="switchAdminTab('dashboard')"><span>📊</span> Dashboard</a>
         <a href="#bots" onclick="switchAdminTab('bots')"><span>🤖</span> Bot Management</a>
+        <a href="#approvals" onclick="switchAdminTab('approvals')">
+          <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
+            <span><span>✅</span> Admin Approvals</span>
+            <span id="approvalBadge" style="display:none; background:#ff4757; color:#fff; padding:2px 8px; border-radius:12px; font-size:0.75rem; font-weight:bold;">0</span>
+          </div>
+        </a>
         <a href="#logs" onclick="switchAdminTab('logs')"><span>📋</span> Global Logs</a>
         <a href="#db" onclick="switchAdminTab('db')"><span>🗄️</span> Database Vault</a>
         <a href="/store" target="_blank" style="margin-top:20px; background:rgba(0,180,255,0.1); border:1px solid rgba(0,180,255,0.3);"><span>🛍️</span> Open Store</a>
@@ -128,6 +134,19 @@
         </div>
       </div>
     </header>
+
+    <!-- APPROVALS TAB -->
+    <div id="tab-approvals" class="admin-tab" style="display:none; width:100%;">
+      <div class="panel">
+        <h2 class="panel-title" style="margin-bottom:12px; display:flex; align-items:center; gap:8px;">
+          <span>✅</span> Pending Admin Approvals
+        </h2>
+        <p style="color:var(--muted); font-size:0.9rem; margin-bottom:24px;">Clients who connected via the store and are waiting for your approval to start their bot.</p>
+        <div class="bot-grid" id="approvalsGrid">
+          <!-- Pending bots injected here -->
+        </div>
+      </div>
+    </div>
 
     <div id="tab-dashboard" class="admin-tab active">
     <!-- Hero -->
@@ -450,6 +469,8 @@
         const res = await fetch(url);
         const data = await res.json();
         const grid = document.getElementById('botGrid');
+        const approvalsGrid = document.getElementById('approvalsGrid');
+        const approvalBadge = document.getElementById('approvalBadge');
 
         if (!data.bots || data.bots.length === 0) {
           grid.innerHTML = `
@@ -459,66 +480,92 @@
               <p style="font-size:0.8rem; margin-top:4px;">Use Pairing Code or QR Code above to connect the first WhatsApp account!</p>
             </div>
           `;
+          approvalsGrid.innerHTML = `<p style="color:var(--muted); font-size:0.9rem;">No pending approvals.</p>`;
+          approvalBadge.style.display = 'none';
           return;
         }
 
-        grid.innerHTML = data.bots.map(bot => {
-          const isRunning = bot.status === 'running';
-          const isError = bot.status === 'error';
-          const isPending = bot.approvalStatus === 'pending' || bot.status === 'pending';
-          
-          let badgeClass = isRunning ? 'badge-running' : (isError ? 'badge-error' : 'badge-stopped');
-          let dotClass = isRunning ? 'bot-dot-running' : (isError ? 'bot-dot-error' : 'bot-dot-stopped');
-          let statusLabel = isRunning ? 'Online' : (isError ? 'Error' : 'Stopped');
-          
-          if (isPending) {
-            badgeClass = 'badge-pairing'; // Reuse pairing style (orange)
-            dotClass = 'bot-dot-stopped';
-            statusLabel = 'Pending Approval';
-          }
-          
-          const uptimeText = isRunning ? `Uptime: ${formatUptime(bot.uptime)}` : 'Offline';
+        const pendingBots = data.bots.filter(b => b.approvalStatus === 'pending' || b.status === 'pending');
+        const activeBots = data.bots.filter(b => b.approvalStatus !== 'pending' && b.status !== 'pending');
 
-          return `
-            <div class="bot-card" id="card-${bot.phone}">
-              <div class="bot-card-top">
-                <div class="bot-card-user">
-                  <div class="bot-card-avatar">🤖</div>
-                  <div>
-                    <div class="bot-card-phone">${bot.name ? bot.name : '+' + bot.phone}</div>
-                    <div class="bot-card-sub">${bot.name ? '+' + bot.phone + ' • ' : ''}Skybee Bot</div>
-                  </div>
-                </div>
-                <div class="bot-status-badge ${badgeClass}">
-                  <span class="bot-status-dot ${dotClass}"></span>
-                  <span>${statusLabel}</span>
-                </div>
-              </div>
+        // Update badge
+        if (pendingBots.length > 0) {
+          approvalBadge.textContent = pendingBots.length;
+          approvalBadge.style.display = 'inline-block';
+        } else {
+          approvalBadge.style.display = 'none';
+        }
 
-              <div class="bot-card-meta">
-                <span>⏱️ ${uptimeText}</span>
-                <span>📋 ${bot.logCount || 0} events</span>
-              </div>
+        // Render Active Bots
+        if (activeBots.length === 0) {
+          grid.innerHTML = `<div class="empty-bots"><p><strong>No active bots.</strong></p></div>`;
+        } else {
+          grid.innerHTML = activeBots.map(bot => renderBotCard(bot, false)).join('');
+        }
 
-              <div class="bot-card-actions">
-                ${isPending 
-                  ? `<button class="btn-mini btn-mini-start" onclick="approveBot('${bot.phone}')" style="background: rgba(0, 230, 118, 0.2); border-color: #00e676; color: #00e676;">✅ Approve</button>`
-                  : (isRunning 
-                    ? `<button class="btn-mini btn-mini-stop" onclick="botAction('${bot.phone}', 'stop')">■ Stop</button>`
-                    : `<button class="btn-mini btn-mini-start" onclick="botAction('${bot.phone}', 'start')">▶ Start</button>`)
-                }
-                ${!isPending ? `<button class="btn-mini btn-mini-restart" onclick="botAction('${bot.phone}', 'restart')">🔄 Restart</button>` : ''}
-                <button class="btn-mini btn-mini-log" onclick="openLogsModal('${bot.phone}')">📋 Logs</button>
-                ${bot.sessionId ? `<button class="btn-mini" style="background:rgba(0,210,255,0.15); border:1px solid rgba(0,210,255,0.4); color:#00d2ff;" title="Copy Recovery Session ID" onclick="copySessionString('${bot.sessionId}')">🔑 Session</button>` : ''}
-                <button class="btn-mini btn-mini-del" title="Delete & Unlink" onclick="deleteBotConfirm('${bot.phone}')">🗑️</button>
-              </div>
-            </div>
-          `;
-        }).join('');
+        // Render Pending Bots
+        if (pendingBots.length === 0) {
+          approvalsGrid.innerHTML = `<p style="color:var(--muted); font-size:0.9rem; padding: 20px;">No pending approvals.</p>`;
+        } else {
+          approvalsGrid.innerHTML = pendingBots.map(bot => renderBotCard(bot, true)).join('');
+        }
 
       } catch (err) {
         console.error('Error fetching bots:', err);
       }
+    }
+
+    function renderBotCard(bot, isPending) {
+      const isRunning = bot.status === 'running';
+      const isError = bot.status === 'error';
+      
+      let badgeClass = isRunning ? 'badge-running' : (isError ? 'badge-error' : 'badge-stopped');
+      let dotClass = isRunning ? 'bot-dot-running' : (isError ? 'bot-dot-error' : 'bot-dot-stopped');
+      let statusLabel = isRunning ? 'Online' : (isError ? 'Error' : 'Stopped');
+      
+      if (isPending) {
+        badgeClass = 'badge-pairing'; // Reuse pairing style (orange)
+        dotClass = 'bot-dot-stopped';
+        statusLabel = 'Pending Approval';
+      }
+      
+      const uptimeText = isRunning ? `Uptime: ${formatUptime(bot.uptime)}` : 'Offline';
+
+      return `
+        <div class="bot-card" id="card-${bot.phone}">
+          <div class="bot-card-top">
+            <div class="bot-card-user">
+              <div class="bot-card-avatar">🤖</div>
+              <div>
+                <div class="bot-card-phone">${bot.name ? bot.name : '+' + bot.phone}</div>
+                <div class="bot-card-sub">${bot.name ? '+' + bot.phone + ' • ' : ''}Skybee Bot</div>
+              </div>
+            </div>
+            <div class="bot-status-badge ${badgeClass}">
+              <span class="bot-status-dot ${dotClass}"></span>
+              <span>${statusLabel}</span>
+            </div>
+          </div>
+
+          <div class="bot-card-meta">
+            <span>⏱️ ${uptimeText}</span>
+            <span>📋 ${bot.logCount || 0} events</span>
+          </div>
+
+          <div class="bot-card-actions">
+            ${isPending 
+              ? `<button class="btn-mini btn-mini-start" onclick="approveBot('${bot.phone}')" style="background: rgba(0, 230, 118, 0.2); border-color: #00e676; color: #00e676; width:100%;">✅ Approve Bot</button>`
+              : (isRunning 
+                ? `<button class="btn-mini btn-mini-stop" onclick="botAction('${bot.phone}', 'stop')">■ Stop</button>`
+                : `<button class="btn-mini btn-mini-start" onclick="botAction('${bot.phone}', 'start')">▶ Start</button>`)
+            }
+            ${!isPending ? `<button class="btn-mini btn-mini-restart" onclick="botAction('${bot.phone}', 'restart')">🔄 Restart</button>` : ''}
+            <button class="btn-mini btn-mini-log" onclick="openLogsModal('${bot.phone}')">📋 Logs</button>
+            ${bot.sessionId ? `<button class="btn-mini" style="background:rgba(0,210,255,0.15); border:1px solid rgba(0,210,255,0.4); color:#00d2ff;" title="Copy Recovery Session ID" onclick="copySessionString('${bot.sessionId}')">🔑 Session</button>` : ''}
+            <button class="btn-mini btn-mini-del" title="Delete & Unlink" onclick="deleteBotConfirm('${bot.phone}')">🗑️</button>
+          </div>
+        </div>
+      `;
     }
 
     // ── Approve Bot ──
