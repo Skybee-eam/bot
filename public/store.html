@@ -1340,6 +1340,7 @@
     let activePhone = '';
     let currentPairCode = '';
     let currentActiveSessionId = '';
+    let loggedInDiscordId = null; // Prevent ReferenceError on pairing/QR requests
     let statusInterval = null;
     let timerInterval = null;
     let secondsLeft = 180;
