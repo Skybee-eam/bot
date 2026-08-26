@@ -109,8 +109,8 @@
     <main class="admin-main">
       <div class="page-wrapper">
         <!-- Header -->
-        <header class="site-header" style="justify-content: space-between;">
-      <button class="hamburger-btn" onclick="toggleSidebar()" style="background:transparent; border:none; color:#fff; font-size:1.5rem; cursor:pointer;">☰</button>
+        <header class="site-header" style="justify-content: flex-end;">
+      <button class="hamburger-btn" id="hamburgerBtn" onclick="toggleSidebar(event)">☰</button>
       <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
         <a href="/store" target="_blank" style="background: linear-gradient(135deg, #00b4d8, #0077b6); border:none; border-radius:8px; color:#fff; padding:6px 14px; font-size:0.82rem; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:6px; box-shadow:0 0 15px rgba(0,180,255,0.3);">
           <span>🛍️</span> <span>Open Client Store ↗</span>
@@ -894,11 +894,26 @@
       });
     }
 
-    function toggleSidebar() {
+    function toggleSidebar(e) {
+      if (e) e.stopPropagation();
       const sidebar = document.querySelector('.admin-sidebar');
       sidebar.classList.toggle('collapsed');
       sidebar.classList.toggle('show');
     }
+
+    // Close sidebar when clicking outside of it (if it's open on mobile, or in general)
+    document.addEventListener('click', (e) => {
+      const sidebar = document.querySelector('.admin-sidebar');
+      const hamburger = document.getElementById('hamburgerBtn');
+      // If sidebar is showing (has 'show' class or isn't collapsed on desktop)
+      if (sidebar && !sidebar.contains(e.target) && e.target !== hamburger) {
+        if (window.innerWidth <= 900 && sidebar.classList.contains('show')) {
+          sidebar.classList.remove('show');
+        } else if (window.innerWidth > 900 && !sidebar.classList.contains('collapsed')) {
+          sidebar.classList.add('collapsed');
+        }
+      }
+    });
 
     function switchAdminTab(tabId) {
       // Hide all tabs
