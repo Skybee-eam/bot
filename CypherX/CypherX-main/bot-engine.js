@@ -878,7 +878,7 @@ function getArg(name) {
   // 7. Handle Anti-Call Protection Event
   Cypher.ev.on('call', async (calls) => {
     try {
-      const antiCallMode = global.db?.settings?.anticall || 'decline';
+      const antiCallMode = global.db?.settings?.anticall ?? 'off';
       if (!antiCallMode || antiCallMode === 'off' || antiCallMode === false) return;
 
       for (const call of calls) {
