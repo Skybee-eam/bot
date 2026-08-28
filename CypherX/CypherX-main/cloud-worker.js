@@ -3,7 +3,9 @@
  * 
  * Runs 24/7 on a dedicated server (Railway, Render Background Worker, VPS, Fly.io, etc.)
  * Listens in REAL-TIME to Firebase Firestore.
- * Automatically starts, monitors, and stops bot instances whenever users pair on Site A (the web pairing site).
+ * Supports both:
+ *   - Instant Auto-Start Mode: Automatically boots bots as soon as users link.
+ *   - Admin Approval Mode: Waits for admin approval on the admin portal before booting bots.
  */
 
 const fs = require('fs');
@@ -23,6 +25,10 @@ if (!fs.existsSync(SESSIONS_ROOT)) {
 
 // Active bot child processes map: phone -> { process, startedAt, restartCount }
 const runningBots = new Map();
+
+// Track approval status and system mode in memory
+let currentSystemMode = 'instant'; // 'instant' | 'approval'
+const botApprovalStatus = new Map(); // phone -> 'approved' | 'pending' | 'rejected'
 
 // ─────────────────────────────────────────────────────────────────
 // 1. FIREBASE INITIALIZATION
@@ -111,10 +117,16 @@ function startBotProcess(phone) {
   const cleanPhone = String(phone).replace(/[^0-9]/g, '');
   if (!cleanPhone) return;
 
+  // Check approval if mode is 'approval'
+  const approval = botApprovalStatus.get(cleanPhone);
+  if (currentSystemMode === 'approval' && approval === 'pending') {
+    console.log(`[CLOUD-WORKER] ⏳ Bot +${cleanPhone} is PENDING ADMIN APPROVAL. Cannot start.`);
+    return;
+  }
+
   if (runningBots.has(cleanPhone)) {
     const existing = runningBots.get(cleanPhone);
     if (existing.process && !existing.process.killed) {
-      console.log(`[CLOUD-WORKER] Bot +${cleanPhone} is already running.`);
       return;
     }
   }
@@ -153,8 +165,11 @@ function startBotProcess(phone) {
     console.log(`[CLOUD-WORKER] Bot +${cleanPhone} exited (code=${code})`);
     runningBots.delete(cleanPhone);
 
-    // Auto-restart if not killed intentionally and code != 0
-    if (code !== 0 && code !== null) {
+    // Auto-restart if not killed intentionally and approved
+    const currentApproval = botApprovalStatus.get(cleanPhone);
+    const isAllowedToRun = currentSystemMode === 'instant' || currentApproval === 'approved';
+
+    if (code !== 0 && code !== null && isAllowedToRun) {
       console.log(`[CLOUD-WORKER] Scheduling restart for +${cleanPhone} in 5s...`);
       setTimeout(() => {
         if (fs.existsSync(path.join(userDir, 'creds.json'))) {
@@ -184,25 +199,87 @@ function stopBotProcess(phone) {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// 4. REAL-TIME FIRESTORE LISTENER
+// 4. REAL-TIME FIRESTORE LISTENERS
 // ─────────────────────────────────────────────────────────────────
 function listenToFirestoreChanges() {
   if (!db) return;
 
-  console.log(`[CLOUD-WORKER] 📡 Listening to Firestore 'sessions' collection for real-time changes...`);
+  console.log(`[CLOUD-WORKER] 📡 Listening to Firestore for real-time mode & session changes...`);
 
-  // Listen to sessions collection
+  // 1. Listen for global System Mode changes ('instant' vs 'approval')
+  db.collection('system_settings').doc('config').onSnapshot((doc) => {
+    if (doc.exists) {
+      const data = doc.data();
+      if (data.pairingMode) {
+        currentSystemMode = data.pairingMode;
+        console.log(`\n========================================================`);
+        console.log(`⚙️ [SYSTEM MODE CHANGE] System Mode: ${currentSystemMode.toUpperCase()}`);
+        console.log(`========================================================\n`);
+
+        if (currentSystemMode === 'instant') {
+          // If switched to instant, boot up any pending bots that have sessions
+          for (const [phone, status] of botApprovalStatus.entries()) {
+            if (!runningBots.has(phone)) {
+              startBotProcess(phone);
+            }
+          }
+        }
+      }
+    }
+  }, (err) => {
+    console.warn(`[CLOUD-WORKER] system_settings listener note:`, err.message);
+  });
+
+  // 2. Listen to bots collection for approvalStatus changes
+  db.collection('bots').onSnapshot((snapshot) => {
+    snapshot.docChanges().forEach((change) => {
+      const data = change.doc.data();
+      const phone = data.phone || change.doc.id;
+      const status = data.approvalStatus || 'approved';
+      const prevStatus = botApprovalStatus.get(phone);
+      botApprovalStatus.set(phone, status);
+
+      if (change.type === 'added' || change.type === 'modified') {
+        if (status === 'approved') {
+          if (!runningBots.has(phone)) {
+            console.log(`[CLOUD-WORKER] ✅ Bot +${phone} is APPROVED. Starting bot...`);
+            startBotProcess(phone);
+          }
+        } else if (status === 'pending' || status === 'rejected') {
+          if (currentSystemMode === 'approval' && runningBots.has(phone)) {
+            console.log(`[CLOUD-WORKER] ⏹️ Bot +${phone} status is '${status}'. Halting process.`);
+            stopBotProcess(phone);
+          }
+        }
+      }
+    });
+  }, (err) => {
+    console.warn(`[CLOUD-WORKER] bots collection listener note:`, err.message);
+  });
+
+  // 3. Listen to sessions collection for session credentials
   db.collection('sessions').onSnapshot((snapshot) => {
     snapshot.docChanges().forEach((change) => {
       const data = change.doc.data();
       const phone = data.phone || change.doc.id;
 
       if (change.type === 'added' || change.type === 'modified') {
-        console.log(`[CLOUD-WORKER] 📥 Detected session sync for +${phone}`);
+        console.log(`[CLOUD-WORKER] 📥 Session sync detected for +${phone}`);
         if (data.authFiles && Object.keys(data.authFiles).length > 0) {
           const written = writeSessionFiles(phone, data.authFiles);
-          console.log(`[CLOUD-WORKER] Written ${written} auth files for +${phone}`);
-          startBotProcess(phone);
+          console.log(`[CLOUD-WORKER] Restored ${written} auth files for +${phone}`);
+          
+          if (data.approvalStatus) {
+            botApprovalStatus.set(phone, data.approvalStatus);
+          }
+          
+          const approval = botApprovalStatus.get(phone) || data.approvalStatus || (currentSystemMode === 'approval' ? 'pending' : 'approved');
+          
+          if (currentSystemMode === 'instant' || approval === 'approved') {
+            startBotProcess(phone);
+          } else {
+            console.log(`[CLOUD-WORKER] ⏳ Bot +${phone} saved. Waiting for Admin Approval (Mode: APPROVAL).`);
+          }
         }
       }
 
@@ -218,7 +295,7 @@ function listenToFirestoreChanges() {
       }
     });
   }, (err) => {
-    console.error(`[CLOUD-WORKER] Firestore listener error:`, err.message);
+    console.error(`[CLOUD-WORKER] Firestore sessions listener error:`, err.message);
   });
 }
 
@@ -231,6 +308,7 @@ const server = http.createServer((req, res) => {
     return res.end(JSON.stringify({
       status: 'online',
       service: 'CypherX Cloud Bot Worker',
+      mode: currentSystemMode,
       activeBots: runningBots.size,
       botList: Array.from(runningBots.keys()),
       uptime: process.uptime(),

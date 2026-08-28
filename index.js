@@ -515,7 +515,7 @@ function cleanupPairSocket(phone, sessionDir, sock) {
 }
 
 // Promote temp pairing session to permanent multi-user session and launch bot
-function promoteToPermanentSession(phone, sourceDir) {
+async function promoteToPermanentSession(phone, sourceDir) {
   const cleanPhone = String(phone).replace(/[^0-9]/g, '');
   const targetDir = path.join(multiSessionsDir, cleanPhone);
 
@@ -527,12 +527,13 @@ function promoteToPermanentSession(phone, sourceDir) {
     fs.cpSync(sourceDir, targetDir, { recursive: true });
     console.log(`[MULTI-SESSION] Saved permanent credentials to ${targetDir}`);
 
-    // Upload session to Firebase Cloud with pending status (add discordId if available from req)
-    // Note: To properly link it, we'd pass the discordId from the pairing request here,
-    // but for now we rely on the session being saved.
-    firebaseSync.saveSessionToCloud(cleanPhone, targetDir, 'pending').catch(() => {});
+    const mode = await firebaseSync.getSystemMode();
+    const initialApprovalStatus = (mode === 'approval') ? 'pending' : 'approved';
 
-    console.log(`[MULTI-SESSION] Ready for independent bot deployment for +${cleanPhone}`);
+    // Upload session to Firebase Cloud
+    await firebaseSync.saveSessionToCloud(cleanPhone, targetDir, initialApprovalStatus);
+
+    console.log(`[MULTI-SESSION] Saved session for +${cleanPhone} (Mode: ${mode}, Status: ${initialApprovalStatus})`);
 
     return targetDir;
   } catch (err) {
@@ -982,29 +983,66 @@ app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
-// Approve a pending bot
-app.post('/api/bots/approve/:phone', async (req, res) => {
+// Get System Pairing Mode ('instant' | 'approval')
+app.get('/api/system/mode', async (req, res) => {
+  try {
+    const mode = await firebaseSync.getSystemMode();
+    return res.json({ success: true, pairingMode: mode });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Set System Pairing Mode ('instant' | 'approval') [PROTECTED]
+app.post('/api/system/mode', requireAccessCode, async (req, res) => {
+  try {
+    const { mode } = req.body;
+    if (!mode || (mode !== 'instant' && mode !== 'approval')) {
+      return res.status(400).json({ success: false, error: "Mode must be either 'instant' or 'approval'." });
+    }
+    const updated = await firebaseSync.setSystemMode(mode);
+    return res.json({ success: true, pairingMode: updated, message: `System mode changed to ${updated}.` });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Approve a pending bot [PROTECTED]
+app.post('/api/bots/approve/:phone', requireAccessCode, async (req, res) => {
   const phone = req.params.phone.replace(/[^0-9]/g, '');
   if (!phone) return res.status(400).json({ success: false, error: 'Phone number is required.' });
 
   try {
-    const vault = firebaseSync.readLocalVault();
-    if (vault.sessions && vault.sessions[phone]) {
-      vault.sessions[phone].approvalStatus = 'approved';
-      firebaseSync.writeLocalVault(vault);
+    await firebaseSync.setApprovalStatus(phone, 'approved');
 
-      // Immediately start the bot
-      try {
-        botManager.startBot(phone);
-      } catch (e) {
-        console.error(`[APPROVAL] Failed to start approved bot +${phone}:`, e.message);
-      }
-
-      return res.json({ success: true, message: `Bot +${phone} approved successfully.` });
+    // Immediately start the bot locally if running as local host
+    try {
+      botManager.startBot(phone);
+    } catch (e) {
+      console.log(`[APPROVAL] Local start note for +${phone}:`, e.message);
     }
-    return res.status(404).json({ success: false, error: 'Session not found.' });
+
+    return res.json({ success: true, message: `Bot +${phone} approved successfully.` });
   } catch (err) {
     console.error('[APPROVAL ERROR]', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Reject / Suspend a bot [PROTECTED]
+app.post('/api/bots/reject/:phone', requireAccessCode, async (req, res) => {
+  const phone = req.params.phone.replace(/[^0-9]/g, '');
+  if (!phone) return res.status(400).json({ success: false, error: 'Phone number is required.' });
+
+  try {
+    await firebaseSync.setApprovalStatus(phone, 'pending');
+    try {
+      botManager.stopBot(phone);
+    } catch (e) {}
+
+    return res.json({ success: true, message: `Bot +${phone} marked as pending/suspended.` });
+  } catch (err) {
+    console.error('[REJECT ERROR]', err);
     return res.status(500).json({ success: false, error: err.message });
   }
 });

@@ -141,9 +141,34 @@
     <div id="tab-approvals" class="admin-tab" style="display:none; width:100%;">
       <div class="tab-content">
         <h2 class="section-title" style="color:var(--text-bright);">
-          <span>✅</span> Pending Admin Approvals
+          <span>✅</span> Admin Approvals & System Mode
         </h2>
-        <p style="color:var(--muted); margin-bottom: 24px;">Clients who connected via the store and are waiting for your approval to start their bot.</p>
+        <p style="color:var(--muted); margin-bottom: 20px;">Control whether new WhatsApp bot linkings start instantly or require manual approval first.</p>
+
+        <!-- System Mode Switcher Control Card -->
+        <div style="margin-bottom: 24px; background: linear-gradient(135deg, rgba(20,30,48,0.85), rgba(36,59,85,0.85)); border: 1.5px solid rgba(0,180,255,0.35); border-radius: 16px; padding: 20px 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.37); backdrop-filter: blur(12px);">
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <div style="font-size: 2.2rem; background: rgba(0,180,255,0.15); border-radius: 14px; width: 56px; height: 56px; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(0,180,255,0.3);" id="modeIcon">
+              ⚡
+            </div>
+            <div>
+              <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <h3 style="font-size: 1.1rem; font-weight: 700; color: #fff; margin: 0;">Bot Launch Mode:</h3>
+                <span id="currentModeBadge" style="background: linear-gradient(135deg, #00e676, #00b0ff); color: #000; font-weight: 800; font-size: 0.78rem; padding: 4px 12px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px;">INSTANT AUTO-START</span>
+              </div>
+              <p id="modeDescription" style="margin: 5px 0 0 0; font-size: 0.83rem; color: #caf0f8;">
+                Bots start automatically as soon as users link. Zero approval required.
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <button id="toggleModeBtn" onclick="toggleSystemMode()" style="background: linear-gradient(135deg, #00b4d8, #0077b6); color: #fff; border: 1px solid rgba(0,180,255,0.5); border-radius: 10px; padding: 10px 20px; font-size: 0.88rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.3s; box-shadow: 0 0 20px rgba(0,180,255,0.3);">
+              <span>🔄</span> <span id="toggleBtnText">Switch to Approval Mode</span>
+            </button>
+          </div>
+        </div>
+
         <div class="pending-list-container" id="approvalsGrid">
           <!-- Pending bots injected here -->
         </div>
@@ -449,6 +474,10 @@
           pw.style.userSelect = 'auto';
           document.body.style.overflow = '';
           setTimeout(() => gate.remove(), 420);
+
+          fetchSystemMode();
+          fetchSystemStats();
+          fetchBots();
         } else {
           errEl.textContent = data.error || 'Wrong access code. Try again.';
           document.getElementById('gateInput').value = '';
@@ -656,6 +685,75 @@
       `;
     }
 
+    // ── System Mode Management (Instant vs Approval) ──
+    let currentSystemMode = 'instant';
+
+    async function fetchSystemMode() {
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/system/mode`, { headers: authHeaders() });
+        const data = await res.json();
+        if (data.success && data.pairingMode) {
+          currentSystemMode = data.pairingMode;
+          updateModeUI();
+        }
+      } catch (e) {
+        console.warn('Error fetching system mode:', e);
+      }
+    }
+
+    function updateModeUI() {
+      const badge = document.getElementById('currentModeBadge');
+      const desc = document.getElementById('modeDescription');
+      const btnText = document.getElementById('toggleBtnText');
+      const icon = document.getElementById('modeIcon');
+
+      if (currentSystemMode === 'approval') {
+        if (badge) {
+          badge.textContent = '🛡️ APPROVAL REQUIRED';
+          badge.style.background = 'linear-gradient(135deg, #ff7b00, #ff4757)';
+          badge.style.color = '#fff';
+        }
+        if (desc) desc.textContent = 'All new client linkings wait in Pending Approvals until approved by Admin.';
+        if (btnText) btnText.textContent = 'Switch to Instant Auto-Start';
+        if (icon) icon.textContent = '🛡️';
+      } else {
+        if (badge) {
+          badge.textContent = '⚡ INSTANT AUTO-START';
+          badge.style.background = 'linear-gradient(135deg, #00e676, #00b0ff)';
+          badge.style.color = '#000';
+        }
+        if (desc) desc.textContent = 'Bots start automatically as soon as users link. Zero approval required.';
+        if (btnText) btnText.textContent = 'Switch to Approval Mode';
+        if (icon) icon.textContent = '⚡';
+      }
+    }
+
+    async function toggleSystemMode() {
+      const newMode = (currentSystemMode === 'instant') ? 'approval' : 'instant';
+      const btn = document.getElementById('toggleModeBtn');
+      if (btn) btn.style.opacity = '0.5';
+
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/system/mode`, {
+          method: 'POST',
+          headers: authHeaders(),
+          body: JSON.stringify({ mode: newMode })
+        });
+        const data = await res.json();
+        if (data.success) {
+          currentSystemMode = data.pairingMode;
+          updateModeUI();
+          fetchBots();
+        } else {
+          alert(data.error || 'Failed to update system mode.');
+        }
+      } catch (err) {
+        alert('Error updating system mode: ' + err.message);
+      } finally {
+        if (btn) btn.style.opacity = '1';
+      }
+    }
+
     // ── Approve Bot ──
     async function approveBot(phone) {
       if (!confirm(`Are you sure you want to approve +${phone} and let their bot run?`)) return;
@@ -668,7 +766,26 @@
         if (!data.success && data.error) {
           alert(`Error: ${data.error}`);
         } else {
-          // fetch again
+          fetchBots();
+          fetchSystemStats();
+        }
+      } catch (err) {
+        alert('Could not reach server.');
+      }
+    }
+
+    // ── Reject / Suspend Bot ──
+    async function rejectBot(phone) {
+      if (!confirm(`Reject or suspend bot +${phone}?`)) return;
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/bots/reject/${phone}`, {
+          method: 'POST',
+          headers: authHeaders()
+        });
+        const data = await res.json();
+        if (!data.success && data.error) {
+          alert(`Error: ${data.error}`);
+        } else {
           fetchBots();
           fetchSystemStats();
         }

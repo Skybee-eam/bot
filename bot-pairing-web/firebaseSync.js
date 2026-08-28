@@ -322,24 +322,90 @@ class FirebaseSyncManager {
     return true;
   }
 
-  // Get all bots linked to a specific Discord user
-  async getUserBots(discordId) {
+  // Get system pairing mode ('instant' | 'approval')
+  async getSystemMode() {
+    let mode = 'instant'; // default
+    try {
+      const vault = this.readLocalVault();
+      if (vault.systemSettings?.pairingMode) {
+        mode = vault.systemSettings.pairingMode;
+      }
+    } catch {}
+
     if (this.initialized && this.db) {
       try {
-        const botsSnapshot = await this.db.collection('bots').where('ownerId', '==', discordId).get();
-        const bots = [];
-        botsSnapshot.forEach(doc => {
-          bots.push(doc.data());
-        });
-        return bots;
+        const doc = await this.db.collection('system_settings').doc('config').get();
+        if (doc.exists && doc.data().pairingMode) {
+          mode = doc.data().pairingMode;
+        }
+      } catch {}
+    }
+    return mode;
+  }
+
+  // Set system pairing mode ('instant' | 'approval')
+  async setSystemMode(mode) {
+    const validMode = mode === 'approval' ? 'approval' : 'instant';
+    
+    // Save to local vault
+    try {
+      const vault = this.readLocalVault();
+      if (!vault.systemSettings) vault.systemSettings = {};
+      vault.systemSettings.pairingMode = validMode;
+      this.writeLocalVault(vault);
+    } catch {}
+
+    // Save to Firestore
+    if (this.initialized && this.db) {
+      try {
+        await this.db.collection('system_settings').doc('config').set({
+          pairingMode: validMode,
+          updatedAt: FieldValue.serverTimestamp()
+        }, { merge: true });
+        console.log(`[FIREBASE] Updated system pairing mode to: ${validMode}`);
       } catch (err) {
-        console.error(`[FIREBASE] Error fetching user bots:`, err.message);
-        return [];
+        console.error(`[FIREBASE] Error saving system mode:`, err.message);
       }
     }
-    return [];
+    return validMode;
+  }
+
+  // Set bot approval status in Firestore and local vault
+  async setApprovalStatus(phone, status) {
+    const cleanPhone = String(phone).replace(/[^0-9]/g, '');
+    if (!cleanPhone) return false;
+
+    // Update local vault
+    try {
+      const vault = this.readLocalVault();
+      if (vault.sessions && vault.sessions[cleanPhone]) {
+        vault.sessions[cleanPhone].approvalStatus = status;
+        this.writeLocalVault(vault);
+      }
+    } catch {}
+
+    // Update Firestore
+    if (this.initialized && this.db) {
+      try {
+        await this.db.collection('bots').doc(cleanPhone).set({
+          approvalStatus: status,
+          lastSync: FieldValue.serverTimestamp()
+        }, { merge: true });
+
+        await this.db.collection('sessions').doc(cleanPhone).set({
+          approvalStatus: status,
+          updatedAt: FieldValue.serverTimestamp()
+        }, { merge: true });
+        console.log(`[FIREBASE] Updated +${cleanPhone} approvalStatus to: ${status}`);
+        return true;
+      } catch (err) {
+        console.error(`[FIREBASE] Error updating approvalStatus:`, err.message);
+      }
+    }
+    return true;
   }
 }
 
 const firebaseSync = new FirebaseSyncManager();
 export default firebaseSync;
+
