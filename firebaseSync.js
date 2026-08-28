@@ -158,12 +158,14 @@ class FirebaseSyncManager {
             authFiles: sessionData
           }, { merge: true });
 
+          const serverHost = process.env.SERVER_NODE_NAME || (process.env.RENDER ? 'Render Cloud' : 'Cloud Worker');
           const botDocRef = this.db.collection('bots').doc(cleanPhone);
           const botData = {
             phone: cleanPhone,
             name: userName,
             status: 'active',
             approvalStatus: finalApprovalStatus,
+            assignedServer: existingSession?.assignedServer || serverHost,
             serverUrl: existingSession?.serverUrl || process.env.RENDER_EXTERNAL_URL || process.env.APP_URL || 'https://bot-z47t.onrender.com',
             lastSync: FieldValue.serverTimestamp()
           };
