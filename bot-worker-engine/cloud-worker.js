@@ -161,9 +161,26 @@ function startBotProcess(phone) {
     }
   });
 
-  botProcess.on('exit', (code) => {
+  botProcess.on('exit', async (code) => {
     console.log(`[CLOUD-WORKER] Bot +${cleanPhone} exited (code=${code})`);
     runningBots.delete(cleanPhone);
+
+    if (code === 88) {
+      console.log(`[CLOUD-WORKER] 🗑️ +${cleanPhone} was logged out on WhatsApp. Auto-deleting dead session from disk & Cloud Firestore...`);
+      try {
+        if (fs.existsSync(userDir)) {
+          fs.rmSync(userDir, { recursive: true, force: true });
+        }
+        if (db) {
+          await db.collection('sessions').doc(cleanPhone).delete();
+          await db.collection('bots').doc(cleanPhone).delete();
+        }
+        botApprovalStatus.delete(cleanPhone);
+      } catch (err) {
+        console.warn('[CLOUD-WORKER Purge Note]:', err.message);
+      }
+      return;
+    }
 
     // Auto-restart if not killed intentionally and approved
     const currentApproval = botApprovalStatus.get(cleanPhone);

@@ -348,7 +348,14 @@ class MultiBotManager {
         } else if (code === 88) {
           bot.status = 'logged_out';
           this.manualStops.add(cleanPhone);
-          this.appendLog(cleanPhone, `❌ Session was logged out/revoked on WhatsApp. Please re-pair +${cleanPhone} from the Store or Pairing Portal.`);
+          this.appendLog(cleanPhone, `❌ Session logged out on WhatsApp. Auto-purged instance from database & Cloud Firestore.`);
+          try {
+            if (fs.existsSync(sessionDir)) {
+              fs.rmSync(sessionDir, { recursive: true, force: true });
+            }
+            firebaseSync.deleteSessionFromCloud(cleanPhone).catch(() => {});
+            this.bots.delete(cleanPhone);
+          } catch (delErr) {}
         } else {
           bot.status = 'reconnecting';
           this.appendLog(cleanPhone, `Bot process disconnected (code=${code}). Supervisor auto-restarting in 5s...`);

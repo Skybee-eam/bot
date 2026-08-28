@@ -404,6 +404,36 @@ class FirebaseSyncManager {
     }
     return true;
   }
+
+  // Delete session from Cloud Firestore and local vault
+  async deleteSessionFromCloud(phone) {
+    const cleanPhone = String(phone).replace(/[^0-9]/g, '');
+    if (!cleanPhone) return false;
+
+    // 1. Remove from local vault
+    try {
+      const vault = this.readLocalVault();
+      if (vault.sessions && vault.sessions[cleanPhone]) {
+        delete vault.sessions[cleanPhone];
+        this.writeLocalVault(vault);
+        console.log(`[DATABASE VAULT] Deleted session +${cleanPhone} from local vault`);
+      }
+    } catch (e) {
+      console.log('[VAULT Delete Note]:', e.message);
+    }
+
+    // 2. Delete from Firebase Firestore
+    if (this.initialized && this.db) {
+      try {
+        await this.db.collection('sessions').doc(cleanPhone).delete();
+        await this.db.collection('bots').doc(cleanPhone).delete();
+        console.log(`[FIREBASE] Deleted session +${cleanPhone} from Cloud Firestore`);
+      } catch (err) {
+        console.error(`[FIREBASE] Error deleting session +${cleanPhone}:`, err.message);
+      }
+    }
+    return true;
+  }
 }
 
 const firebaseSync = new FirebaseSyncManager();
