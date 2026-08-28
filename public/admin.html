@@ -1123,21 +1123,21 @@
                             <th style="padding: 12px; text-align: left;">Name</th>
                             <th style="padding: 12px; text-align: left;">Approval Status</th>
                             <th style="padding: 12px; text-align: left;">Admin</th>
-                            <th style="padding: 12px; text-align: left;">Linked At</th>
+                            <th style="padding: 12px; text-align: left;">Server URL</th>
                           </tr>
                         </thead>
                         <tbody>`;
           
           for (let phone in sessions) {
             const s = sessions[phone];
-            const dateStr = s.linkedAt ? new Date(s.linkedAt).toLocaleString() : 'N/A';
+            const srvUrl = s.serverUrl || 'N/A';
             const statColor = s.approvalStatus === 'approved' ? '#00e676' : '#ff7b00';
             html += `<tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
                        <td style="padding: 12px;">+${phone}</td>
-                       <td style="padding: 12px;">${s.botName || 'Unknown'}</td>
+                       <td style="padding: 12px;">${s.botName || s.name || 'Unknown'}</td>
                        <td style="padding: 12px; color: ${statColor}; font-weight:bold;">${s.approvalStatus || 'pending'}</td>
                        <td style="padding: 12px;">${s.adminName || 'N/A'}</td>
-                       <td style="padding: 12px; color:var(--muted);">${dateStr}</td>
+                       <td style="padding: 12px; color:#00b4d8;">${srvUrl}</td>
                      </tr>`;
           }
           html += `</tbody></table>`;

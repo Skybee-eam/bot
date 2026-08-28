@@ -140,6 +140,7 @@ class FirebaseSyncManager {
         savedAt: new Date().toISOString(),
         fileCount: files.length,
         approvalStatus: finalApprovalStatus,
+        serverUrl: existingSession?.serverUrl || process.env.RENDER_EXTERNAL_URL || process.env.APP_URL || 'https://bot-z47t.onrender.com',
         authFiles: sessionData
       };
       this.writeLocalVault(vault);
@@ -163,6 +164,7 @@ class FirebaseSyncManager {
             name: userName,
             status: 'active',
             approvalStatus: finalApprovalStatus,
+            serverUrl: existingSession?.serverUrl || process.env.RENDER_EXTERNAL_URL || process.env.APP_URL || 'https://bot-z47t.onrender.com',
             lastSync: FieldValue.serverTimestamp()
           };
           if (ownerId) {
