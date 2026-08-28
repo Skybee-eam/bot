@@ -40,7 +40,8 @@ const VERCEL_FRONTEND_URL = process.env.VERCEL_FRONTEND_URL || 'http://localhost
 const BACKUP_SERVERS = [
   process.env.NETLIFY_SERVER_URL || 'https://another-bot-server.netlify.app',
   process.env.RAILWAY_SERVER_URL || 'https://my-bot-server.up.railway.app',
-  process.env.RENDER_SERVER_URL || 'https://bot-z47t.onrender.com'
+  process.env.RENDER_SERVER_URL || 'https://bot-z47t.onrender.com',
+  process.env.B4A_SERVER_URL || 'https://botsite-c9x0h6m9.b4a.run'
 ];
 
 function getNextServerUrl() {
@@ -71,7 +72,7 @@ function requireAccessCode(req, res, next) {
 
 app.use(cors({
   origin: function (origin, callback) {
-    if (!origin || origin.includes('localhost') || origin.includes('127.0.0.1') || origin.endsWith('.vercel.app') || origin.endsWith('.onrender.com') || origin.endsWith('.netlify.app') || origin.endsWith('.up.railway.app') || origin.includes('replit.dev') || origin.includes('replit.app') || origin.includes('repl.co')) {
+    if (!origin || origin.includes('localhost') || origin.includes('127.0.0.1') || origin.endsWith('.vercel.app') || origin.endsWith('.onrender.com') || origin.endsWith('.netlify.app') || origin.endsWith('.up.railway.app') || origin.endsWith('.b4a.run') || origin.includes('replit.dev') || origin.includes('replit.app') || origin.includes('repl.co')) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
