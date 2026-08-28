@@ -237,22 +237,17 @@ async function serializeMessage(Cypher, m) {
               (global.ownerNumber && global.ownerNumber.includes(m.sender.split('@')[0]));
 
   m.reply = async (text, options = {}) => {
-    // 1. Try quoted reply first
     try {
+      const isLid = (m.sender && m.sender.includes('@lid')) || (m.quoted?.sender && m.quoted.sender.includes('@lid'));
+      if (m.isGroup && isLid) {
+        return await Cypher.sendMessage(m.chat, { text: String(text), ...options });
+      }
       return await Cypher.sendMessage(m.chat, { text: String(text), ...options }, { quoted: m });
     } catch (err) {
-      // 2. If quoted reply fails (e.g. No sessions for participant or LID), retry direct after 200ms
       try {
-        await new Promise(r => setTimeout(r, 200));
         return await Cypher.sendMessage(m.chat, { text: String(text), ...options });
       } catch (err2) {
-        // 3. Final fallback retry with slight backoff
-        try {
-          await new Promise(r => setTimeout(r, 500));
-          return await Cypher.sendMessage(m.chat, { text: String(text), ...options });
-        } catch (err3) {
-          console.error(`[REPLY] Send failed in ${m.chat}:`, err3.message);
-        }
+        console.error(`[REPLY] Send failed in ${m.chat}:`, err2.message);
       }
     }
   };
@@ -355,6 +350,29 @@ function getArg(name) {
   // Attach helper methods to socket
   Cypher.downloadMediaMessage = downloadMediaMessage;
   Cypher.downloadAndSaveMediaMessage = downloadAndSaveMediaMessage;
+
+  // Resilient sendMessage wrapper (auto-recovers from LID Signal session missing errors)
+  const rawSendMessage = Cypher.sendMessage.bind(Cypher);
+  Cypher.sendMessage = async (jid, content, options = {}) => {
+    try {
+      return await rawSendMessage(jid, content, options);
+    } catch (sendErr) {
+      const msg = sendErr ? (sendErr.message || String(sendErr)) : '';
+      if (msg.includes('No sessions') || msg.includes('SessionEntry') || msg.includes('lid') || options.quoted) {
+        try {
+          const fallbackOptions = { ...options };
+          delete fallbackOptions.quoted;
+          return await rawSendMessage(jid, content, fallbackOptions);
+        } catch (retryErr) {
+          if (content && content.text) {
+            return await rawSendMessage(jid, { text: content.text });
+          }
+          throw retryErr;
+        }
+      }
+      throw sendErr;
+    }
+  };
 
   // sendFile compatibility helper
   Cypher.sendFile = async (jid, pathOrBuffer, filename = '', caption = '', quoted = null, ptt = false, options = {}) => {
