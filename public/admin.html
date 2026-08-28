@@ -522,25 +522,25 @@
       bots.forEach(bot => {
         const tr = document.createElement('tr');
         
-        let statusBadge = \`<span class="status-badge status-\${bot.status}">\${bot.status}</span>\`;
+        let statusBadge = `<span class="status-badge status-${bot.status}">${bot.status}</span>`;
         if (bot.status === 'stopped' && bot.approvalStatus === 'pending') {
-            statusBadge = \`<span class="status-badge status-pending">Pending Approval</span>\`;
+            statusBadge = `<span class="status-badge status-pending">Pending Approval</span>`;
         }
 
         let actionHtml = '';
         
         if (bot.approvalStatus === 'pending') {
-           actionHtml += \`<button class="action-btn success" onclick="actionBot('\${bot.phone}', 'approve')">Approve</button>\`;
+           actionHtml += `<button class="action-btn success" onclick="actionBot('${bot.phone}', 'approve')">Approve</button>`;
         } else {
            if (bot.status === 'running') {
-             actionHtml += \`<button class="action-btn warning" onclick="actionBot('\${bot.phone}', 'stop')">Stop</button>\`;
-             actionHtml += \`<button class="action-btn" onclick="actionBot('\${bot.phone}', 'restart')">Restart</button>\`;
+             actionHtml += `<button class="action-btn warning" onclick="actionBot('${bot.phone}', 'stop')">Stop</button>`;
+             actionHtml += `<button class="action-btn" onclick="actionBot('${bot.phone}', 'restart')">Restart</button>`;
            } else {
-             actionHtml += \`<button class="action-btn success" onclick="actionBot('\${bot.phone}', 'start')">Start</button>\`;
+             actionHtml += `<button class="action-btn success" onclick="actionBot('${bot.phone}', 'start')">Start</button>`;
            }
         }
-        actionHtml += \`<button class="action-btn" style="background: rgba(255,255,255,0.1); margin-left: 8px;" onclick="viewLogs('\${bot.phone}')">Logs</button>\`;
-        actionHtml += \`<button class="action-btn danger" style="margin-left: 8px;" onclick="deleteBot('\${bot.phone}')">Delete</button>\`;
+        actionHtml += `<button class="action-btn" style="background: rgba(255,255,255,0.1); margin-left: 8px;" onclick="viewLogs('${bot.phone}')">Logs</button>`;
+        actionHtml += `<button class="action-btn danger" style="margin-left: 8px;" onclick="deleteBot('${bot.phone}')">Delete</button>`;
 
         let utStr = '-';
         if (bot.uptime > 0) {
@@ -550,23 +550,23 @@
             utStr += Math.floor((ut%3600)/60) + 'm';
         }
 
-        tr.innerHTML = \`
-          <td style="font-family: monospace">+\${bot.phone}</td>
-          <td>\${bot.name || 'Unknown'}</td>
-          <td>\${statusBadge}</td>
-          <td>\${utStr}</td>
-          <td><div class="action-group">\${actionHtml}</div></td>
-        \`;
+        tr.innerHTML = `
+          <td style="font-family: monospace">+${bot.phone}</td>
+          <td>${bot.name || 'Unknown'}</td>
+          <td>${statusBadge}</td>
+          <td>${utStr}</td>
+          <td><div class="action-group">${actionHtml}</div></td>
+        `;
         tbody.appendChild(tr);
       });
     }
 
     async function actionBot(phone, action) {
       try {
-        showToast(\`\${action}ing bot +\${phone}...\`);
+        showToast(`${action}ing bot +${phone}...`);
         
-        let endpoint = \`/api/bots/\${phone}/\${action}\`;
-        if (action === 'approve') endpoint = \`/api/bots/approve/\${phone}\`;
+        let endpoint = `/api/bots/${phone}/${action}`;
+        if (action === 'approve') endpoint = `/api/bots/approve/${phone}`;
 
         const res = await fetch(endpoint, {
           method: 'POST',
@@ -581,16 +581,16 @@
           showToast(data.error, true);
         }
       } catch (e) {
-        showToast(\`Failed to \${action} bot.\`, true);
+        showToast(`Failed to ${action} bot.`, true);
       }
     }
 
     async function deleteBot(phone) {
-      if (!confirm(\`Are you absolutely sure you want to permanently delete the session for +\${phone}?\`)) return;
+      if (!confirm(`Are you absolutely sure you want to permanently delete the session for +${phone}?`)) return;
       
       try {
-        showToast(\`Deleting bot +\${phone}...\`);
-        const res = await fetch(\`/api/bots/\${phone}\`, {
+        showToast(`Deleting bot +${phone}...`);
+        const res = await fetch(`/api/bots/${phone}`, {
           method: 'DELETE',
           headers: { 'X-Access-Code': currentAccessCode }
         });
@@ -603,7 +603,7 @@
           showToast(data.error, true);
         }
       } catch (e) {
-        showToast(\`Failed to delete bot.\`, true);
+        showToast(`Failed to delete bot.`, true);
       }
     }
 
@@ -614,13 +614,13 @@
     }
 
     async function viewLogs(phone) {
-      document.getElementById('logs-title').textContent = \`Console Logs: +\${phone}\`;
+      document.getElementById('logs-title').textContent = `Console Logs: +${phone}`;
       document.getElementById('logs-modal').classList.add('active');
       document.getElementById('logs-content').textContent = 'Loading logs...';
       
       const fetchLogs = async () => {
         try {
-          const res = await fetch(\`/api/bots/\${phone}/logs\`, {
+          const res = await fetch(`/api/bots/${phone}/logs`, {
             headers: { 'X-Access-Code': currentAccessCode }
           });
           if (res.ok) {
