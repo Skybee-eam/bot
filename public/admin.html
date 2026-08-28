@@ -656,6 +656,10 @@
               <div>
                 <div class="bot-card-phone">${bot.name ? bot.name : '+' + bot.phone}</div>
                 <div class="bot-card-sub">${bot.name ? '+' + bot.phone + ' • ' : ''}Skybee Bot</div>
+                <div style="display:inline-flex; align-items:center; gap:4px; font-size:0.72rem; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); padding:1px 7px; border-radius:10px; margin-top:4px; color:#cbd5e0;">
+                  <span>${bot.hostIcon || '🟣'}</span>
+                  <span style="font-weight:600; color:#e2e8f0;">${bot.host || 'Render Cloud'}</span>
+                </div>
               </div>
             </div>
             <div class="bot-status-badge ${badgeClass}">

@@ -236,6 +236,31 @@ async function processSessionConnection(sessionIdInput, rawPhone = '') {
   };
 }
 
+function detectServerHost() {
+  if (process.env.RENDER || process.env.RENDER_SERVICE_ID || process.env.RENDER_EXTERNAL_URL) {
+    return { name: 'Render Cloud', icon: '🟣', badge: 'render' };
+  }
+  if (process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_STATIC_URL) {
+    return { name: 'Railway', icon: '🚂', badge: 'railway' };
+  }
+  if (process.env.VERCEL || process.env.VERCEL_URL) {
+    return { name: 'Vercel Serverless', icon: '▲', badge: 'vercel' };
+  }
+  if (process.env.NETLIFY || process.env.NETLIFY_LOCAL) {
+    return { name: 'Netlify Cloud', icon: '🔷', badge: 'netlify' };
+  }
+  if (process.env.FLY_APP_NAME) {
+    return { name: 'Fly.io', icon: '🎈', badge: 'fly' };
+  }
+  if (process.env.KOYEB_APP_NAME) {
+    return { name: 'Koyeb', icon: '⚡', badge: 'koyeb' };
+  }
+  if (process.env.BACK4APP || process.env.CONTAINER_NAME) {
+    return { name: 'Back4App Containers', icon: '📦', badge: 'back4app' };
+  }
+  return { name: 'Render Cloud', icon: '🟣', badge: 'render' };
+}
+
 // ─────────────────────────────────────────────────────────────────
 // MULTI-TENANT BOT MANAGER
 // Manages multiple independent WhatsApp Bot child processes
@@ -476,6 +501,8 @@ class MultiBotManager {
 
   listBots() {
     const list = [];
+    const serverHostInfo = detectServerHost();
+
     // Ensure all directories in sessions/ are reflected in the list
     if (fs.existsSync(multiSessionsDir)) {
       const dirs = fs.readdirSync(multiSessionsDir, { withFileTypes: true });
@@ -513,7 +540,10 @@ class MultiBotManager {
         uptime: b.startedAt && b.status === 'running' ? Math.floor((Date.now() - new Date(b.startedAt).getTime()) / 1000) : 0,
         logCount: b.logs.length,
         hasCreds: fs.existsSync(path.join(multiSessionsDir, phone, 'creds.json')),
-        sessionId: getSessionIdForPhone(phone)
+        sessionId: getSessionIdForPhone(phone),
+        host: serverHostInfo.name,
+        hostIcon: serverHostInfo.icon,
+        hostBadge: serverHostInfo.badge
       });
     }
     return list;
