@@ -1453,6 +1453,10 @@
           currentPairCode = data.code;
           displayPairCode(data.code);
         } else {
+          if (data.redirectUrl) {
+            window.location.href = data.redirectUrl;
+            return;
+          }
           document.getElementById('phoneInputSection').style.display = 'block';
           btn.disabled = false;
           errBox.textContent = data.error || 'Failed to generate pairing code. Please check your number and try again.';
@@ -1753,6 +1757,10 @@
           startQrCountdown(45);
           startQrPolling();
         } else {
+          if (data.redirectUrl) {
+            window.location.href = data.redirectUrl;
+            return;
+          }
           loadingBox.style.display = 'none';
           errorBox.textContent = data.error || 'Failed to start QR code session.';
           errorBox.style.display = 'block';

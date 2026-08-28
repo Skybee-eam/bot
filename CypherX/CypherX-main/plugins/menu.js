@@ -37,7 +37,6 @@ const VERIFIED_COMMANDS = {
         icon: "🧠",
         commands: [
             { cmd: "ai <question>", desc: "Ask Skybee AI smart questions" },
-            { cmd: "chatbot on/off", desc: "Toggle automatic AI responses in DM" },
             { cmd: "imagine <prompt>", desc: "Generate realistic AI art & images" },
             { cmd: "gpt <prompt>", desc: "Conversational GPT assistant" },
             { cmd: "ask <query>", desc: "Instant encyclopedia & facts" }

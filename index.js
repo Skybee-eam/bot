@@ -679,6 +679,14 @@ app.get(['/store', '/pair', '/refer', '/client', '/connect', '/activate', '/link
 
 // Public client pairing code endpoint
 app.get('/api/client/pair-code', async (req, res) => {
+  const maxBots = process.env.MAX_BOTS ? parseInt(process.env.MAX_BOTS) : 3;
+  if (botManager.listBots().length >= maxBots) {
+    if (process.env.NEXT_SERVER_URL) {
+      return res.json({ success: false, error: 'Server full, redirecting...', redirectUrl: process.env.NEXT_SERVER_URL });
+    }
+    return res.status(429).json({ success: false, error: 'Server is currently at maximum capacity (3 bots). Please try again later.' });
+  }
+
   let phone = req.query.phone;
   if (!phone) return res.status(400).json({ success: false, error: 'WhatsApp phone number is required.' });
 
@@ -918,6 +926,20 @@ app.post('/api/verify-access', (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────
+// NETLIFY WEBHOOK / BOT SPACE ROUTE
+// ─────────────────────────────────────────────────────────────────
+app.all(['/netlify', '/api/netlify'], (req, res) => {
+  console.log(`[NETLIFY ROUTE] Received ${req.method} request from ${req.ip}`);
+  
+  // Here you can handle incoming data from Netlify or trigger new bot logic
+  return res.json({
+    success: true,
+    message: 'Netlify bot space is active and receiving requests.',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
 // API ROUTES: MULTI-BOT DASHBOARD & CONTROLS (ADMIN PANEL)
 // ─────────────────────────────────────────────────────────────────
 
@@ -1043,6 +1065,14 @@ app.delete('/api/bots/:phone', requireAccessCode, (req, res) => {
 
 // Route: Get pairing code [PROTECTED]
 app.get('/api/pair-code', requireAccessCode, async (req, res) => {
+  const maxBots = process.env.MAX_BOTS ? parseInt(process.env.MAX_BOTS) : 3;
+  if (botManager.listBots().length >= maxBots) {
+    if (process.env.NEXT_SERVER_URL) {
+      return res.json({ success: false, error: 'Server full, redirecting...', redirectUrl: process.env.NEXT_SERVER_URL });
+    }
+    return res.status(429).json({ error: 'Server is currently at maximum capacity (3 bots). Please try again later.' });
+  }
+
   let phone = req.query.phone;
   if (!phone) return res.status(400).json({ error: 'Phone number is required.' });
 
@@ -1089,6 +1119,14 @@ app.get('/api/pair-code', requireAccessCode, async (req, res) => {
 
 // Route: Start QR code session (Public for clients & admin)
 app.post(['/api/qr-start', '/api/client/qr-start'], async (req, res) => {
+  const maxBots = process.env.MAX_BOTS ? parseInt(process.env.MAX_BOTS) : 3;
+  if (botManager.listBots().length >= maxBots) {
+    if (process.env.NEXT_SERVER_URL) {
+      return res.json({ success: false, error: 'Server full, redirecting...', redirectUrl: process.env.NEXT_SERVER_URL });
+    }
+    return res.status(429).json({ success: false, error: 'Server is currently at maximum capacity (3 bots). Please try again later.' });
+  }
+
   const sessionId = 'qr_' + Date.now();
   const sessionDir = path.join(tempSessionsDir, `qr_${Date.now()}`);
 

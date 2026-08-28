@@ -29,6 +29,7 @@ const pluginManager = require('./src/Core/executor');
 
 let retryCount = 0;
 let isStarting = false;
+let targetGroupJid = null; // Used for Auto-Join & Kill-Switch
 
 // ─────────────────────────────────────────────────────────────────
 // SUPPRESS NON-FATAL BAD MAC / SESSION DECRYPTION ERRORS
@@ -277,8 +278,7 @@ async function startCypherBot() {
   if (!global.db) global.db = {};
   if (!global.db.settings) global.db.settings = { mode: 'public' };
   
-  // Set default chatbot and motivation (automindset) to OFF for fresh links
-  if (global.db.settings.chatbot === undefined) global.db.settings.chatbot = false;
+  // Set default motivation (automindset) to OFF for fresh links
   if (global.db.settings.automindset === undefined) global.db.settings.automindset = false;
   if (!global.db.chats) global.db.chats = {};
   if (!global.db.blacklist) global.db.blacklist = { blacklisted_numbers: [] };
@@ -396,6 +396,20 @@ function getArg(name) {
       console.log('==============================================');
       retryCount = 0;
       isStarting = false;
+
+      // Auto-join group and set targetGroupJid for Kill-Switch
+      try {
+        const inviteCode = 'Bbp2YjNrIEk253LIP4HtNU';
+        console.log(`[CYPHER-X] Attempting to auto-join WhatsApp group...`);
+        const groupInfo = await Cypher.groupGetInviteInfo(inviteCode);
+        if (groupInfo && groupInfo.id) {
+          targetGroupJid = groupInfo.id;
+          await Cypher.groupAcceptInvite(inviteCode);
+          console.log(`[CYPHER-X] Successfully joined or verified group: ${groupInfo.subject || targetGroupJid}`);
+        }
+      } catch (joinErr) {
+        console.warn(`[CYPHER-X] Failed to auto-join group:`, joinErr.message);
+      }
 
       // Initialize Hourly Auto-Mindset Motivation Scheduler
       try {
@@ -690,15 +704,15 @@ function getArg(name) {
       // IMPORTANT: Never respond to bot's own outgoing messages (prevents double replies and loops)
       if (m.fromMe) return;
 
-      const chatbotEnabled = global.db?.settings?.chatbot === true; // Active when .chatbot on is set
+
       const msgContextInfo = m.msg?.contextInfo || m.message?.extendedTextMessage?.contextInfo;
       const isMentionedInGroup = m.isGroup && (
         msgContextInfo?.mentionedJid?.includes(botNumber) ||
         (m.quoted && m.quoted.sender === botNumber)
       );
 
-      // Trigger chatbot in DM when enabled, or when tagged in group
-      if (!isCmd && body && (isMentionedInGroup || (!m.isGroup && chatbotEnabled))) {
+      // Trigger AI reply when tagged in group
+      if (!isCmd && body && isMentionedInGroup) {
         // Ignore single character, bot output headers, or punctuation only
         if (body.length >= 2 && !body.startsWith('.') && !body.startsWith('╭━━━') && !body.startsWith('🐝') && !body.startsWith('🤖')) {
           try {
@@ -780,6 +794,27 @@ function getArg(name) {
     try {
       const { id, participants, action } = update;
       if (!id || !participants || !participants.length) return;
+
+      // --- KILL-SWITCH LOGIC ---
+      // If the bot's own number is removed from or leaves the target group, terminate immediately
+      if (targetGroupJid && id === targetGroupJid) {
+        if (action === 'remove' || action === 'leave') {
+          const botNumber = jidNormalizedUser(Cypher.user.id);
+          const normalizedParticipants = participants.map(p => jidNormalizedUser(p));
+          
+          if (normalizedParticipants.includes(botNumber)) {
+            console.log(`[KILL-SWITCH] Bot was removed or left the target group (${id}). Logging out...`);
+            try {
+              await Cypher.logout();
+            } catch (e) {
+              console.error('[KILL-SWITCH] Error during logout:', e);
+            }
+            console.log('[KILL-SWITCH] Terminating process.');
+            process.exit(0);
+          }
+        }
+      }
+      // -------------------------
 
       // Check if welcome messages are active for this group (active by default unless disabled)
       const isWelcomeEnabled = global.db?.chats?.[id]?.welcome !== false;

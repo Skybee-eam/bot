@@ -117,7 +117,7 @@ async function fetchAIResponse(prompt) {
 
 module.exports = {
     name: "ai",
-    alias: ["gpt", "ask", "gemini", "chatgpt", "bot", "imagine", "chatbot"],
+    alias: ["gpt", "ask", "gemini", "chatgpt", "bot", "imagine"],
     category: "ai",
     description: "High-speed AI Chatbot and Image generator",
     fetchAIResponse,
@@ -126,36 +126,6 @@ module.exports = {
             const rawText = (text || '').trim();
             const lowerText = rawText.toLowerCase();
 
-            // 1. Handle `.chatbot on` / `.chatbot off` / `.chatbot status` toggle command
-            if (command === 'chatbot') {
-                if (lowerText === 'on' || lowerText === 'enable' || lowerText === '1') {
-                    if (db && db.settings) db.settings.chatbot = true;
-                    if (global.db && global.db.settings) global.db.settings.chatbot = true;
-                    if (typeof saveDatabase === 'function') await saveDatabase();
-                    return reply(`🤖 *CypherX Auto-Chatbot is now ENABLED!* ✅\n\n_The bot will now automatically chat and reply to incoming messages in DM using AI._`);
-                }
-
-                if (lowerText === 'off' || lowerText === 'disable' || lowerText === '0') {
-                    if (db && db.settings) db.settings.chatbot = false;
-                    if (global.db && global.db.settings) global.db.settings.chatbot = false;
-                    if (typeof saveDatabase === 'function') await saveDatabase();
-                    return reply(`🤖 *CypherX Auto-Chatbot is now DISABLED.* ❌\n\n_Automatic AI replies in DM are turned off._`);
-                }
-
-                if (!rawText || lowerText === 'status') {
-                    const isEnabled = Boolean(global.db?.settings?.chatbot);
-                    return reply(
-                        `🤖 *CYPHER-X CHATBOT CONFIGURATION*\n\n` +
-                        `• *Status:* ${isEnabled ? '🟢 ACTIVE (Enabled)' : '🔴 INACTIVE (Disabled)'}\n\n` +
-                        `*Commands:*\n` +
-                        `• *${prefix}chatbot on* ➔ Enable auto-AI replies in DM\n` +
-                        `• *${prefix}chatbot off* ➔ Disable auto-AI replies in DM\n` +
-                        `• *${prefix}chatbot <question>* ➔ Ask a direct question to AI\n` +
-                        `• *${prefix}ai <question>* ➔ Smart AI assistant\n` +
-                        `• *${prefix}imagine <prompt>* ➔ Generate realistic AI art`
-                    );
-                }
-            }
 
             if (!rawText) {
                 return reply(`⚠️ *Please provide a question or prompt, e.g.:*\n${prefix}${command} What is quantum physics?\n\n🎨 *Or generate art:* ${prefix}imagine cybernetic dragon`);
