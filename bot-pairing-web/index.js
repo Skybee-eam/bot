@@ -345,6 +345,10 @@ class MultiBotManager {
         if (this.manualStops.has(cleanPhone)) {
           bot.status = 'stopped';
           this.appendLog(cleanPhone, `Bot stopped by user.`);
+        } else if (code === 88) {
+          bot.status = 'logged_out';
+          this.manualStops.add(cleanPhone);
+          this.appendLog(cleanPhone, `❌ Session was logged out/revoked on WhatsApp. Please re-pair +${cleanPhone} from the Store or Pairing Portal.`);
         } else {
           bot.status = 'reconnecting';
           this.appendLog(cleanPhone, `Bot process disconnected (code=${code}). Supervisor auto-restarting in 5s...`);

@@ -447,9 +447,9 @@ function getArg(name) {
       const reason = lastDisconnect?.error?.message || 'Unknown';
       console.log(`[CYPHER-X] Connection closed (code=${code}, reason=${reason})`);
 
-      if (code === DisconnectReason.loggedOut) {
-        console.log('[CYPHER-X] Session logged out. Please re-link WhatsApp from the web panel.');
-        process.exit(0);
+      if (code === DisconnectReason.loggedOut || code === 401) {
+        console.log('[CYPHER-X] ❌ Session was logged out/unlinked on WhatsApp. Please re-link via Pairing Code or QR.');
+        process.exit(88);
         return;
       }
 
