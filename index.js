@@ -42,7 +42,8 @@ const BACKUP_SERVERS = [
   process.env.RAILWAY_SERVER_URL || 'https://my-bot-server.up.railway.app',
   process.env.RENDER_SERVER_URL || 'https://bot-z47t.onrender.com',
   process.env.B4A_SERVER_URL || 'https://botsite-c9x0h6m9.b4a.run',
-  process.env.KOYEB_SERVER_URL || 'https://my-bot-server.koyeb.app'
+  process.env.KOYEB_SERVER_URL || 'https://my-bot-server.koyeb.app',
+  process.env.REPLIT_SERVER_URL || 'https://my-bot-server.repl.co'
 ];
 
 function getNextServerUrl() {
