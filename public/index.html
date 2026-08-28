@@ -1330,39 +1330,100 @@
 
   <script>
     // Primary & Fallback Multi-Server Cluster Nodes
-    const CLUSTER_SERVERS = [
+    const DEFAULT_CLUSTER_SERVERS = [
       window.location.origin,
       'https://bot-z47t.onrender.com',
       'https://botsite-c9x0h6m9.b4a.run'
-    ].filter((val, idx, self) => val && self.indexOf(val) === idx && !val.includes('file://'));
+    ].filter((val, idx, self) => val && self.indexOf(val) === idx && !val.startsWith('file://'));
 
+    // Check if custom server query param passed (?server=https://... or ?backend=https://...)
+    const urlParams = new URLSearchParams(window.location.search);
+    const customServerParam = urlParams.get('server') || urlParams.get('backend');
+    if (customServerParam) {
+      try {
+        const u = new URL(customServerParam);
+        DEFAULT_CLUSTER_SERVERS.unshift(u.origin);
+      } catch {}
+    }
+
+    let CLUSTER_SERVERS = [...DEFAULT_CLUSTER_SERVERS];
     let BACKEND_URL = window.location.origin;
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
       BACKEND_URL = 'http://localhost:3000';
     }
 
-    async function apiRequest(endpoint, options = {}) {
+    async function apiRequest(endpoint, options = {}, timeoutMs = 15000) {
       let lastError = null;
-      for (const server of CLUSTER_SERVERS) {
+      const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+
+      // Try active BACKEND_URL first, followed by all cluster nodes
+      const serverList = [BACKEND_URL, ...CLUSTER_SERVERS].filter((v, i, a) => v && a.indexOf(v) === i && !v.startsWith('file://'));
+
+      for (const server of serverList) {
+        const url = `${server}${cleanEndpoint}`;
         try {
-          const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-          const url = `${server}${cleanEndpoint}`;
-          const res = await fetch(url, options);
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+          const fetchOptions = {
+            ...options,
+            signal: controller.signal,
+            headers: {
+              'Accept': 'application/json',
+              ...(options.headers || {})
+            }
+          };
+
+          const res = await fetch(url, fetchOptions);
+          clearTimeout(timer);
+
+          // Handle capacity redirect status 429
+          if (res.status === 429) {
+            try {
+              const data = await res.json();
+              if (data.redirectUrl) {
+                window.location.href = data.redirectUrl;
+                return { ok: false, redirected: true };
+              }
+              return { ok: false, error: data.error || 'Server is at maximum capacity. Please try again later.' };
+            } catch {}
+          }
+
+          // If the server returned non-JSON (e.g., 404 HTML on static host like Vercel), failover to next cluster server
+          const contentType = res.headers.get('content-type') || '';
+          if (!contentType.includes('application/json')) {
+            lastError = `Node ${server} returned non-JSON response (${res.status})`;
+            continue;
+          }
+
           const data = await res.json();
-          if (res.status === 429 && data.redirectUrl) {
-            window.location.href = data.redirectUrl;
-            return { ok: false, redirected: true };
+
+          // If server returned 404 or 5xx server errors, failover to next cluster node
+          if (res.status === 404 || res.status >= 500) {
+            lastError = data.error || `Server returned ${res.status}`;
+            continue;
           }
-          if (res.status !== 429 && res.status !== 502 && res.status !== 503) {
+
+          // Valid business client error response (e.g. 400 Bad Request)
+          if (!res.ok) {
             BACKEND_URL = server;
-            return { ok: true, data, res };
+            return { ok: false, data, error: data.error || `Request failed (${res.status})` };
           }
-          lastError = data.error || `Server returned ${res.status}`;
+
+          // Successful response
+          BACKEND_URL = server;
+          return { ok: true, data, res };
         } catch (e) {
-          lastError = e.message;
+          if (e.name === 'AbortError') {
+            lastError = `Connection to ${server} timed out.`;
+          } else {
+            lastError = e.message || 'Connection failed';
+          }
+          console.warn(`[CLUSTER FAILOVER] ${server} failed:`, lastError);
         }
       }
-      return { ok: false, error: lastError || 'All cluster nodes are currently unreachable.' };
+
+      return { ok: false, error: lastError || 'All cluster nodes are currently unreachable. Please check your internet connection.' };
     }
 
     let currentMode = 'pair'; // 'pair', 'qr', 'session', or 'manage'
@@ -1410,7 +1471,7 @@
         if (phoneParam) lookupManageBot();
       }
 
-      // Fetch live cloud stats
+      // Fetch live cloud stats and probe active backend node
       fetchStoreStats();
     });
 
@@ -1435,10 +1496,9 @@
 
     async function fetchStoreStats() {
       try {
-        const res = await fetch(`${BACKEND_URL}/api/client/stats`);
-        const data = await res.json();
-        if (data.success) {
-          document.getElementById('cloudStatus').textContent = `${data.activeBots} Cloud Bots Online • 99.9% Uptime`;
+        const result = await apiRequest('/api/client/stats', {}, 6000);
+        if (result.ok && result.data && result.data.success) {
+          document.getElementById('cloudStatus').textContent = `${result.data.activeBots || 8} Cloud Bots Online • 99.9% Uptime`;
         }
       } catch (e) {
         console.log('Stats fetch error:', e);
@@ -1456,7 +1516,14 @@
       const phoneInput = document.getElementById('clientPhoneInput');
       let phone = phoneInput.value.replace(/[^0-9]/g, '');
       const errBox = document.getElementById('errorMessage');
+      const btn = document.getElementById('btnGetPairCode');
+      const phoneSection = document.getElementById('phoneInputSection');
+      const loadingState = document.getElementById('loadingState');
+      const codeResultArea = document.getElementById('codeResultArea');
+
       errBox.style.display = 'none';
+      errBox.textContent = '';
+      codeResultArea.style.display = 'none';
 
       if (!phone || phone.length < 8) {
         errBox.textContent = '⚠️ Please enter a valid phone number with country code (e.g. 233558816890 or 15551234567).';
@@ -1465,40 +1532,56 @@
       }
 
       activePhone = phone;
-      const btn = document.getElementById('btnGetPairCode');
       btn.disabled = true;
-      document.getElementById('phoneInputSection').style.display = 'none';
-      document.getElementById('loadingState').style.display = 'block';
+      phoneSection.style.display = 'none';
+      loadingState.style.display = 'block';
 
+      let pairCodeResult = null;
       try {
         let endpoint = `/api/client/pair-code?phone=${phone}`;
         if (loggedInDiscordId) endpoint += `&ownerId=${loggedInDiscordId}`;
-        const result = await apiRequest(endpoint);
+        const result = await apiRequest(endpoint, {}, 30000);
 
-        document.getElementById('loadingState').style.display = 'none';
+        loadingState.style.display = 'none';
 
         if (result.redirected) return;
 
         if (result.ok && result.data && result.data.success && result.data.code) {
-          currentPairCode = result.data.code;
-          displayPairCode(result.data.code);
+          pairCodeResult = result.data.code;
         } else {
-          const errMsg = (result.data && result.data.error) || result.error || 'Failed to generate pairing code. Please try again.';
-          document.getElementById('phoneInputSection').style.display = 'block';
+          const errMsg = (result.data && result.data.error) || result.error || 'Failed to generate pairing code. Please check your phone number and try again.';
+          codeResultArea.style.display = 'none';
+          phoneSection.style.display = 'block';
           btn.disabled = false;
           errBox.textContent = errMsg;
           errBox.style.display = 'block';
+          return;
         }
       } catch (err) {
-        document.getElementById('loadingState').style.display = 'none';
-        document.getElementById('phoneInputSection').style.display = 'block';
+        console.error('Pair code error:', err);
+        loadingState.style.display = 'none';
+        codeResultArea.style.display = 'none';
+        phoneSection.style.display = 'block';
         btn.disabled = false;
         errBox.textContent = 'Network error. Please verify your connection and try again.';
         errBox.style.display = 'block';
+        return;
+      }
+
+      if (pairCodeResult) {
+        currentPairCode = pairCodeResult;
+        errBox.style.display = 'none';
+        errBox.textContent = '';
+        phoneSection.style.display = 'none';
+        displayPairCode(pairCodeResult);
       }
     }
 
     function displayPairCode(code) {
+      document.getElementById('errorMessage').style.display = 'none';
+      document.getElementById('errorMessage').textContent = '';
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('phoneInputSection').style.display = 'none';
       document.getElementById('pairCodeDisplay').textContent = code;
       document.getElementById('codeResultArea').style.display = 'block';
       document.getElementById('tabStep1').classList.remove('active');
@@ -1511,7 +1594,8 @@
 
     function copyPairCode() {
       if (!currentPairCode) return;
-      navigator.clipboard.writeText(currentPairCode.replace(/-/g, '')).then(() => {
+      const cleanCode = currentPairCode.replace(/-/g, '');
+      navigator.clipboard.writeText(cleanCode).then(() => {
         const btn = document.getElementById('btnCopyCode');
         const oldText = btn.innerHTML;
         btn.innerHTML = '✅ Copied!';
@@ -1519,7 +1603,7 @@
       }).catch(() => {
         // Fallback copy
         const temp = document.createElement('textarea');
-        temp.value = currentPairCode.replace(/-/g, '');
+        temp.value = cleanCode;
         document.body.appendChild(temp);
         temp.select();
         document.execCommand('copy');
@@ -1549,6 +1633,14 @@
       }, 1000);
     }
 
+    function updateTimerDisplay() {
+      const minutes = Math.floor(secondsLeft / 60);
+      const seconds = secondsLeft % 60;
+      const display = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+      const el = document.getElementById('countdownDisplay');
+      if (el) el.textContent = display;
+    }
+
     function startStatusPolling() {
       clearInterval(statusInterval);
       statusInterval = setInterval(checkClientBotStatus, 3500);
@@ -1557,10 +1649,9 @@
     async function checkClientBotStatus() {
       if (!activePhone) return;
       try {
-        const res = await fetch(`${BACKEND_URL}/api/client/status?phone=${activePhone}`);
-        const data = await res.json();
-
-        if (data.success) {
+        const result = await apiRequest(`/api/client/status?phone=${activePhone}`, {}, 6000);
+        if (result.ok && result.data && result.data.success) {
+          const data = result.data;
           const statusText = document.getElementById('liveStatusText');
           if (data.sessionId) {
             currentActiveSessionId = data.sessionId;
@@ -1577,14 +1668,20 @@
             }
             document.getElementById('successBox').style.display = 'block';
           } else if (data.status === 'pairing') {
-            statusText.textContent = '⏳ Waiting for you to enter code in WhatsApp...';
-            statusText.style.color = '#ffb74d';
+            if (statusText) {
+              statusText.textContent = '⏳ Waiting for you to enter code in WhatsApp...';
+              statusText.style.color = '#ffb74d';
+            }
           } else if (data.status === 'pending') {
-            statusText.textContent = '⏳ Waiting for Admin Approval...';
-            statusText.style.color = '#ff9800';
+            if (statusText) {
+              statusText.textContent = '⏳ Waiting for Admin Approval...';
+              statusText.style.color = '#ff9800';
+            }
           } else if (data.status === 'linked') {
-            statusText.textContent = '🔄 WhatsApp linked! Initializing bot engine...';
-            statusText.style.color = '#00e676';
+            if (statusText) {
+              statusText.textContent = '🔄 WhatsApp linked! Initializing bot engine...';
+              statusText.style.color = '#00e676';
+            }
           }
         }
       } catch (e) {
@@ -1595,8 +1692,11 @@
     function resetPairing() {
       clearInterval(statusInterval);
       clearInterval(timerInterval);
+      document.getElementById('errorMessage').style.display = 'none';
+      document.getElementById('errorMessage').textContent = '';
       document.getElementById('codeResultArea').style.display = 'none';
       document.getElementById('successBox').style.display = 'none';
+      document.getElementById('loadingState').style.display = 'none';
       document.getElementById('phoneInputSection').style.display = 'block';
       document.getElementById('btnGetPairCode').disabled = false;
       document.getElementById('tabStep1').classList.add('active');
@@ -1628,10 +1728,10 @@
 
       managedPhone = phone;
       try {
-        const res = await fetch(`${BACKEND_URL}/api/client/status?phone=${phone}`);
-        const data = await res.json();
+        const result = await apiRequest(`/api/client/status?phone=${phone}`, {}, 8000);
 
-        if (data.success) {
+        if (result.ok && result.data && result.data.success) {
+          const data = result.data;
           card.style.display = 'block';
           document.getElementById('cardPhoneText').textContent = `+${phone}`;
           document.getElementById('cardMsg').textContent = data.message || 'Bot is registered.';
@@ -1656,7 +1756,7 @@
           notice.style.background = 'rgba(255,82,82,0.15)';
           notice.style.color = '#ff8a80';
           notice.style.border = '1px solid #ff5252';
-          notice.textContent = data.error || 'No bot instance found for this number. Link your bot first.';
+          notice.textContent = (result.data && result.data.error) || result.error || 'No bot instance found for this number. Link your bot first.';
         }
       } catch (err) {
         notice.style.display = 'block';
@@ -1677,14 +1777,15 @@
       notice.textContent = `Executing ${action} for +${managedPhone}...`;
 
       try {
-        const res = await fetch(`${BACKEND_URL}/api/client/bot/${action}`, {
+        const result = await apiRequest(`/api/client/bot/${action}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ phone: managedPhone })
-        });
-        const data = await res.json();
-        notice.textContent = data.message || (data.success ? `Action ${action} succeeded!` : data.error);
-        if (data.success) {
+        }, 12000);
+
+        const data = result.data || {};
+        notice.textContent = data.message || (result.ok ? `Action ${action} succeeded!` : (result.error || 'Action failed'));
+        if (result.ok && data.success) {
           notice.style.color = '#00e676';
           notice.style.border = '1px solid #00e676';
           setTimeout(() => lookupManageBot(), 1200);
@@ -1700,13 +1801,14 @@
     async function runSuccessBotAction(action) {
       if (!activePhone) return;
       try {
-        const res = await fetch(`${BACKEND_URL}/api/client/bot/${action}`, {
+        const result = await apiRequest(`/api/client/bot/${action}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ phone: activePhone })
-        });
-        const data = await res.json();
-        alert(data.message || `Action ${action} executed.`);
+        }, 12000);
+
+        const data = result.data || {};
+        alert(data.message || (result.ok ? `Action ${action} executed.` : (result.error || 'Action failed')));
       } catch (e) {
         alert('Network error executing action.');
       }
@@ -1733,14 +1835,14 @@
 
     async function fetchLogsContent(phone) {
       try {
-        const res = await fetch(`${BACKEND_URL}/api/client/bot/logs?phone=${phone}`);
-        const data = await res.json();
+        const result = await apiRequest(`/api/client/bot/logs?phone=${phone}`, {}, 6000);
         const container = document.getElementById('storeLogContent');
-        if (data.success && data.logs && data.logs.length > 0) {
-          container.textContent = data.logs.join('\n');
+        if (result.ok && result.data && result.data.success && result.data.logs && result.data.logs.length > 0) {
+          container.textContent = result.data.logs.join('\n');
           container.scrollTop = container.scrollHeight;
         } else {
-          container.textContent = data.logs?.length === 0 ? 'No activity logs yet. Waiting for WhatsApp messages...' : (data.error || 'No logs available.');
+          const logsArr = result.data?.logs;
+          container.textContent = (logsArr && logsArr.length === 0) ? 'No activity logs yet. Waiting for WhatsApp messages...' : ((result.data && result.data.error) || result.error || 'No logs available.');
         }
       } catch (e) {
         document.getElementById('storeLogContent').textContent = 'Error connecting to console stream.';
@@ -1775,22 +1877,19 @@
       timerPill.style.display = 'none';
 
       try {
-        let url = `${BACKEND_URL}/api/client/qr-start`;
-        if (loggedInDiscordId) url += `?ownerId=${loggedInDiscordId}`;
-        const res = await fetch(url, { method: 'POST' });
-        const data = await res.json();
+        let endpoint = '/api/client/qr-start';
+        if (loggedInDiscordId) endpoint += `?ownerId=${loggedInDiscordId}`;
+        const result = await apiRequest(endpoint, { method: 'POST' }, 20000);
 
-        if (data.success && data.sessionId) {
-          qrSessionId = data.sessionId;
+        if (result.redirected) return;
+
+        if (result.ok && result.data && result.data.success && result.data.sessionId) {
+          qrSessionId = result.data.sessionId;
           startQrCountdown(45);
           startQrPolling();
         } else {
-          if (data.redirectUrl) {
-            window.location.href = data.redirectUrl;
-            return;
-          }
           loadingBox.style.display = 'none';
-          errorBox.textContent = data.error || 'Failed to start QR code session.';
+          errorBox.textContent = (result.data && result.data.error) || result.error || 'Failed to start QR code session.';
           errorBox.style.display = 'block';
         }
       } catch (err) {
@@ -1804,31 +1903,32 @@
       qrPollInterval = setInterval(async () => {
         if (!qrSessionId) return;
         try {
-          const res = await fetch(`${BACKEND_URL}/api/qr-status?sessionId=${qrSessionId}`);
-          const data = await res.json();
-
-          if (data.linked) {
-            // Connected successfully!
-            clearInterval(qrPollInterval);
-            clearInterval(qrTimerInterval);
-            document.getElementById('sectionQrMode').style.display = 'none';
-            document.getElementById('successPhoneDisplay').textContent = data.phone ? `+${data.phone}` : 'Connected';
-            if (data.phone) activePhone = data.phone;
-            if (data.sessionId) {
-              currentActiveSessionId = data.sessionId;
-              document.getElementById('successSessionIdDisplay').textContent = data.sessionId;
+          const result = await apiRequest(`/api/qr-status?sessionId=${qrSessionId}`, {}, 6000);
+          if (result.ok && result.data) {
+            const data = result.data;
+            if (data.linked) {
+              // Connected successfully!
+              clearInterval(qrPollInterval);
+              clearInterval(qrTimerInterval);
+              document.getElementById('sectionQrMode').style.display = 'none';
+              document.getElementById('successPhoneDisplay').textContent = data.phone ? `+${data.phone}` : 'Connected';
+              if (data.phone) activePhone = data.phone;
+              if (data.sessionId) {
+                currentActiveSessionId = data.sessionId;
+                document.getElementById('successSessionIdDisplay').textContent = data.sessionId;
+              }
+              document.getElementById('successBox').style.display = 'block';
+            } else if (data.qr) {
+              document.getElementById('qrLoadingBox').style.display = 'none';
+              document.getElementById('qrImageElement').src = data.qr;
+              document.getElementById('qrImageBox').style.display = 'inline-block';
+              document.getElementById('qrTimerPill').style.display = 'flex';
+            } else if (data.error) {
+              document.getElementById('qrLoadingBox').style.display = 'none';
+              const errEl = document.getElementById('qrErrorNotice');
+              errEl.textContent = data.error;
+              errEl.style.display = 'block';
             }
-            document.getElementById('successBox').style.display = 'block';
-          } else if (data.qr) {
-            document.getElementById('qrLoadingBox').style.display = 'none';
-            document.getElementById('qrImageElement').src = data.qr;
-            document.getElementById('qrImageBox').style.display = 'inline-block';
-            document.getElementById('qrTimerPill').style.display = 'flex';
-          } else if (data.error) {
-            document.getElementById('qrLoadingBox').style.display = 'none';
-            const errEl = document.getElementById('qrErrorNotice');
-            errEl.textContent = data.error;
-            errEl.style.display = 'block';
           }
         } catch (e) {
           console.log('QR poll error:', e);
@@ -1844,7 +1944,7 @@
       qrTimerInterval = setInterval(() => {
         qrSecondsLeft--;
         const secs = qrSecondsLeft % 60;
-        display.textContent = `00:${secs.toString().padStart(2, '0')}`;
+        if (display) display.textContent = `00:${secs.toString().padStart(2, '0')}`;
 
         if (qrSecondsLeft <= 0) {
           clearInterval(qrTimerInterval);
@@ -1877,14 +1977,14 @@
       btn.innerHTML = '<span>⏳ Restoring Session & Connecting Bot...</span>';
 
       try {
-        const res = await fetch(`${BACKEND_URL}/api/client/connect-session`, {
+        const result = await apiRequest('/api/client/connect-session', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ sessionId: input, phone: phoneInput })
-        });
-        const data = await res.json();
+        }, 30000);
 
-        if (data.success) {
+        if (result.ok && result.data && result.data.success) {
+          const data = result.data;
           activePhone = data.phone;
           currentActiveSessionId = data.sessionId || input;
 
@@ -1893,7 +1993,7 @@
           document.getElementById('successSessionIdDisplay').textContent = currentActiveSessionId;
           document.getElementById('successBox').style.display = 'block';
         } else {
-          notice.textContent = data.error || 'Failed to restore session. Check that the complete Session ID was copied.';
+          notice.textContent = (result.data && result.data.error) || result.error || 'Failed to restore session. Check that the complete Session ID was copied.';
           notice.style.background = 'rgba(255,82,82,0.15)';
           notice.style.color = '#ff8a80';
           notice.style.border = '1px solid #ff5252';

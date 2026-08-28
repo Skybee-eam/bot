@@ -73,15 +73,10 @@ function requireAccessCode(req, res, next) {
 }
 
 app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || origin.includes('localhost') || origin.includes('127.0.0.1') || origin.endsWith('.vercel.app') || origin.endsWith('.onrender.com') || origin.endsWith('.netlify.app') || origin.endsWith('.up.railway.app') || origin.endsWith('.b4a.run') || origin.endsWith('.koyeb.app') || origin.includes('replit.dev') || origin.includes('replit.app') || origin.includes('repl.co')) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: true,
   credentials: true
 }));
+app.options('*', cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -597,9 +592,19 @@ async function promoteToPermanentSession(phone, sourceDir) {
   }
 }
 
+async function getSafeBaileysVersion() {
+  try {
+    const fetched = await fetchLatestBaileysVersion();
+    if (fetched && fetched.version) return fetched.version;
+  } catch (err) {
+    console.warn('[BAILEYS VERSION] Using fallback version:', err.message);
+  }
+  return [2, 3000, 1015901307];
+}
+
 async function startPairSocket(phone, sessionDir) {
   const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
-  const { version } = await fetchLatestBaileysVersion();
+  const version = await getSafeBaileysVersion();
 
   const sock = makeWASocket({
     version,
@@ -609,7 +614,7 @@ async function startPairSocket(phone, sessionDir) {
       creds: state.creds,
       keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' }))
     },
-    browser: ['Ubuntu', 'Chrome', '20.0.04'],
+    browser: Browsers.ubuntu('Chrome'),
     msgRetryCounterCache,
     generateHighQualityLinkPreview: false,
     syncFullHistory: false,
