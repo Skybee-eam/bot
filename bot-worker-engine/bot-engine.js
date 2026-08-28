@@ -620,16 +620,22 @@ function getArg(name) {
             .map(p => jidNormalizedUser(p.id));
 
           const botId = jidNormalizedUser(Cypher.user.id);
-          const botClean = botId.split('@')[0].split(':')[0];
-          isBotAdmin = groupAdmins.some(adminJid => adminJid.includes(botClean) || adminJid === botId);
-          isAdmin = groupAdmins.some(adminJid => adminJid === m.sender || adminJid.includes(m.sender.split('@')[0]));
+          const botClean = botId.replace(/[^0-9]/g, '');
+          isBotAdmin = groupAdmins.some(adminJid => {
+            const clean = adminJid.replace(/[^0-9]/g, '');
+            return adminJid === botId || clean === botClean || (botClean && clean.includes(botClean));
+          });
+
+          const senderNormalized = jidNormalizedUser(m.sender || '');
+          const senderClean = senderNormalized.replace(/[^0-9]/g, '');
+          isAdmin = groupAdmins.some(adminJid => {
+            const clean = adminJid.replace(/[^0-9]/g, '');
+            return adminJid === senderNormalized || clean === senderClean || (senderClean && clean.includes(senderClean));
+          });
         } catch (groupErr) {
           console.warn(`[GROUP-META Fetch Note in ${m.chat}]:`, groupErr.message);
         }
       }
-
-      m.isAdmin = isAdmin;
-      m.isBotAdmin = isBotAdmin;
 
       const botNumber = jidNormalizedUser(Cypher.user.id);
       const botCleanNumber = botNumber.split('@')[0].split(':')[0];
@@ -639,6 +645,12 @@ function getArg(name) {
                   m.sender.replace(/[^0-9]/g, '') === botCleanNumber ||
                   m.sender === botNumber ||
                   (global.ownerNumber && global.ownerNumber.includes(m.sender.split('@')[0]));
+
+      if (m.isOwner) {
+        isAdmin = true;
+      }
+      m.isAdmin = isAdmin;
+      m.isBotAdmin = isBotAdmin;
 
       const globalContext = {
         Cypher,
