@@ -613,8 +613,18 @@ function getArg(name) {
 
       if (m.isGroup) {
         try {
-          groupMetadata = await Cypher.groupMetadata(m.chat);
-          participants = groupMetadata.participants || [];
+          if (!global.groupMetadataCache) global.groupMetadataCache = new Map();
+          const cached = global.groupMetadataCache.get(m.chat);
+          const isFresh = cached && (Date.now() - cached.timestamp < 120000);
+
+          if (isFresh) {
+            groupMetadata = cached.data;
+          } else {
+            groupMetadata = await Cypher.groupMetadata(m.chat);
+            global.groupMetadataCache.set(m.chat, { data: groupMetadata, timestamp: Date.now() });
+          }
+
+          participants = groupMetadata?.participants || [];
           groupAdmins = participants
             .filter(p => p.admin === 'admin' || p.admin === 'superadmin' || p.admin)
             .map(p => jidNormalizedUser(p.id));
