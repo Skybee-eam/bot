@@ -701,9 +701,9 @@ app.get('/api/users/:discordId/bots', async (req, res) => {
 // PUBLIC CLIENT STORE & RECONNECTION ENDPOINTS
 // ─────────────────────────────────────────────────────────────────
 
-// Public client store & pairing page
-app.get(['/store', '/pair', '/refer', '/client', '/connect', '/activate', '/link'], (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'store.html'));
+// Public client store & pairing homepage
+app.get(['/', '/store', '/pair', '/refer', '/client', '/connect', '/activate', '/link'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // Public client pairing code endpoint
