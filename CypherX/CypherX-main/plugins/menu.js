@@ -80,16 +80,20 @@ const VERIFIED_COMMANDS = {
     "👥 GROUP AUTOMATION & MODERATION": {
         icon: "🛡️",
         commands: [
-            { cmd: "welcome on/off", desc: "Toggle auto welcome & farewell cards" },
-            { cmd: "welcome status", desc: "Check group greeting card status" },
-            { cmd: "tagall <message>", desc: "Tag all group members with a notice" },
-            { cmd: "hidetag <message>", desc: "Broadcast message invisibly to all" },
+            { cmd: "group", desc: "Display full interactive Group Dashboard" },
+            { cmd: "open / mute off", desc: "Open group chat for all members" },
+            { cmd: "close / mute on", desc: "Lock group chat for Admins only" },
+            { cmd: "hidetag <text>", desc: "Tag all group members invisibly" },
+            { cmd: "tagall <text>", desc: "Mention every group member with numbered list" },
             { cmd: "kick @user", desc: "Remove unwanted user from group" },
             { cmd: "promote @user", desc: "Grant administrator privileges" },
             { cmd: "demote @user", desc: "Revoke administrator privileges" },
-            { cmd: "mute", desc: "Lock chat (Admins only)" },
-            { cmd: "unmute", desc: "Unlock chat (All members)" },
-            { cmd: "link", desc: "Retrieve group invitation link" }
+            { cmd: "link", desc: "Get WhatsApp group invite link" },
+            { cmd: "revoke", desc: "Reset group invite link" },
+            { cmd: "setname <name>", desc: "Change group subject name" },
+            { cmd: "setdesc <desc>", desc: "Change group description" },
+            { cmd: "welcome on/off", desc: "Toggle auto welcome & farewell cards" },
+            { cmd: "antilink on/off", desc: "Auto-detect & delete group invite links" }
         ]
     },
     "🕊️ RELIGION & SACRED SCRIPTURES": {
