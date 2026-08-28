@@ -1,35 +1,28 @@
 /**
- * 🐝 Skybee Bot Store Activation & Referral Link Plugin
- * Sends the official Render Cloud link for users to pair and host their own 24/7 bot
+ * 🐝 Skybee Bot Store Homepage Link Plugin
+ * Sends the official homepage link for users to pair and activate their 24/7 bot
  */
 
 module.exports = {
     name: "link",
-    alias: ["store", "join", "pair", "getbot", "botlink", "storelink", "hostbot", "connectbot"],
+    alias: ["store", "join", "pair", "getbot", "botlink", "storelink", "hostbot", "connectbot", "site", "website"],
     category: "general",
-    description: "Sends the official Skybee Bot Activation Store link to pair or join the cloud",
+    description: "Sends the official Skybee Bot Homepage link",
     async execute(client, m, { args, text, prefix, command, reply }) {
         try {
-            const senderName = m.pushName || 'Friend';
-            const cleanRef = encodeURIComponent(senderName);
-            const storeUrl = `https://bot-z47t.onrender.com/store`;
-            const refStoreUrl = `https://bot-z47t.onrender.com/store?ref=${cleanRef}`;
+            const homepageUrl = `https://bot-z47t.onrender.com`;
 
-            const linkMsg = `╭━━━━〔 🐝 𝐒𝐊𝐘𝐁𝐄𝐄 𝐁𝐎𝐓 𝐒𝐓𝐎𝐑𝐄 〕━━━━╮\n` +
-                            `┃ ✨ *HOST YOUR OWN 24/7 WHATSAPP BOT*\n` +
+            const linkMsg = `╭━━━━〔 🐝 𝐒𝐊𝐘𝐁𝐄𝐄 𝐁𝐎𝐓 〕━━━━╮\n` +
+                            `┃ ✨ *OFFICIAL BOT ACTIVATION PORTAL*\n` +
                             `╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯\n\n` +
-                            `🚀 *Activate Your Bot Now:*\n` +
-                            `👉 *Store Link:* ${storeUrl}\n\n` +
-                            `🤝 *Personalized Referral Link:*\n` +
-                            `👉 ${refStoreUrl}\n\n` +
-                            `💡 _Share the link with friends so they can activate their own bot too!_`;
+                            `🚀 *Activate your 24/7 WhatsApp Bot here:*\n` +
+                            `👉 ${homepageUrl}\n\n` +
+                            `💡 _Open the link to generate your 8-digit Pairing Code or QR Code!_`;
 
-            await client.sendMessage(m.chat, {
-                text: linkMsg
-            }, { quoted: m });
+            await reply(linkMsg);
         } catch (error) {
             console.error('[Link Plugin Error]:', error);
-            reply(`❌ *Failed to generate store link:* ${error.message}`);
+            reply(`❌ *Failed to send homepage link:* ${error.message}`);
         }
     }
 };
