@@ -122,6 +122,7 @@ const VERIFIED_COMMANDS = {
     "⚡ SYSTEM & CORE METRICS": {
         icon: "📊",
         commands: [
+            { cmd: "restart / reboot", desc: "Safely reboot and reload the bot engine" },
             { cmd: "link", desc: "Get official Skybee Bot store activation link" },
             { cmd: "store", desc: "Share bot referral link with friends" },
             { cmd: "ping", desc: "Check server latency & ping response" },
