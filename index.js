@@ -35,6 +35,20 @@ const DISCORD_REDIRECT_URI = process.env.DISCORD_REDIRECT_URI || `http://localho
 const VERCEL_FRONTEND_URL = process.env.VERCEL_FRONTEND_URL || 'http://localhost:3000'; // Update this when deploying to Vercel
 
 // ─────────────────────────────────────────────────────────────────
+// MULTI-SERVER FALLBACK ROUTER
+// ─────────────────────────────────────────────────────────────────
+const BACKUP_SERVERS = [
+  process.env.NETLIFY_SERVER_URL || 'https://another-bot-server.netlify.app',
+  process.env.RAILWAY_SERVER_URL || 'https://my-bot-server.up.railway.app',
+  process.env.RENDER_SERVER_URL || 'https://bot-z47t.onrender.com'
+];
+
+function getNextServerUrl() {
+  if (process.env.NEXT_SERVER_URL) return process.env.NEXT_SERVER_URL;
+  return BACKUP_SERVERS[Math.floor(Math.random() * BACKUP_SERVERS.length)];
+}
+
+// ─────────────────────────────────────────────────────────────────
 // ACCESS CODE PROTECTION
 // Set ACCESS_CODE environment variable to change the secret code
 // Default code: SKYBEE2026
