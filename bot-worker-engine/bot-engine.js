@@ -316,11 +316,32 @@ function getArg(name) {
   const { state, saveCreds } = await useMultiFileAuthState(authDir);
   const { version } = await fetchLatestBaileysVersion();
 
+  const signalKeys = makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' }));
+  const originalGet = signalKeys.get.bind(signalKeys);
+  signalKeys.get = async (type, ids) => {
+    try {
+      const res = await originalGet(type, ids);
+      return res || {};
+    } catch (err) {
+      if (type === 'session') {
+        const fallback = {};
+        for (const id of ids) {
+          try {
+            const single = await state.keys.get(type, [id]);
+            if (single && single[id]) fallback[id] = single[id];
+          } catch {}
+        }
+        return fallback;
+      }
+      throw err;
+    }
+  };
+
   const Cypher = makeWASocket({
     version,
     auth: {
       creds: state.creds,
-      keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' }))
+      keys: signalKeys
     },
     browser: ['Skybee Bot', 'Chrome', '124.0.0'],
     logger: pino({ level: 'silent' }),

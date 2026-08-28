@@ -197,9 +197,7 @@ module.exports = {
                 singleText += `╰──────────────────────────────\n\n` +
                               `💡 *Tip:* Send *${p}menu* to view the entire master dashboard.`;
 
-                return await client.sendMessage(m.chat, {
-                    text: singleText
-                }, { quoted: m });
+                return await reply(singleText);
             }
 
             // Full Master Dashboard Display
@@ -225,9 +223,7 @@ module.exports = {
 
 🐝 *SKYBEE BOT • CONNECTIVITY AND AUTOMATION*`;
 
-            await client.sendMessage(m.chat, {
-                text: fullText
-            }, m.fromMe ? {} : { quoted: m });
+            return await reply(fullText);
 
         } catch (error) {
             console.error('[Menu Plugin Error]:', error);
