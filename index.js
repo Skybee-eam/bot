@@ -99,7 +99,12 @@ if (!fs.existsSync(multiSessionsDir)) {
   fs.mkdirSync(multiSessionsDir, { recursive: true });
 }
 
-const BOT_DIR   = path.join(__dirname, 'CypherX', 'CypherX-main');
+const possibleBotDirs = [
+  path.join(__dirname, 'CypherX', 'CypherX-main'),
+  path.join(__dirname, '..', 'bot-worker-engine'),
+  path.join(__dirname, 'bot-worker-engine')
+];
+const BOT_DIR = possibleBotDirs.find(d => fs.existsSync(path.join(d, 'bot-engine.js'))) || path.join(__dirname, 'bot-worker-engine');
 const BOT_ENTRY = path.join(BOT_DIR, 'bot-engine.js');
 
 // Multi-session active pairing sockets & retry cache
@@ -303,6 +308,12 @@ class MultiBotManager {
 
     if (bot.process && bot.status === 'running') {
       this.appendLog(cleanPhone, `Bot is already running (PID: ${bot.process.pid})`);
+      return bot;
+    }
+
+    if (!fs.existsSync(BOT_ENTRY)) {
+      this.appendLog(cleanPhone, `Session synced to Firebase Cloud. Bot instance runs on Site B (bot-worker-engine).`);
+      bot.status = 'running';
       return bot;
     }
 
