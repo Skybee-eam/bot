@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>CYPHER-X BOT STATUS</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #6c5ce7;
+            --secondary: #a29bfe;
+            --accent: #00ff99;
+            --dark: #0f0f1a;
+            --light: #f5f6fa;
+            --glass: rgba(255, 255, 255, 0.1);
+            --text-dark: #2d3436;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(rgba(15, 15, 26, 0.9), rgba(22, 34, 62, 0.9)), 
+                        url("https://i.ibb.co/bFWtkv0/1734465645315.jpg") no-repeat center center fixed;
+            background-size: cover;
+            color: var(--light);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .particles {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+
+        .particle {
+            position: absolute;
+            background: var(--accent);
+            border-radius: 50%;
+            opacity: 0;
+            animation: float 15s linear infinite;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0) translateX(0); opacity: 0; }
+            10% { opacity: 0.3; }
+            100% { transform: translateY(-100vh) translateX(100px); opacity: 0; }
+        }
+
+        .dashboard {
+            background: var(--glass);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 2.5rem;
+            width: 100%;
+            max-width: 800px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            z-index: 1;
+        }
+
+        .dashboard::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(45deg, transparent, var(--glass), transparent);
+            z-index: -1;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(to right, var(--accent), var(--primary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            letter-spacing: 1px;
+        }
+
+        .status-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .status-card {
+            background: rgba(30, 30, 30, 0.7);
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .status-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 255, 153, 0.15);
+        }
+
+        .status-label {
+            font-size: 1rem;
+            color: var(--secondary);
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .status-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--light);
+            transition: all 0.3s ease;
+        }
+
+        .uptime-value {
+            color: var(--accent);
+        }
+
+        .loading-spinner {
+            display: none;
+            font-size: 1.5rem;
+            color: var(--secondary);
+            margin: 2rem 0;
+        }
+
+        .loading-spinner.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.8rem;
+        }
+
+        .fa-spin {
+            animation: spin 2s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .footer {
+            margin-top: 3rem;
+            font-size: 1rem;
+            color: var(--secondary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .heart {
+            color: #ff6b6b;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .dashboard {
+                padding: 1.5rem;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .status-value {
+                font-size: 2rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 1rem;
+            }
+            
+            .dashboard {
+                padding: 1.2rem;
+                border-radius: 16px;
+            }
+            
+            h1 {
+                font-size: 1.8rem;
+            }
+            
+            .status-value {
+                font-size: 1.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="particles" id="particles"></div>
+    
+    <div class="dashboard">
+        <h1>CYPHER-X STATUS MONITOR</h1>
+        
+        <div class="status-container">
+            <div class="status-card">
+                <div class="status-label">
+                    <i class="fas fa-server"></i>
+                    <span>BOT STATUS</span>
+                </div>
+                <div class="status-value" id="bot-status">--</div>
+            </div>
+            
+            <div class="status-card">
+                <div class="status-label">
+                    <i class="fas fa-clock"></i>
+                    <span>UPTIME</span>
+                </div>
+                <div class="status-value uptime-value" id="uptime">--</div>
+            </div>
+        </div>
+        
+        <div class="loading-spinner" id="loadingSpinner">
+            <i class="fas fa-spinner fa-spin"></i>
+            <span>Updating...</span>
+        </div>
+    </div>
+    
+    <div class="footer">
+        <span>Made with</span>
+        <span class="heart">❤</span>
+        <span>by Tylor</span>
+    </div>
+
+    <script>
+       
+        function createParticles() {
+            const particlesContainer = document.getElementById('particles');
+            const particleCount = 20;
+            
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.classList.add('particle');
+
+                particle.style.left = `${Math.random() * 100}%`;
+                particle.style.top = `${Math.random() * 100}%`;
+
+                const size = Math.random() * 5 + 2;
+                particle.style.width = `${size}px`;
+                particle.style.height = `${size}px`;
+                
+                particle.style.animationDelay = `${Math.random() * 15}s`;
+                
+                particlesContainer.appendChild(particle);
+            }
+        }
+
+        async function updateStatus() {
+            const spinner = document.getElementById('loadingSpinner');
+            const statusElement = document.getElementById('bot-status');
+            const uptimeElement = document.getElementById('uptime');
+            
+            spinner.classList.add('active');
+            
+            try {
+                const response = await fetch('/uptime');
+                if (!response.ok) throw new Error('Network response was not ok');
+                
+                const data = await response.json();
+                
+                statusElement.textContent = 'ONLINE';
+                statusElement.style.color = 'var(--accent)';
+                uptimeElement.textContent = data.uptime;
+                
+            } catch (error) {
+                console.error('Error fetching status:', error);
+                statusElement.textContent = 'OFFLINE';
+                statusElement.style.color = '#ff5555';
+                uptimeElement.textContent = '--';
+            } finally {
+                spinner.classList.remove('active');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            createParticles();
+            updateStatus();
+            setInterval(updateStatus, 3000);
+        });
+    </script>
+</body>
+</html>

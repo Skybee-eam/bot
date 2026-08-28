@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: skybee-bot
+    env: node
+    plan: free
+    buildCommand: npm install && npm --prefix CypherX/CypherX-main install
+    startCommand: node index.js
+    envVars:
+      - key: ACCESS_CODE
+        value: SKYBEE2026
+      - key: NODE_VERSION
+        value: 20
+      - key: PORT
+        value: 3000

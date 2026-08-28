@@ -1,18 +1,26 @@
 node_modules/
+bot-pairing-web/node_modules/
+bot-worker-engine/node_modules/
 CypherX/CypherX-main/node_modules/
 .env
 tmp/
+bot-worker-engine/tmp/
 CypherX/CypherX-main/tmp/
 temp_sessions/
+bot-pairing-web/temp_sessions/
 session/
+bot-worker-engine/session/
+bot-worker-engine/cloud_sessions/
 CypherX/CypherX-main/session/
 src/Session/
+bot-worker-engine/src/Session/
 CypherX/CypherX-main/src/Session/
 sessions/
 *.db
-
 
 .vercel
 
 sessions_vault.json
 serviceAccountKey.json
+bot-pairing-web/serviceAccountKey.json
+bot-worker-engine/serviceAccountKey.json
