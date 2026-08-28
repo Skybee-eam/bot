@@ -3,647 +3,1169 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Skybee Bot - Global Admin Portal</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;700&display=swap" rel="stylesheet">
-  <style>
-    :root {
-      --bg-base: #0f172a;
-      --bg-surface: rgba(30, 41, 59, 0.7);
-      --bg-surface-hover: rgba(51, 65, 85, 0.8);
-      --text-main: #f8fafc;
-      --text-muted: #94a3b8;
-      --accent: #3b82f6;
-      --accent-hover: #2563eb;
-      --success: #10b981;
-      --danger: #ef4444;
-      --warning: #f59e0b;
-      --border: rgba(255, 255, 255, 0.1);
-      --glass-blur: blur(12px);
-    }
-    
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    body {
-      background-color: var(--bg-base);
-      color: var(--text-main);
-      font-family: 'Inter', sans-serif;
-      min-height: 100vh;
-      overflow-x: hidden;
-      display: flex;
-      flex-direction: column;
-    }
-
-    /* GLASSMORPHISM UTILS */
-    .glass {
-      background: var(--bg-surface);
-      backdrop-filter: var(--glass-blur);
-      -webkit-backdrop-filter: var(--glass-blur);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-    }
-
-    /* LOGIN OVERLAY */
-    #login-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: var(--bg-base);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
-      transition: opacity 0.4s ease;
-    }
-
-    .login-box {
-      width: 100%;
-      max-width: 400px;
-      padding: 40px;
-      text-align: center;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-    }
-
-    .login-box h2 {
-      font-family: 'Outfit', sans-serif;
-      margin-bottom: 8px;
-      font-size: 1.8rem;
-    }
-
-    .login-box p {
-      color: var(--text-muted);
-      margin-bottom: 24px;
-      font-size: 0.95rem;
-    }
-
-    input[type="password"] {
-      width: 100%;
-      padding: 14px 16px;
-      border-radius: 8px;
-      border: 1px solid var(--border);
-      background: rgba(15, 23, 42, 0.6);
-      color: white;
-      font-size: 1rem;
-      outline: none;
-      transition: border-color 0.2s;
-      margin-bottom: 16px;
-    }
-
-    input[type="password"]:focus {
-      border-color: var(--accent);
-    }
-
-    button {
-      background: var(--accent);
-      color: white;
-      border: none;
-      padding: 12px 24px;
-      border-radius: 8px;
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-    }
-
-    button:hover {
-      background: var(--accent-hover);
-      transform: translateY(-1px);
-    }
-    
-    button.danger { background: var(--danger); }
-    button.danger:hover { background: #dc2626; }
-    button.warning { background: var(--warning); color: #000; }
-    button.warning:hover { background: #d97706; }
-    button.success { background: var(--success); }
-    button.success:hover { background: #059669; }
-
-    /* DASHBOARD LAYOUT */
-    #dashboard {
-      display: none;
-      padding: 32px;
-      max-width: 1400px;
-      margin: 0 auto;
-      width: 100%;
-    }
-
-    header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 32px;
-    }
-
-    header h1 {
-      font-family: 'Outfit', sans-serif;
-      font-size: 2.2rem;
-      background: linear-gradient(to right, #60a5fa, #a78bfa);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-
-    /* STATS GRID */
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      gap: 24px;
-      margin-bottom: 32px;
-    }
-
-    .stat-card {
-      padding: 24px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .stat-label {
-      color: var(--text-muted);
-      font-size: 0.9rem;
-      font-weight: 500;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-
-    .stat-value {
-      font-size: 2.5rem;
-      font-weight: 700;
-      font-family: 'Outfit', sans-serif;
-    }
-
-    /* BOTS TABLE */
-    .table-container {
-      overflow-x: auto;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: separate;
-      border-spacing: 0;
-      text-align: left;
-    }
-
-    th, td {
-      padding: 16px 24px;
-      border-bottom: 1px solid var(--border);
-    }
-
-    th {
-      color: var(--text-muted);
-      font-size: 0.85rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      background: rgba(0,0,0,0.2);
-    }
-
-    th:first-child { border-top-left-radius: 12px; }
-    th:last-child { border-top-right-radius: 12px; }
-
-    td {
-      font-size: 0.95rem;
-      vertical-align: middle;
-    }
-
-    tr:last-child td { border-bottom: none; }
-    tr:hover td { background: rgba(255, 255, 255, 0.03); }
-
-    .status-badge {
-      display: inline-flex;
-      align-items: center;
-      padding: 4px 10px;
-      border-radius: 9999px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      text-transform: uppercase;
-    }
-
-    .status-running { background: rgba(16, 185, 129, 0.2); color: #34d399; }
-    .status-stopped { background: rgba(148, 163, 184, 0.2); color: #94a3b8; }
-    .status-pending { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
-    .status-error { background: rgba(239, 68, 68, 0.2); color: #f87171; }
-
-    .action-group {
-      display: flex;
-      gap: 8px;
-    }
-
-    .action-btn {
-      padding: 6px 12px;
-      font-size: 0.85rem;
-      border-radius: 6px;
-    }
-
-    /* MODAL */
-    .modal-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.7);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 2000;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.3s;
-    }
-
-    .modal-overlay.active {
-      opacity: 1;
-      pointer-events: all;
-    }
-
-    .modal {
-      width: 90%;
-      max-width: 800px;
-      max-height: 80vh;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .modal-header {
-      padding: 20px 24px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .modal-close {
-      background: transparent;
-      color: var(--text-muted);
-      padding: 4px;
-      font-size: 1.5rem;
-    }
-    .modal-close:hover { color: white; background: transparent; }
-
-    .modal-body {
-      padding: 24px;
-      overflow-y: auto;
-      flex: 1;
-      background: #000;
-      font-family: monospace;
-      color: #34d399;
-      font-size: 0.9rem;
-      line-height: 1.5;
-    }
-
-    /* LOADING & TOASTS */
-    .toast {
-      position: fixed;
-      bottom: 24px;
-      right: 24px;
-      padding: 16px 24px;
-      border-radius: 8px;
-      background: var(--bg-surface);
-      border: 1px solid var(--border);
-      color: white;
-      transform: translateY(100px);
-      opacity: 0;
-      transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-      z-index: 3000;
-      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5);
-    }
-
-    .toast.show {
-      transform: translateY(0);
-      opacity: 1;
-    }
-
-    .loader {
-      border: 3px solid rgba(255,255,255,0.1);
-      border-top-color: white;
-      border-radius: 50%;
-      width: 16px;
-      height: 16px;
-      animation: spin 1s linear infinite;
-      display: none;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-  </style>
+  <title>SKYBEE BOT — WhatsApp Bot Multi-Cloud Host</title>
+  <meta name="description" content="SKYBEE BOT Multi-Tenant Cloud — Connect and host multiple WhatsApp bots simultaneously. Connectivity and Automation.">
+  <link rel="icon" type="image/jpeg" href="/logo.jpg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <!-- LOGIN OVERLAY -->
-  <div id="login-overlay">
-    <div class="login-box glass">
-      <h2>Admin Portal</h2>
-      <p>Enter the master access code to continue.</p>
-      <input type="password" id="access-code" placeholder="ACCESS_CODE" onkeypress="if(event.key==='Enter') login()">
-      <button onclick="login()" id="login-btn" style="width:100%">
-        <span class="loader" id="login-loader"></span>
-        <span>Access Dashboard</span>
-      </button>
+  <!-- ════ ACCESS CODE GATE OVERLAY ════ -->
+  <div id="accessGate" style="
+    position:fixed; inset:0; z-index:9999;
+    background: radial-gradient(ellipse at center, #0d0d1a 0%, #000 100%);
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Inter',sans-serif;
+  ">
+    <div style="
+      text-align:center; padding:40px 32px; max-width:400px; width:90%;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(0,180,255,0.3);
+      border-radius:20px;
+      box-shadow: 0 0 60px rgba(0,180,255,0.2), inset 0 0 40px rgba(0,0,0,0.4);
+    ">
+      <div style="margin-bottom:12px;">
+        <img src="/logo.jpg" alt="SKYBEE BOT" style="width:72px; height:72px; border-radius:18px; object-fit:cover; border:2px solid rgba(0,195,255,0.5); box-shadow:0 0 25px rgba(0,180,255,0.4);">
+      </div>
+      <h2 style="color:#fff; font-size:1.4rem; font-weight:800; margin:0 0 6px;">SKYBEE BOT CLOUD</h2>
+      <p style="color:#8892b0; font-size:0.85rem; margin:0 0 24px;">Enter your access code to continue</p>
+
+      <div style="position:relative; margin-bottom:12px;">
+        <input
+          id="gateInput"
+          type="password"
+          placeholder="Access code..."
+          autocomplete="off"
+          onkeydown="if(event.key==='Enter') submitAccessCode()"
+          style="
+            width:100%; box-sizing:border-box;
+            padding:14px 48px 14px 16px;
+            background:rgba(255,255,255,0.07);
+            border:1px solid rgba(255,255,255,0.12);
+            border-radius:10px;
+            color:#fff; font-size:1rem;
+            outline:none; letter-spacing:2px;
+            transition: border-color 0.2s;
+          "
+          onfocus="this.style.borderColor='rgba(0,180,255,0.6)'"
+          onblur="this.style.borderColor='rgba(255,255,255,0.12)'"
+        >
+        <span
+          onclick="toggleGateVisibility(this)"
+          style="position:absolute;right:14px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:1.1rem;user-select:none;"
+        >👁️</span>
+      </div>
+
+      <button
+        onclick="submitAccessCode()"
+        id="gateBtn"
+        style="
+          width:100%; padding:14px;
+          background: linear-gradient(135deg, #00b4d8, #0077b6);
+          border:none; border-radius:10px;
+          color:#fff; font-size:1rem; font-weight:700;
+          cursor:pointer; letter-spacing:0.5px;
+          transition: opacity 0.2s;
+          box-shadow:0 0 20px rgba(0,180,255,0.3);
+        "
+        onmouseover="this.style.opacity='0.9'"
+        onmouseout="this.style.opacity='1'"
+      >🔓 Unlock Dashboard</button>
+
+      <p id="gateError" style="color:#ff5252; font-size:0.82rem; margin:12px 0 0; min-height:18px;"></p>
     </div>
   </div>
 
-  <!-- DASHBOARD -->
-  <div id="dashboard">
-    <header>
-      <h1>Skybee Admin</h1>
-      <button class="action-btn" onclick="logout()" style="background: rgba(255,255,255,0.1)">Logout</button>
+  <!-- Animated background particles -->
+  <div class="bg-grid"></div>
+  <div class="glow-orb glow-orb-1"></div>
+  <div class="glow-orb glow-orb-2"></div>
+  <div class="cloud-container">
+    <div class="cloud cloud-1"></div>
+    <div class="cloud cloud-2"></div>
+    <div class="cloud cloud-3"></div>
+  </div>
+
+  <div class="admin-layout" id="pageWrapper" style="pointer-events:none; user-select:none; filter:blur(4px); transition: filter 0.4s;">
+    <!-- Sidebar Overlay for Mobile -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar(event)"></div>
+    <!-- Sidebar -->
+    <aside class="admin-sidebar">
+      <div class="logo-badge" style="margin-bottom: 12px; display:flex; gap:12px;">
+        <img src="/logo.jpg" alt="SKYBEE Logo" style="width:38px; height:38px; border-radius:10px; object-fit:cover; border:1.5px solid rgba(0,195,255,0.4); box-shadow:0 0 15px rgba(0,180,255,0.35);">
+        <span class="logo-text">SKYBEE <span class="logo-ofc" style="color:#00b4d8; text-shadow:0 0 10px rgba(0,180,255,0.5);">ADMIN</span></span>
+      </div>
+      
+      <nav class="sidebar-nav">
+        <a href="#" class="active" onclick="switchAdminTab('dashboard')"><span>📊</span> Dashboard</a>
+        <a href="#bots" onclick="switchAdminTab('bots')"><span>🤖</span> Bot Management</a>
+        <a href="#approvals" onclick="switchAdminTab('approvals')">
+          <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
+            <span><span>✅</span> Admin Approvals</span>
+            <span id="approvalBadge" style="display:none; background:#ff4757; color:#fff; padding:2px 8px; border-radius:12px; font-size:0.75rem; font-weight:bold;">0</span>
+          </div>
+        </a>
+        <a href="#logs" onclick="switchAdminTab('logs')"><span>📋</span> Global Logs</a>
+        <a href="#db" onclick="switchAdminTab('db')"><span>🗄️</span> Database Vault</a>
+        <a href="/store" target="_blank" style="margin-top:20px; background:rgba(0,180,255,0.1); border:1px solid rgba(0,180,255,0.3);"><span>🛍️</span> Open Store</a>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="admin-main">
+      <div class="page-wrapper">
+        <!-- Header -->
+        <header class="site-header" style="justify-content: flex-end;">
+      <button class="hamburger-btn" id="hamburgerBtn" onclick="toggleSidebar(event)">☰</button>
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <a href="/store" target="_blank" style="background: linear-gradient(135deg, #00b4d8, #0077b6); border:none; border-radius:8px; color:#fff; padding:6px 14px; font-size:0.82rem; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:6px; box-shadow:0 0 15px rgba(0,180,255,0.3);">
+          <span>🛍️</span> <span>Open Client Store ↗</span>
+        </a>
+        <button onclick="copyClientStoreLink()" style="background: rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.18); border-radius:8px; color:#fff; padding:6px 14px; font-size:0.82rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+          <span>📋</span> <span id="clientLinkBtnText">Copy Store Link</span>
+        </button>
+        <div class="status-pill" style="border-color: rgba(0,180,255,0.35); background: rgba(0,180,255,0.08);">
+          <span style="font-size:0.8rem;">☁️</span>
+          <span style="color:#90e0ef;">Firebase chapters-eam</span>
+        </div>
+        <div class="status-pill" id="statusPill">
+          <span class="status-dot dot-online" id="statusDot"></span>
+          <span id="statusText">Multi-Host Active</span>
+        </div>
+      </div>
     </header>
 
-    <div class="stats-grid">
-      <div class="stat-card glass">
-        <span class="stat-label">Total Connected Bots</span>
-        <span class="stat-value" id="stat-total">0</span>
-      </div>
-      <div class="stat-card glass">
-        <span class="stat-value" id="stat-running" style="color: var(--success)">0</span>
-        <span class="stat-label">Active / Running</span>
-      </div>
-      <div class="stat-card glass">
-        <span class="stat-value" id="stat-stopped" style="color: var(--text-muted)">0</span>
-        <span class="stat-label">Offline / Stopped</span>
-      </div>
-      <div class="stat-card glass">
-        <span class="stat-value" id="stat-uptime">0s</span>
-        <span class="stat-label">Server Uptime</span>
+    <!-- APPROVALS TAB -->
+    <div id="tab-approvals" class="admin-tab" style="display:none; width:100%;">
+      <div class="tab-content">
+        <h2 class="section-title" style="color:var(--text-bright);">
+          <span>✅</span> Pending Admin Approvals
+        </h2>
+        <p style="color:var(--muted); margin-bottom: 24px;">Clients who connected via the store and are waiting for your approval to start their bot.</p>
+        <div class="pending-list-container" id="approvalsGrid">
+          <!-- Pending bots injected here -->
+        </div>
       </div>
     </div>
 
-    <div class="glass table-container">
-      <table>
-        <thead>
-          <tr>
-            <th>WhatsApp #</th>
-            <th>Name</th>
-            <th>Status</th>
-            <th>Uptime</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody id="bots-table-body">
-          <tr><td colspan="5" style="text-align: center; color: var(--text-muted)">Loading bots...</td></tr>
-        </tbody>
-      </table>
+    <div id="tab-dashboard" class="admin-tab active">
+    <!-- Hero -->
+    <section class="hero">
+      <div class="hero-avatar" style="background: linear-gradient(135deg, #00b4d8, #0077b6); box-shadow: 0 0 40px rgba(0,180,255,0.4);">
+        <img src="/logo.jpg" alt="SKYBEE BOT" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">
+      </div>
+      <h1 class="hero-title">SKYBEE <span class="text-fire" style="background: linear-gradient(135deg, #00b4d8, #48cae4, #90e0ef); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;">BOT CLOUD</span></h1>
+      <p class="hero-sub">Connectivity and Automation. Connect multiple WhatsApp accounts simultaneously with isolated Skybee Bot instances.</p>
+      
+      <!-- Client Referral Store Banner -->
+      <div style="margin-top:16px; display:inline-flex; align-items:center; gap:10px; background:rgba(0,180,255,0.08); border:1px solid rgba(0,180,255,0.25); border-radius:12px; padding:10px 18px; font-size:0.88rem; color:#caf0f8;">
+        <span>🛍️</span>
+        <span>Customer Portal Active: <a href="/store" target="_blank" style="color:#48cae4; font-weight:700; text-decoration:underline;">Open Client Pairing Store ↗</a></span>
+        <button onclick="copyClientStoreLink()" style="background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); border-radius:6px; color:#fff; padding:4px 10px; font-size:0.75rem; cursor:pointer; margin-left:6px;">📋 Copy Link</button>
+      </div>
+    </section>
+
+    <!-- Cluster Metrics Grid -->
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-icon">📦</div>
+        <div>
+          <div class="metric-value" id="metricTotalBots">0</div>
+          <div class="metric-label">Total Hosted Bots</div>
+        </div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-icon">⚡</div>
+        <div>
+          <div class="metric-value" id="metricRunningBots" style="color:#4ade80;">0</div>
+          <div class="metric-label">Active Running</div>
+        </div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-icon">🧠</div>
+        <div>
+          <div class="metric-value" id="metricRam">--</div>
+          <div class="metric-label">RAM Usage</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Method cards (Connect New Bot) -->
+    <div class="method-grid">
+
+      <!-- Card 1: Pairing Code -->
+      <div class="method-card" id="pairCard">
+        <div class="card-badge">Recommended</div>
+        <div class="card-icon">📱</div>
+        <h2 class="card-title">Pairing Code</h2>
+        <p class="card-desc">Generate an 8-digit pairing code for your number and link in WhatsApp → Linked Devices.</p>
+        <button class="btn btn-primary" onclick="openModal('pairModal')">Get Pairing Code</button>
+      </div>
+
+      <!-- Card 2: QR Code -->
+      <div class="method-card" id="qrCard">
+        <div class="card-badge card-badge-qr">Instant</div>
+        <div class="card-icon">📷</div>
+        <h2 class="card-title">QR Code</h2>
+        <p class="card-desc">Scan the live QR code directly from your phone. Perfect for quick one-tap linking.</p>
+        <button class="btn btn-qr" onclick="openQrModal()">Scan QR Code</button>
+      </div>
+
+      <!-- Card 3: Session ID -->
+      <div class="method-card" id="sessionCard">
+        <div class="card-badge card-badge-alt">Advanced</div>
+        <div class="card-icon">🔑</div>
+        <h2 class="card-title">Session ID</h2>
+        <p class="card-desc">Have a <code>SKYBEE~...</code> session string? Paste it here to launch an instant instance.</p>
+        <button class="btn btn-secondary" onclick="openModal('sessionModal')">Paste Session ID</button>
+      </div>
+
+    </div>
+
+    </div>
+
+    <!-- ═══ Multi-Bot Management Hub ═══ -->
+    <div id="tab-bots" class="admin-tab" style="display:none;">
+      <section class="bot-hub">
+        <div class="bot-hub-header">
+          <div class="bot-hub-title">
+            <span>🤖 Hosted Bot Instances</span>
+            <span class="bot-status-badge badge-running" id="activeBadge">0 Online</span>
+          </div>
+          <button class="btn-mini btn-mini-restart" onclick="fetchBots()" style="padding: 8px 16px; border-radius: 999px;">
+            🔄 Refresh Instances
+          </button>
+        </div>
+
+        <div class="bot-grid" id="botGrid">
+          <div class="empty-bots">
+            <div class="empty-bots-icon">🚀</div>
+            <p><strong>No active bots linked yet.</strong></p>
+            <p style="font-size:0.8rem; margin-top:4px;">Use Pairing Code or QR Code above to connect the first WhatsApp account!</p>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ═══ Global Logs ═══ -->
+    <div id="tab-logs" class="admin-tab" style="display:none;">
+      <section class="hero" style="margin-top:20px;">
+        <h2 class="hero-title" style="font-size:1.8rem;">📋 Global Cluster Logs</h2>
+        <p class="hero-sub">View aggregated logs across all hosted instances.</p>
+        <div id="globalLogsContainer" class="log-modal-content" style="height:400px; text-align:left;">Loading global logs...</div>
+      </section>
+    </div>
+
+    <!-- ═══ Database Vault ═══ -->
+    <div id="tab-db" class="admin-tab" style="display:none;">
+      <section class="hero" style="margin-top:20px;">
+        <h2 class="hero-title" style="font-size:1.8rem;">🗄️ Database Vault</h2>
+        <p class="hero-sub">Manage active session keys and bot metadata directly from the database.</p>
+        <div id="dbContainer" style="background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px; margin-top:20px; text-align:left; overflow-x:auto;">
+          <p style="color:var(--muted); text-align:center;">Loading Database Vault...</p>
+        </div>
+      </section>
+    </div>
+
+    <footer class="site-footer">
+      <p>Powered by <span class="text-fire" style="color:#00b4d8; text-shadow:0 0 10px rgba(0,180,255,0.4);">SKYBEE BOT</span> • Multi-Tenant WhatsApp Engine</p>
+      <a href="https://whatsapp.com" target="_blank" class="footer-link">Support & Documentation ↗</a>
+    </footer>
+
+  </div>
+
+  <!-- ═══════ MODAL: Pairing Code ═══════ -->
+  <div class="modal-overlay" id="pairModal" onclick="closeOnOverlay(event, 'pairModal')">
+    <div class="modal-box">
+      <button class="modal-close" onclick="closeModal('pairModal')">✕</button>
+      <div class="modal-icon">📱</div>
+      <h2 class="modal-title">Get Pairing Code</h2>
+      <p class="modal-desc">Enter your WhatsApp phone number with country code (e.g. 234... or 1...).</p>
+
+      <input type="tel" id="phoneInput" class="modal-input" placeholder="e.g. 2348012345678" maxlength="16">
+      <button class="btn btn-primary btn-full" id="pairBtn" onclick="getPairCode()">Generate Code</button>
+
+      <div id="codeResult" class="code-result hidden">
+        <p class="code-label">Tap to copy your pairing code:</p>
+        <div class="code-display" id="pairCode" onclick="copyCode()">--------</div>
+        <p class="code-hint">Open WhatsApp → <strong>Linked Devices</strong> → <strong>Link with phone number</strong> → enter code</p>
+        <div class="code-timer" id="codeTimer">⏳ Expires in <strong id="timerCount">3:00</strong></div>
+      </div>
+
+      <div id="pairError" class="alert-error hidden"></div>
+      <div id="pairSuccess" class="alert-success hidden"></div>
     </div>
   </div>
 
-  <!-- LOGS MODAL -->
-  <div class="modal-overlay" id="logs-modal" onclick="if(event.target===this) closeLogs()">
-    <div class="modal glass" onclick="event.stopPropagation()">
-      <div class="modal-header">
-        <h3 id="logs-title">Console Logs</h3>
-        <button class="modal-close" onclick="closeLogs()">×</button>
+  <!-- ═══════ MODAL: QR Code ═══════ -->
+  <div class="modal-overlay" id="qrModal" onclick="closeOnOverlay(event, 'qrModal')">
+    <div class="modal-box modal-box-qr">
+      <button class="modal-close" onclick="closeQrModal()">✕</button>
+      <div class="modal-icon">📷</div>
+      <h2 class="modal-title">Scan QR Code</h2>
+      <p class="modal-desc">Open WhatsApp → <strong style="color:#ccc">Linked Devices</strong> → <strong style="color:#ccc">Link a Device</strong>, then scan.</p>
+
+      <div class="qr-wrapper" id="qrWrapper">
+        <div class="qr-loading" id="qrLoading">
+          <div class="qr-spinner"></div>
+          <p>Generating Dynamic QR...</p>
+        </div>
+        <img class="qr-image hidden" id="qrImage" alt="WhatsApp QR Code">
+        <div class="qr-success hidden" id="qrLinked">
+          <div style="font-size:3rem;">✅</div>
+          <p style="color:#4ade80;font-weight:700;margin-top:10px;">WhatsApp Linked!</p>
+          <p style="color:#888;font-size:0.82rem;margin-top:6px;">Your bot instance is now starting.</p>
+        </div>
       </div>
-      <div class="modal-body" id="logs-content">
-        Loading...
+
+      <div class="qr-timer-bar" id="qrTimerBar"></div>
+      <div class="code-timer" id="qrTimerText" style="margin-top:8px;">⏳ QR refreshes in <strong id="qrTimerCount">0:55</strong></div>
+
+      <button class="btn btn-primary btn-full" id="qrRefreshBtn" onclick="startQrSession()" style="margin-top:16px;">🔄 Refresh QR</button>
+      <div id="qrError" class="alert-error hidden"></div>
+    </div>
+  </div>
+
+  <!-- ═══════ MODAL: Session ID ═══════ -->
+  <div class="modal-overlay" id="sessionModal" onclick="closeOnOverlay(event, 'sessionModal')">
+    <div class="modal-box">
+      <button class="modal-close" onclick="closeModal('sessionModal')">✕</button>
+      <div class="modal-icon">🔑</div>
+      <h2 class="modal-title">Inject Session Credentials</h2>
+      <p class="modal-desc">Paste your session ID starting with <code style="color:#00d2ff;">SKYBEE~</code> or raw base64.</p>
+
+      <textarea id="sessionInput" class="modal-textarea" placeholder="SKYBEE~eyJub2lzZUtleSI6..."></textarea>
+      <button class="btn btn-primary btn-full" id="sessionBtn" onclick="injectSession()">Host Bot Instance</button>
+
+      <div id="sessionError" class="alert-error hidden"></div>
+      <div id="sessionSuccess" class="alert-success hidden"></div>
+    </div>
+  </div>
+
+  <!-- ═══════ MODAL: Live Logs Viewer ═══════ -->
+  <div class="modal-overlay" id="logsModal" onclick="closeOnOverlay(event, 'logsModal')">
+    <div class="modal-box modal-box-log">
+      <button class="modal-close" onclick="closeModal('logsModal')">✕</button>
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:1.3rem;">📋</span>
+          <h2 class="modal-title" style="margin:0;" id="logsTitle">Bot Console</h2>
+        </div>
+        <span class="bot-status-badge badge-running" id="logsStatusBadge">Running</span>
+      </div>
+
+      <div class="log-modal-content" id="logContent">Loading live console logs...</div>
+
+      <div style="display:flex; gap:10px; justify-content:flex-end;">
+        <button class="btn-mini btn-mini-restart" onclick="copyLogs()">📋 Copy Logs</button>
+        <button class="btn-mini btn-mini-stop" onclick="closeModal('logsModal')">Close</button>
       </div>
     </div>
   </div>
 
-  <!-- TOAST -->
-  <div class="toast glass" id="toast">Message here</div>
+  <!-- 🟢 MODAL: Approval Details 🟢 -->
+  <div class="modal-overlay" id="approvalModal" onclick="closeOnOverlay(event, 'approvalModal')">
+    <div class="modal-box">
+      <button class="modal-close" onclick="closeModal('approvalModal')">✕</button>
+      <div style="display:flex; align-items:center; gap:16px; margin-bottom: 20px;">
+        <div class="pending-avatar" style="width: 56px; height: 56px; font-size: 1.8rem;">🤖</div>
+        <div>
+          <h2 class="modal-title" style="margin: 0; margin-bottom: 4px;" id="apprModalName">Name</h2>
+          <p style="margin: 0; color: var(--muted);" id="apprModalPhone">+Phone</p>
+        </div>
+      </div>
+      <div style="background: rgba(0,0,0,0.3); border-radius: 8px; padding: 16px; margin-bottom: 24px; border: 1px solid rgba(255,255,255,0.05);">
+        <div style="display:flex; justify-content:space-between; margin-bottom: 12px;">
+          <span style="color:var(--muted);">Status</span>
+          <span style="color:#ff7b00; font-weight:600;">Pending Approval</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-bottom: 12px;">
+          <span style="color:var(--muted);">Uptime</span>
+          <span style="color:#fff;">Offline</span>
+        </div>
+        <div style="display:flex; justify-content:space-between;">
+          <span style="color:var(--muted);">Events</span>
+          <span style="color:#fff;">1</span>
+        </div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:12px;">
+        <button id="apprModalBtn" class="btn-primary" style="width:100%; justify-content:center;">✅ Approve Bot Instance</button>
+        <div style="display:flex; gap:12px;">
+          <button id="apprLogsBtn" class="btn-secondary" style="flex:1; justify-content:center; background: rgba(0,180,255,0.1); color: #00b4d8;">📋 View Logs</button>
+          <button id="apprDelBtn" class="btn-secondary" style="flex:1; justify-content:center; background: rgba(255,82,82,0.1); color: #ff5252;">🗑️ Reject</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script>
-    let currentAccessCode = localStorage.getItem('skybee_admin_code') || '';
-    let refreshInterval = null;
+        // 🚀 THE URL OF YOUR RENDER/RAILWAY BOT BACKEND 🚀
+        // Dynamic backend URL so it works locally and on deployed sites
+        let BACKEND_URL = 'http://localhost:3000';
+        if (window.location.hostname.includes('vercel.app') || window.location.hostname.includes('onrender.com') || window.location.hostname.includes('netlify.app') || window.location.hostname.includes('railway.app') || window.location.hostname.includes('replit.dev') || window.location.hostname.includes('replit.app') || window.location.hostname.includes('repl.co')) {
+           BACKEND_URL = 'https://bot-z47t.onrender.com';
+        }
 
-    // Initialize
-    if (currentAccessCode) {
-      verifyCode(currentAccessCode);
+        document.addEventListener('DOMContentLoaded', () => {
+          // Additional initialization logic
+        });
+
+    // ─── ACCESS CODE GATE ───────────────────────────────────────────
+    let SESSION_ACCESS_CODE = null;
+    let loggedInDiscordId = null;
+
+    function toggleGateVisibility(btn) {
+      const inp = document.getElementById('gateInput');
+      if (inp.type === 'password') { inp.type = 'text'; btn.textContent = '🙈'; }
+      else { inp.type = 'password'; btn.textContent = '👁️'; }
     }
 
-    function showToast(msg, isError = false) {
-      const toast = document.getElementById('toast');
-      toast.textContent = msg;
-      toast.style.borderColor = isError ? 'var(--danger)' : 'var(--border)';
-      toast.classList.add('show');
-      setTimeout(() => toast.classList.remove('show'), 3000);
-    }
-
-    async function login() {
-      const input = document.getElementById('access-code').value;
-      if (!input) return showToast('Please enter an access code.', true);
-      
-      document.getElementById('login-loader').style.display = 'block';
-      await verifyCode(input);
-      document.getElementById('login-loader').style.display = 'none';
-    }
-
-    function logout() {
-      currentAccessCode = '';
-      localStorage.removeItem('skybee_admin_code');
-      clearInterval(refreshInterval);
-      document.getElementById('dashboard').style.display = 'none';
-      document.getElementById('login-overlay').style.opacity = '1';
-      document.getElementById('login-overlay').style.pointerEvents = 'all';
-      document.getElementById('access-code').value = '';
-    }
-
-    async function verifyCode(code) {
+    async function submitAccessCode() {
+      const code = document.getElementById('gateInput').value.trim();
+      const errEl = document.getElementById('gateError');
+      const btn = document.getElementById('gateBtn');
+      errEl.textContent = '';
+      if (!code) { errEl.textContent = 'Please enter the access code.'; return; }
+      btn.textContent = 'Verifying...';
+      btn.disabled = true;
       try {
-        const res = await fetch('/api/verify-access', {
+        const res = await fetch(`${BACKEND_URL}/api/verify-access`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ code })
         });
         const data = await res.json();
-        
         if (data.success) {
-          currentAccessCode = code;
-          localStorage.setItem('skybee_admin_code', code);
-          document.getElementById('login-overlay').style.opacity = '0';
-          document.getElementById('login-overlay').style.pointerEvents = 'none';
-          document.getElementById('dashboard').style.display = 'block';
-          
-          fetchDashboardData();
-          refreshInterval = setInterval(fetchDashboardData, 5000);
+          SESSION_ACCESS_CODE = code;
+          const gate = document.getElementById('accessGate');
+          gate.style.transition = 'opacity 0.4s';
+          gate.style.opacity = '0';
+          // Unblur and unlock the page
+          const pw = document.getElementById('pageWrapper');
+          pw.style.filter = 'none';
+          pw.style.pointerEvents = 'auto';
+          pw.style.userSelect = 'auto';
+          document.body.style.overflow = '';
+          setTimeout(() => gate.remove(), 420);
         } else {
-          showToast(data.error || 'Invalid access code', true);
-          localStorage.removeItem('skybee_admin_code');
+          errEl.textContent = data.error || 'Wrong access code. Try again.';
+          document.getElementById('gateInput').value = '';
+          document.getElementById('gateInput').focus();
+        }
+      } catch {
+        errEl.textContent = 'Server error. Try again.';
+      } finally {
+        btn.textContent = '🔓 Unlock Dashboard';
+        btn.disabled = false;
+      }
+    }
+
+    // Helper: get auth headers for protected API calls
+    function authHeaders(extra) {
+      return { 'Content-Type': 'application/json', 'X-Access-Code': SESSION_ACCESS_CODE || '', ...extra };
+    }
+
+    // ─── END ACCESS GATE ────────────────────────────────────────────
+
+    let activeLogPhone = null;
+    let logPollInterval = null;
+
+    // ── Helper: Format seconds to readable uptime ──
+    function formatUptime(seconds) {
+      if (!seconds || seconds <= 0) return 'Just now';
+      const d = Math.floor(seconds / 86400);
+      const h = Math.floor((seconds % 86400) / 3600);
+      const m = Math.floor((seconds % 3600) / 60);
+      const s = seconds % 60;
+      if (d > 0) return `${d}d ${h}h`;
+      if (h > 0) return `${h}h ${m}m`;
+      if (m > 0) return `${m}m ${s}s`;
+      return `${s}s`;
+    }
+
+    // ── Fetch Cluster Metrics & System Stats ──
+    async function fetchSystemStats() {
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/system-stats`, { headers: authHeaders() });
+        const data = await res.json();
+        if (data.success) {
+          document.getElementById('metricTotalBots').textContent = data.totalBots;
+          document.getElementById('metricRunningBots').textContent = data.runningBots;
+          document.getElementById('metricRam').textContent = data.botMemory ? `${data.botMemory}` : `${data.memory.used} / ${data.memory.total}`;
+          document.getElementById('activeBadge').textContent = `${data.runningBots} Online`;
+        }
+      } catch (err) {}
+    }
+
+    // 🟢 Fetch & Render Multi-Bot Hub 🟢
+    let allBotsData = [];
+    async function fetchBots() {
+      try {
+        let url = `${BACKEND_URL}/api/bots`;
+        if (loggedInDiscordId) url += `?ownerId=${loggedInDiscordId}`;
+        const res = await fetch(url, { headers: authHeaders() });
+        const data = await res.json();
+        allBotsData = data.bots || [];
+        const grid = document.getElementById('botGrid');
+        const approvalsGrid = document.getElementById('approvalsGrid');
+        const approvalBadge = document.getElementById('approvalBadge');
+
+        if (!data.bots || data.bots.length === 0) {
+          grid.innerHTML = `
+            <div class="empty-bots">
+              <div class="empty-bots-icon">🚀</div>
+              <p><strong>No active bots linked yet.</strong></p>
+              <p style="font-size:0.8rem; margin-top:4px;">Use Pairing Code or QR Code above to connect the first WhatsApp account!</p>
+            </div>
+          `;
+          approvalsGrid.innerHTML = `<p style="color:var(--muted); font-size:0.9rem;">No pending approvals.</p>`;
+          approvalBadge.style.display = 'none';
+          return;
+        }
+
+        const pendingBots = data.bots.filter(b => b.approvalStatus === 'pending' || b.status === 'pending');
+        const activeBots = data.bots.filter(b => b.approvalStatus !== 'pending' && b.status !== 'pending');
+
+        // Update badge
+        if (pendingBots.length > 0) {
+          approvalBadge.textContent = pendingBots.length;
+          approvalBadge.style.display = 'inline-block';
+        } else {
+          approvalBadge.style.display = 'none';
+        }
+
+        // Render Active Bots
+        if (activeBots.length === 0) {
+          grid.innerHTML = `<div class="empty-bots"><p><strong>No active bots.</strong></p></div>`;
+        } else {
+          grid.innerHTML = activeBots.map(bot => renderBotCard(bot, false)).join('');
+        }
+
+        // Render Pending Bots
+        if (pendingBots.length === 0) {
+          approvalsGrid.innerHTML = `<p style="color:var(--muted); font-size:0.9rem; padding: 20px;">No pending approvals.</p>`;
+        } else {
+          approvalsGrid.innerHTML = pendingBots.map(bot => renderPendingListItem(bot)).join('');
+        }
+
+      } catch (err) {
+        console.error('Error fetching bots:', err);
+      }
+    }
+
+    function renderPendingListItem(bot) {
+      const displayName = bot.name || ('+' + bot.phone);
+      const displayPhone = bot.name ? ('+' + bot.phone) : 'Skybee Bot';
+      
+      return `
+        <div class="pending-list-item" onclick="openApprovalModal('${bot.phone}')">
+          <div class="pending-info">
+            <div class="pending-avatar">🤖</div>
+            <div class="pending-text">
+              <h4>${displayName}</h4>
+              <p>${displayPhone}</p>
+            </div>
+          </div>
+          <button class="pending-action">Review</button>
+        </div>
+      `;
+    }
+
+    function openApprovalModal(phone) {
+      const bot = allBotsData.find(b => b.phone === phone);
+      if (!bot) return;
+
+      document.getElementById('apprModalName').textContent = bot.name || ('+' + bot.phone);
+      document.getElementById('apprModalPhone').textContent = bot.name ? ('+' + bot.phone) : 'Skybee Bot';
+      
+      const apprBtn = document.getElementById('apprModalBtn');
+      apprBtn.onclick = () => {
+        closeModal('approvalModal');
+        approveBot(phone);
+      };
+
+      const logsBtn = document.getElementById('apprLogsBtn');
+      logsBtn.onclick = () => {
+        closeModal('approvalModal');
+        viewLogs(phone);
+      };
+
+      const delBtn = document.getElementById('apprDelBtn');
+      delBtn.onclick = () => {
+        if(confirm('Reject and delete this bot?')) {
+          closeModal('approvalModal');
+          deleteBot(phone);
+        }
+      };
+
+      openModal('approvalModal');
+    }
+
+    function renderBotCard(bot, isPending) {
+      const isRunning = bot.status === 'running';
+      const isError = bot.status === 'error';
+      
+      let badgeClass = isRunning ? 'badge-running' : (isError ? 'badge-error' : 'badge-stopped');
+      let dotClass = isRunning ? 'bot-dot-running' : (isError ? 'bot-dot-error' : 'bot-dot-stopped');
+      let statusLabel = isRunning ? 'Online' : (isError ? 'Error' : 'Stopped');
+      
+      if (isPending) {
+        badgeClass = 'badge-pairing'; // Reuse pairing style (orange)
+        dotClass = 'bot-dot-stopped';
+        statusLabel = 'Pending Approval';
+      }
+      
+      const uptimeText = isRunning ? `Uptime: ${formatUptime(bot.uptime)}` : 'Offline';
+
+      return `
+        <div class="bot-card" id="card-${bot.phone}">
+          <div class="bot-card-top">
+            <div class="bot-card-user">
+              <div class="bot-card-avatar">🤖</div>
+              <div>
+                <div class="bot-card-phone">${bot.name ? bot.name : '+' + bot.phone}</div>
+                <div class="bot-card-sub">${bot.name ? '+' + bot.phone + ' • ' : ''}Skybee Bot</div>
+              </div>
+            </div>
+            <div class="bot-status-badge ${badgeClass}">
+              <span class="bot-status-dot ${dotClass}"></span>
+              <span>${statusLabel}</span>
+            </div>
+          </div>
+
+          <div class="bot-card-meta">
+            <span>⏱️ ${uptimeText}</span>
+            <span>📋 ${bot.logCount || 0} events</span>
+          </div>
+
+          <div class="bot-card-actions">
+            ${isPending 
+              ? `<button class="btn-mini btn-mini-start" onclick="approveBot('${bot.phone}')" style="background: rgba(0, 230, 118, 0.2); border-color: #00e676; color: #00e676; width:100%;">✅ Approve Bot</button>`
+              : (isRunning 
+                ? `<button class="btn-mini btn-mini-stop" onclick="botAction('${bot.phone}', 'stop')">■ Stop</button>`
+                : `<button class="btn-mini btn-mini-start" onclick="botAction('${bot.phone}', 'start')">▶ Start</button>`)
+            }
+            ${!isPending ? `<button class="btn-mini btn-mini-restart" onclick="botAction('${bot.phone}', 'restart')">🔄 Restart</button>` : ''}
+            <button class="btn-mini btn-mini-log" onclick="openLogsModal('${bot.phone}')">📋 Logs</button>
+            ${bot.sessionId ? `<button class="btn-mini" style="background:rgba(0,210,255,0.15); border:1px solid rgba(0,210,255,0.4); color:#00d2ff;" title="Copy Recovery Session ID" onclick="copySessionString('${bot.sessionId}')">🔑 Session</button>` : ''}
+            <button class="btn-mini btn-mini-del" title="Delete & Unlink" onclick="deleteBotConfirm('${bot.phone}')">🗑️</button>
+          </div>
+        </div>
+      `;
+    }
+
+    // ── Approve Bot ──
+    async function approveBot(phone) {
+      if (!confirm(`Are you sure you want to approve +${phone} and let their bot run?`)) return;
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/bots/approve/${phone}`, {
+          method: 'POST',
+          headers: authHeaders()
+        });
+        const data = await res.json();
+        if (!data.success && data.error) {
+          alert(`Error: ${data.error}`);
+        } else {
+          // fetch again
+          fetchBots();
+          fetchSystemStats();
         }
       } catch (err) {
-        showToast('Network error verifying code.', true);
+        alert('Could not reach server.');
       }
     }
 
-    async function fetchDashboardData() {
-      if (!currentAccessCode) return;
-      
+    // ── Bot Actions (Start / Stop / Restart) ──
+    async function botAction(phone, action) {
       try {
-        // Fetch Stats
-        const statsRes = await fetch('/api/system-stats', {
-          headers: { 'X-Access-Code': currentAccessCode }
+        const res = await fetch(`${BACKEND_URL}/api/bots/${phone}/${action}`, {
+          method: 'POST',
+          headers: authHeaders()
         });
-        if (statsRes.ok) {
-          const stats = await statsRes.json();
-          document.getElementById('stat-total').textContent = stats.totalBots;
-          document.getElementById('stat-running').textContent = stats.runningBots;
-          document.getElementById('stat-stopped').textContent = stats.stoppedBots;
-          
-          // Format uptime
-          let ut = stats.uptime;
-          let utStr = '';
-          if (ut > 86400) utStr += Math.floor(ut/86400) + 'd ';
-          if (ut > 3600) utStr += Math.floor((ut%86400)/3600) + 'h ';
-          utStr += Math.floor((ut%3600)/60) + 'm';
-          document.getElementById('stat-uptime').textContent = utStr;
+        const data = await res.json();
+        if (!data.success && data.error) {
+          alert(`Error: ${data.error}`);
         }
-
-        // Fetch Bots
-        const botsRes = await fetch('/api/bots', {
-          headers: { 'X-Access-Code': currentAccessCode }
-        });
-        
-        if (botsRes.ok) {
-          const data = await botsRes.json();
-          renderBots(data.bots);
-        }
-      } catch (e) {
-        console.error('Fetch error:', e);
+        fetchBots();
+        fetchSystemStats();
+      } catch (err) {
+        alert('Could not reach server.');
       }
     }
 
-    function renderBots(bots) {
-      const tbody = document.getElementById('bots-table-body');
-      
-      if (!bots || bots.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted)">No bots connected yet.</td></tr>';
+    // ── Delete / Unlink Bot ──
+    async function deleteBotConfirm(phone) {
+      if (!confirm(`Are you sure you want to stop and delete the bot instance for +${phone}?`)) return;
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/bots/${phone}`, {
+          method: 'DELETE',
+          headers: authHeaders()
+        });
+        const data = await res.json();
+        if (data.success) {
+          fetchBots();
+          fetchSystemStats();
+        }
+      } catch (err) {
+        alert('Failed to delete instance.');
+      }
+    }
+
+    // ── Live Logs Modal ──
+    function openLogsModal(phone) {
+      activeLogPhone = phone;
+      document.getElementById('logsTitle').textContent = `+${phone} Console`;
+      openModal('logsModal');
+      fetchLogs();
+      if (logPollInterval) clearInterval(logPollInterval);
+      logPollInterval = setInterval(fetchLogs, 2000);
+    }
+
+    async function fetchLogs() {
+      if (!activeLogPhone) return;
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/bots/${activeLogPhone}/logs`, { headers: authHeaders() });
+        const data = await res.json();
+        const content = document.getElementById('logContent');
+        const badge = document.getElementById('logsStatusBadge');
+
+        if (data.status === 'running') {
+          badge.className = 'bot-status-badge badge-running';
+          badge.textContent = 'Running';
+        } else if (data.status === 'error') {
+          badge.className = 'bot-status-badge badge-error';
+          badge.textContent = 'Error';
+        } else {
+          badge.className = 'bot-status-badge badge-stopped';
+          badge.textContent = 'Stopped';
+        }
+
+        if (data.logs && data.logs.length > 0) {
+          content.textContent = data.logs.join('\n');
+          content.scrollTop = content.scrollHeight;
+        } else {
+          content.textContent = 'No logs available yet for this bot instance.';
+        }
+      } catch (err) {}
+    }
+
+    function copyLogs() {
+      const text = document.getElementById('logContent').textContent;
+      navigator.clipboard.writeText(text).then(() => alert('Logs copied to clipboard!'));
+    }
+
+    // ── Pairing Code Flow ──
+    let timerInterval = null;
+
+    async function getPairCode() {
+      const phone = document.getElementById('phoneInput').value.replace(/[^0-9]/g, '');
+      const btn = document.getElementById('pairBtn');
+      const errBox = document.getElementById('pairError');
+      const successBox = document.getElementById('pairSuccess');
+      const codeResult = document.getElementById('codeResult');
+
+      errBox.classList.add('hidden');
+      successBox.classList.add('hidden');
+
+      if (!phone || phone.length < 7) {
+        errBox.textContent = 'Please enter a valid phone number with country code.';
+        errBox.classList.remove('hidden');
         return;
       }
 
-      tbody.innerHTML = '';
-      
-      bots.forEach(bot => {
-        const tr = document.createElement('tr');
-        
-        let statusBadge = `<span class="status-badge status-${bot.status}">${bot.status}</span>`;
-        if (bot.status === 'stopped' && bot.approvalStatus === 'pending') {
-            statusBadge = `<span class="status-badge status-pending">Pending Approval</span>`;
-        }
+      btn.textContent = 'Generating...';
+      btn.disabled = true;
 
-        let actionHtml = '';
-        
-        if (bot.approvalStatus === 'pending') {
-           actionHtml += `<button class="action-btn success" onclick="actionBot('${bot.phone}', 'approve')">Approve</button>`;
+      try {
+        let url = `${BACKEND_URL}/api/pair-code?phone=${phone}`;
+        if (loggedInDiscordId) url += `&ownerId=${loggedInDiscordId}`;
+        const res = await fetch(url, {
+          headers: { 'X-Access-Code': SESSION_ACCESS_CODE || '' }
+        });
+        const data = await res.json();
+
+        if (data.code) {
+          document.getElementById('pairCode').textContent = data.code;
+          codeResult.classList.remove('hidden');
+          startTimer(180);
+          fetchBots();
+          fetchSystemStats();
         } else {
-           if (bot.status === 'running') {
-             actionHtml += `<button class="action-btn warning" onclick="actionBot('${bot.phone}', 'stop')">Stop</button>`;
-             actionHtml += `<button class="action-btn" onclick="actionBot('${bot.phone}', 'restart')">Restart</button>`;
-           } else {
-             actionHtml += `<button class="action-btn success" onclick="actionBot('${bot.phone}', 'start')">Start</button>`;
-           }
+          errBox.textContent = data.error || 'Failed to generate code. Try again.';
+          errBox.classList.remove('hidden');
         }
-        actionHtml += `<button class="action-btn" style="background: rgba(255,255,255,0.1); margin-left: 8px;" onclick="viewLogs('${bot.phone}')">Logs</button>`;
-        actionHtml += `<button class="action-btn danger" style="margin-left: 8px;" onclick="deleteBot('${bot.phone}')">Delete</button>`;
+      } catch {
+        errBox.textContent = 'Cannot reach server.';
+        errBox.classList.remove('hidden');
+      } finally {
+        btn.textContent = 'Regenerate Code';
+        btn.disabled = false;
+      }
+    }
 
-        let utStr = '-';
-        if (bot.uptime > 0) {
-            let ut = bot.uptime;
-            utStr = '';
-            if (ut > 3600) utStr += Math.floor(ut/3600) + 'h ';
-            utStr += Math.floor((ut%3600)/60) + 'm';
-        }
-
-        tr.innerHTML = `
-          <td style="font-family: monospace">+${bot.phone}</td>
-          <td>${bot.name || 'Unknown'}</td>
-          <td>${statusBadge}</td>
-          <td>${utStr}</td>
-          <td><div class="action-group">${actionHtml}</div></td>
-        `;
-        tbody.appendChild(tr);
+    function copyCode() {
+      const code = document.getElementById('pairCode').textContent.trim();
+      if (!code || code === '--------') return;
+      navigator.clipboard.writeText(code).then(() => {
+        const box = document.getElementById('pairSuccess');
+        box.textContent = '✓ Pairing code copied to clipboard!';
+        box.classList.remove('hidden');
+        setTimeout(() => box.classList.add('hidden'), 3000);
       });
     }
 
-    async function actionBot(phone, action) {
-      try {
-        showToast(`${action}ing bot +${phone}...`);
-        
-        let endpoint = `/api/bots/${phone}/${action}`;
-        if (action === 'approve') endpoint = `/api/bots/approve/${phone}`;
+    function startTimer(seconds) {
+      clearInterval(timerInterval);
+      let s = seconds;
+      const el = document.getElementById('timerCount');
+      timerInterval = setInterval(() => {
+        s--;
+        const m = Math.floor(s / 60);
+        const sec = String(s % 60).padStart(2, '0');
+        el.textContent = `${m}:${sec}`;
+        if (s <= 0) {
+          clearInterval(timerInterval);
+          el.textContent = 'Expired';
+        }
+      }, 1000);
+    }
 
-        const res = await fetch(endpoint, {
+    // ── QR Code Flow ──
+    let qrSessionId = null;
+    let qrPollInterval = null;
+    let qrTimerInterval = null;
+
+    async function openQrModal() {
+      openModal('qrModal');
+      startQrSession();
+    }
+
+    function closeQrModal() {
+      stopQrPolling();
+      closeModal('qrModal');
+    }
+
+    async function startQrSession() {
+      stopQrPolling();
+      document.getElementById('qrLoading').classList.remove('hidden');
+      document.getElementById('qrImage').classList.add('hidden');
+      document.getElementById('qrLinked').classList.add('hidden');
+      document.getElementById('qrError').classList.add('hidden');
+
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/qr-start`, {
           method: 'POST',
-          headers: { 'X-Access-Code': currentAccessCode }
+          headers: authHeaders()
         });
         const data = await res.json();
-        
-        if (data.success) {
-          showToast(data.message);
-          fetchDashboardData();
+        if (data.sessionId) {
+          qrSessionId = data.sessionId;
+          qrPollInterval = setInterval(pollQrStatus, 2000);
+          pollQrStatus();
         } else {
-          showToast(data.error, true);
+          showQrError(data.error || 'Failed to start QR session.');
         }
-      } catch (e) {
-        showToast(`Failed to ${action} bot.`, true);
+      } catch {
+        showQrError('Server unreachable.');
       }
     }
 
-    async function deleteBot(phone) {
-      if (!confirm(`Are you absolutely sure you want to permanently delete the session for +${phone}?`)) return;
-      
+    async function pollQrStatus() {
+      if (!qrSessionId) return;
       try {
-        showToast(`Deleting bot +${phone}...`);
-        const res = await fetch(`/api/bots/${phone}`, {
-          method: 'DELETE',
-          headers: { 'X-Access-Code': currentAccessCode }
+        const res = await fetch(`${BACKEND_URL}/api/qr-status?sessionId=${qrSessionId}`);
+        const data = await res.json();
+
+        if (data.linked) {
+          document.getElementById('qrImage').classList.add('hidden');
+          document.getElementById('qrLoading').classList.add('hidden');
+          document.getElementById('qrLinked').classList.remove('hidden');
+          clearInterval(qrTimerInterval);
+          stopQrPolling();
+          fetchBots();
+          fetchSystemStats();
+          setTimeout(() => closeQrModal(), 3500);
+          return;
+        }
+
+        if (data.qr) {
+          const img = document.getElementById('qrImage');
+          img.src = data.qr;
+          img.classList.remove('hidden');
+          document.getElementById('qrLoading').classList.add('hidden');
+          document.getElementById('qrError').classList.add('hidden');
+          startQrTimer(55);
+        }
+
+        if (data.error) {
+          showQrError(data.error);
+          stopQrPolling();
+        }
+      } catch {}
+    }
+
+    function startQrTimer(seconds) {
+      clearInterval(qrTimerInterval);
+      let s = seconds;
+      const bar = document.getElementById('qrTimerBar');
+      const count = document.getElementById('qrTimerCount');
+      const total = seconds;
+
+      qrTimerInterval = setInterval(() => {
+        s--;
+        const m = Math.floor(s / 60);
+        const sec = String(s % 60).padStart(2, '0');
+        count.textContent = `${m}:${sec}`;
+        bar.style.setProperty('--qr-progress', `${(s / total) * 100}%`);
+        if (s <= 0) {
+          clearInterval(qrTimerInterval);
+          count.textContent = 'Expired';
+        }
+      }, 1000);
+    }
+
+    function stopQrPolling() {
+      if (qrPollInterval) { clearInterval(qrPollInterval); qrPollInterval = null; }
+      if (qrTimerInterval) { clearInterval(qrTimerInterval); qrTimerInterval = null; }
+      qrSessionId = null;
+    }
+
+    function showQrError(msg) {
+      const el = document.getElementById('qrError');
+      el.textContent = '⚠ ' + msg;
+      el.classList.remove('hidden');
+      document.getElementById('qrLoading').classList.add('hidden');
+    }
+
+    // ── Session ID Injection ──
+    async function injectSession() {
+      const input = document.getElementById('sessionInput').value.trim();
+      const btn = document.getElementById('sessionBtn');
+      const errBox = document.getElementById('sessionError');
+      const successBox = document.getElementById('sessionSuccess');
+
+      errBox.classList.add('hidden');
+      successBox.classList.add('hidden');
+
+      if (!input) {
+        errBox.textContent = 'Please paste your session ID.';
+        errBox.classList.remove('hidden');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Linking...';
+
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/inject-session`, {
+          method: 'POST',
+          headers: authHeaders(),
+          body: JSON.stringify({ sessionId: input })
         });
         const data = await res.json();
-        
         if (data.success) {
-          showToast(data.message);
-          fetchDashboardData();
+          successBox.textContent = `✓ ${data.message}`;
+          successBox.classList.remove('hidden');
+          fetchBots();
+          fetchSystemStats();
+          setTimeout(() => closeModal('sessionModal'), 2500);
         } else {
-          showToast(data.error, true);
+          errBox.textContent = data.error || 'Failed to inject session.';
+          errBox.classList.remove('hidden');
         }
-      } catch (e) {
-        showToast(`Failed to delete bot.`, true);
+      } catch {
+        errBox.textContent = 'Server error during injection.';
+        errBox.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Host Bot Instance';
       }
     }
 
-    let logsInterval = null;
-    function closeLogs() {
-      document.getElementById('logs-modal').classList.remove('active');
-      if (logsInterval) clearInterval(logsInterval);
+    // ── Modal Helpers ──
+    function openModal(id) {
+      document.getElementById(id).classList.add('active');
+      document.body.style.overflow = 'hidden';
     }
 
-    async function viewLogs(phone) {
-      document.getElementById('logs-title').textContent = `Console Logs: +${phone}`;
-      document.getElementById('logs-modal').classList.add('active');
-      document.getElementById('logs-content').textContent = 'Loading logs...';
+    function closeModal(id) {
+      document.getElementById(id).classList.remove('active');
+      document.body.style.overflow = '';
+      if (id === 'logsModal' && logPollInterval) {
+        clearInterval(logPollInterval);
+        logPollInterval = null;
+        activeLogPhone = null;
+      }
+    }
+
+    function closeOnOverlay(e, id) {
+      if (e.target === document.getElementById(id)) closeModal(id);
+    }
+
+    // ── Copy Session ID Helper ──
+    function copySessionString(str) {
+      if (!str) return;
+      navigator.clipboard.writeText(str).then(() => {
+        alert('✅ Recovery Session ID copied to clipboard!\n\nSave this safely to restore your bot anytime without pairing.');
+      }).catch(() => {
+        prompt('Copy your Session ID:', str);
+      });
+    }
+    // ── Client Store Link Helper ──
+    function copyClientStoreLink() {
+      const storeUrl = `${window.location.origin}/store`;
+      navigator.clipboard.writeText(storeUrl).then(() => {
+        const btnText = document.getElementById('clientLinkBtnText');
+        if (btnText) {
+          const old = btnText.textContent;
+          btnText.textContent = '✅ Copied!';
+          setTimeout(() => { btnText.textContent = old; }, 3000);
+        }
+        alert(`✅ Customer Store Link copied to clipboard:\n\n${storeUrl}\n\nShare this link with your clients so they can pair and activate their WhatsApp bot!`);
+      }).catch(() => {
+        prompt('Copy your Client Store Link:', storeUrl);
+      });
+    }
+
+    function toggleSidebar(e) {
+      if (e) e.stopPropagation();
+      const sidebar = document.querySelector('.admin-sidebar');
+      const overlay = document.getElementById('sidebarOverlay');
       
-      const fetchLogs = async () => {
-        try {
-          const res = await fetch(`/api/bots/${phone}/logs`, {
-            headers: { 'X-Access-Code': currentAccessCode }
-          });
-          if (res.ok) {
-            const data = await res.json();
-            const logBox = document.getElementById('logs-content');
-            
-            // Auto-scroll if already at bottom
-            const isAtBottom = logBox.scrollHeight - logBox.scrollTop <= logBox.clientHeight + 20;
-            
-            logBox.innerHTML = (data.logs || []).join('<br>') || 'No logs available.';
-            
-            if (isAtBottom) {
-              logBox.scrollTop = logBox.scrollHeight;
-            }
-          }
-        } catch (e) { }
-      };
-
-      await fetchLogs();
-      if (logsInterval) clearInterval(logsInterval);
-      logsInterval = setInterval(fetchLogs, 2000);
+      if (window.innerWidth <= 900) {
+        sidebar.classList.toggle('show');
+        overlay.classList.toggle('show');
+      } else {
+        sidebar.classList.toggle('collapsed');
+      }
     }
 
+    // Close sidebar when clicking outside of it (if it's open on mobile, or in general)
+    document.addEventListener('click', (e) => {
+      const sidebar = document.querySelector('.admin-sidebar');
+      const hamburger = document.getElementById('hamburgerBtn');
+      const overlay = document.getElementById('sidebarOverlay');
+      // If sidebar is showing (has 'show' class or isn't collapsed on desktop)
+      if (sidebar && !sidebar.contains(e.target) && e.target !== hamburger) {
+        if (window.innerWidth <= 900 && sidebar.classList.contains('show')) {
+          sidebar.classList.remove('show');
+          if (overlay) overlay.classList.remove('show');
+        } else if (window.innerWidth > 900 && !sidebar.classList.contains('collapsed')) {
+          sidebar.classList.add('collapsed');
+        }
+      }
+    });
+
+    function switchAdminTab(tabId) {
+      // Hide all tabs
+      document.querySelectorAll('.admin-tab').forEach(tab => {
+        tab.style.display = 'none';
+      });
+      // Show selected tab
+      const selected = document.getElementById('tab-' + tabId);
+      if (selected) selected.style.display = 'block';
+
+      if (tabId === 'db') {
+        fetchVaultData();
+      } else if (tabId === 'logs') {
+        fetchGlobalLogs();
+      }
+
+      // Update nav active state
+      document.querySelectorAll('.sidebar-nav a').forEach(link => {
+        link.classList.remove('active');
+        if (link.getAttribute('onclick') && link.getAttribute('onclick').includes(tabId)) {
+          link.classList.add('active');
+        }
+      });
+
+      // Close sidebar on mobile after clicking
+      if (window.innerWidth <= 900) {
+        document.querySelector('.admin-sidebar').classList.remove('show');
+        const overlay = document.getElementById('sidebarOverlay');
+        if (overlay) overlay.classList.remove('show');
+      }
+    }
+
+    async function fetchGlobalLogs() {
+      const container = document.getElementById('globalLogsContainer');
+      if (!container) return;
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/logs/global`, { headers: authHeaders() });
+        const data = await res.json();
+        if (data.success && data.logs) {
+          if (data.logs.length === 0) {
+            container.innerHTML = '<p style="color:var(--muted);">No global logs available yet...</p>';
+          } else {
+            container.innerHTML = data.logs.join('<br>');
+            container.scrollTop = container.scrollHeight;
+          }
+        }
+      } catch (err) {
+        // Silently fail on network error
+      }
+    }
+
+    async function fetchVaultData() {
+      const container = document.getElementById('dbContainer');
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/vault`, { headers: authHeaders() });
+        const data = await res.json();
+        
+        if (data.success && data.vault && data.vault.sessions) {
+          const sessions = data.vault.sessions;
+          let html = `<table style="width:100%; border-collapse:collapse; color:white; font-size: 0.9rem;">
+                        <thead>
+                          <tr style="border-bottom: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2);">
+                            <th style="padding: 12px; text-align: left;">Phone</th>
+                            <th style="padding: 12px; text-align: left;">Name</th>
+                            <th style="padding: 12px; text-align: left;">Approval Status</th>
+                            <th style="padding: 12px; text-align: left;">Admin</th>
+                            <th style="padding: 12px; text-align: left;">Linked At</th>
+                          </tr>
+                        </thead>
+                        <tbody>`;
+          
+          for (let phone in sessions) {
+            const s = sessions[phone];
+            const dateStr = s.linkedAt ? new Date(s.linkedAt).toLocaleString() : 'N/A';
+            const statColor = s.approvalStatus === 'approved' ? '#00e676' : '#ff7b00';
+            html += `<tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                       <td style="padding: 12px;">+${phone}</td>
+                       <td style="padding: 12px;">${s.botName || 'Unknown'}</td>
+                       <td style="padding: 12px; color: ${statColor}; font-weight:bold;">${s.approvalStatus || 'pending'}</td>
+                       <td style="padding: 12px;">${s.adminName || 'N/A'}</td>
+                       <td style="padding: 12px; color:var(--muted);">${dateStr}</td>
+                     </tr>`;
+          }
+          html += `</tbody></table>`;
+          
+          if (Object.keys(sessions).length === 0) {
+            html = `<p style="color:var(--muted); text-align:center;">Vault is empty.</p>`;
+          }
+          container.innerHTML = html;
+        } else {
+          container.innerHTML = `<p style="color:red; text-align:center;">Failed to load vault data.</p>`;
+        }
+      } catch (e) {
+        container.innerHTML = `<p style="color:red; text-align:center;">Error fetching vault: ${e.message}</p>`;
+      }
+    }
+
+    // Initial load and polling
+    fetchBots();
+    fetchSystemStats();
+    setInterval(() => {
+      fetchBots();
+      fetchSystemStats();
+      if (document.getElementById('tab-logs').style.display === 'block') fetchGlobalLogs();
+      if (document.getElementById('tab-db').style.display === 'block') fetchVaultData();
+    }, 3000);
   </script>
+    </div> <!-- /page-wrapper -->
+  </main> <!-- /admin-main -->
+</div> <!-- /admin-layout -->
 </body>
 </html>
