@@ -971,10 +971,15 @@ app.get('/api/vault', (req, res) => {
   return res.json({ success: true, vault });
 });
 
-// List all hosted bots
-app.get('/api/bots', (req, res) => {
+// List all hosted bots [PROTECTED]
+app.get('/api/bots', requireAccessCode, (req, res) => {
   const bots = botManager.listBots();
   return res.json({ success: true, bots });
+});
+
+// Admin Portal Page
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
 // Approve a pending bot
@@ -1004,8 +1009,8 @@ app.post('/api/bots/approve/:phone', async (req, res) => {
   }
 });
 
-// System statistics
-app.get('/api/system-stats', (req, res) => {
+// System statistics [PROTECTED]
+app.get('/api/system-stats', requireAccessCode, (req, res) => {
   const bots = botManager.listBots();
   const running = bots.filter(b => b.status === 'running').length;
   const stopped = bots.filter(b => b.status === 'stopped').length;
@@ -1028,8 +1033,8 @@ app.get('/api/system-stats', (req, res) => {
   });
 });
 
-// Get logs for a specific bot
-app.get('/api/bots/:phone/logs', (req, res) => {
+// Get logs for a specific bot [PROTECTED]
+app.get('/api/bots/:phone/logs', requireAccessCode, (req, res) => {
   const { phone } = req.params;
   const cleanPhone = String(phone).replace(/[^0-9]/g, '');
   const bot = botManager.bots.get(cleanPhone);
@@ -1056,16 +1061,16 @@ app.post('/api/bots/:phone/start', requireAccessCode, (req, res) => {
   }
 });
 
-// Stop a specific bot
-app.post('/api/bots/:phone/stop', (req, res) => {
+// Stop a specific bot [PROTECTED]
+app.post('/api/bots/:phone/stop', requireAccessCode, (req, res) => {
   const { phone } = req.params;
   const cleanPhone = String(phone).replace(/[^0-9]/g, '');
   botManager.stopBot(cleanPhone);
   return res.json({ success: true, message: `Bot +${cleanPhone} stopped.` });
 });
 
-// Restart a specific bot
-app.post('/api/bots/:phone/restart', async (req, res) => {
+// Restart a specific bot [PROTECTED]
+app.post('/api/bots/:phone/restart', requireAccessCode, async (req, res) => {
   const { phone } = req.params;
   const cleanPhone = String(phone).replace(/[^0-9]/g, '');
   await botManager.restartBot(cleanPhone);

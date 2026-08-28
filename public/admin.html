@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Skybee Bot - Global Admin Portal</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-base: #0f172a;
+      --bg-surface: rgba(30, 41, 59, 0.7);
+      --bg-surface-hover: rgba(51, 65, 85, 0.8);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --success: #10b981;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --border: rgba(255, 255, 255, 0.1);
+      --glass-blur: blur(12px);
+    }
+    
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* GLASSMORPHISM UTILS */
+    .glass {
+      background: var(--bg-surface);
+      backdrop-filter: var(--glass-blur);
+      -webkit-backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+    }
+
+    /* LOGIN OVERLAY */
+    #login-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--bg-base);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      transition: opacity 0.4s ease;
+    }
+
+    .login-box {
+      width: 100%;
+      max-width: 400px;
+      padding: 40px;
+      text-align: center;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    }
+
+    .login-box h2 {
+      font-family: 'Outfit', sans-serif;
+      margin-bottom: 8px;
+      font-size: 1.8rem;
+    }
+
+    .login-box p {
+      color: var(--text-muted);
+      margin-bottom: 24px;
+      font-size: 0.95rem;
+    }
+
+    input[type="password"] {
+      width: 100%;
+      padding: 14px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: rgba(15, 23, 42, 0.6);
+      color: white;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+      margin-bottom: 16px;
+    }
+
+    input[type="password"]:focus {
+      border-color: var(--accent);
+    }
+
+    button {
+      background: var(--accent);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    button:hover {
+      background: var(--accent-hover);
+      transform: translateY(-1px);
+    }
+    
+    button.danger { background: var(--danger); }
+    button.danger:hover { background: #dc2626; }
+    button.warning { background: var(--warning); color: #000; }
+    button.warning:hover { background: #d97706; }
+    button.success { background: var(--success); }
+    button.success:hover { background: #059669; }
+
+    /* DASHBOARD LAYOUT */
+    #dashboard {
+      display: none;
+      padding: 32px;
+      max-width: 1400px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 32px;
+    }
+
+    header h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 2.2rem;
+      background: linear-gradient(to right, #60a5fa, #a78bfa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    /* STATS GRID */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 24px;
+      margin-bottom: 32px;
+    }
+
+    .stat-card {
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .stat-label {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .stat-value {
+      font-size: 2.5rem;
+      font-weight: 700;
+      font-family: 'Outfit', sans-serif;
+    }
+
+    /* BOTS TABLE */
+    .table-container {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      text-align: left;
+    }
+
+    th, td {
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      background: rgba(0,0,0,0.2);
+    }
+
+    th:first-child { border-top-left-radius: 12px; }
+    th:last-child { border-top-right-radius: 12px; }
+
+    td {
+      font-size: 0.95rem;
+      vertical-align: middle;
+    }
+
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255, 255, 255, 0.03); }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .status-running { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+    .status-stopped { background: rgba(148, 163, 184, 0.2); color: #94a3b8; }
+    .status-pending { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+    .status-error { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+
+    .action-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    .action-btn {
+      padding: 6px 12px;
+      font-size: 0.85rem;
+      border-radius: 6px;
+    }
+
+    /* MODAL */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .modal {
+      width: 90%;
+      max-width: 800px;
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .modal-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-close {
+      background: transparent;
+      color: var(--text-muted);
+      padding: 4px;
+      font-size: 1.5rem;
+    }
+    .modal-close:hover { color: white; background: transparent; }
+
+    .modal-body {
+      padding: 24px;
+      overflow-y: auto;
+      flex: 1;
+      background: #000;
+      font-family: monospace;
+      color: #34d399;
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+
+    /* LOADING & TOASTS */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      padding: 16px 24px;
+      border-radius: 8px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      color: white;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+      z-index: 3000;
+      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5);
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    .loader {
+      border: 3px solid rgba(255,255,255,0.1);
+      border-top-color: white;
+      border-radius: 50%;
+      width: 16px;
+      height: 16px;
+      animation: spin 1s linear infinite;
+      display: none;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+  </style>
+</head>
+<body>
+
+  <!-- LOGIN OVERLAY -->
+  <div id="login-overlay">
+    <div class="login-box glass">
+      <h2>Admin Portal</h2>
+      <p>Enter the master access code to continue.</p>
+      <input type="password" id="access-code" placeholder="ACCESS_CODE" onkeypress="if(event.key==='Enter') login()">
+      <button onclick="login()" id="login-btn" style="width:100%">
+        <span class="loader" id="login-loader"></span>
+        <span>Access Dashboard</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="dashboard">
+    <header>
+      <h1>Skybee Admin</h1>
+      <button class="action-btn" onclick="logout()" style="background: rgba(255,255,255,0.1)">Logout</button>
+    </header>
+
+    <div class="stats-grid">
+      <div class="stat-card glass">
+        <span class="stat-label">Total Connected Bots</span>
+        <span class="stat-value" id="stat-total">0</span>
+      </div>
+      <div class="stat-card glass">
+        <span class="stat-value" id="stat-running" style="color: var(--success)">0</span>
+        <span class="stat-label">Active / Running</span>
+      </div>
+      <div class="stat-card glass">
+        <span class="stat-value" id="stat-stopped" style="color: var(--text-muted)">0</span>
+        <span class="stat-label">Offline / Stopped</span>
+      </div>
+      <div class="stat-card glass">
+        <span class="stat-value" id="stat-uptime">0s</span>
+        <span class="stat-label">Server Uptime</span>
+      </div>
+    </div>
+
+    <div class="glass table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>WhatsApp #</th>
+            <th>Name</th>
+            <th>Status</th>
+            <th>Uptime</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="bots-table-body">
+          <tr><td colspan="5" style="text-align: center; color: var(--text-muted)">Loading bots...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- LOGS MODAL -->
+  <div class="modal-overlay" id="logs-modal" onclick="if(event.target===this) closeLogs()">
+    <div class="modal glass" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3 id="logs-title">Console Logs</h3>
+        <button class="modal-close" onclick="closeLogs()">×</button>
+      </div>
+      <div class="modal-body" id="logs-content">
+        Loading...
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div class="toast glass" id="toast">Message here</div>
+
+  <script>
+    let currentAccessCode = localStorage.getItem('skybee_admin_code') || '';
+    let refreshInterval = null;
+
+    // Initialize
+    if (currentAccessCode) {
+      verifyCode(currentAccessCode);
+    }
+
+    function showToast(msg, isError = false) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.style.borderColor = isError ? 'var(--danger)' : 'var(--border)';
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    async function login() {
+      const input = document.getElementById('access-code').value;
+      if (!input) return showToast('Please enter an access code.', true);
+      
+      document.getElementById('login-loader').style.display = 'block';
+      await verifyCode(input);
+      document.getElementById('login-loader').style.display = 'none';
+    }
+
+    function logout() {
+      currentAccessCode = '';
+      localStorage.removeItem('skybee_admin_code');
+      clearInterval(refreshInterval);
+      document.getElementById('dashboard').style.display = 'none';
+      document.getElementById('login-overlay').style.opacity = '1';
+      document.getElementById('login-overlay').style.pointerEvents = 'all';
+      document.getElementById('access-code').value = '';
+    }
+
+    async function verifyCode(code) {
+      try {
+        const res = await fetch('/api/verify-access', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+          currentAccessCode = code;
+          localStorage.setItem('skybee_admin_code', code);
+          document.getElementById('login-overlay').style.opacity = '0';
+          document.getElementById('login-overlay').style.pointerEvents = 'none';
+          document.getElementById('dashboard').style.display = 'block';
+          
+          fetchDashboardData();
+          refreshInterval = setInterval(fetchDashboardData, 5000);
+        } else {
+          showToast(data.error || 'Invalid access code', true);
+          localStorage.removeItem('skybee_admin_code');
+        }
+      } catch (err) {
+        showToast('Network error verifying code.', true);
+      }
+    }
+
+    async function fetchDashboardData() {
+      if (!currentAccessCode) return;
+      
+      try {
+        // Fetch Stats
+        const statsRes = await fetch('/api/system-stats', {
+          headers: { 'X-Access-Code': currentAccessCode }
+        });
+        if (statsRes.ok) {
+          const stats = await statsRes.json();
+          document.getElementById('stat-total').textContent = stats.totalBots;
+          document.getElementById('stat-running').textContent = stats.runningBots;
+          document.getElementById('stat-stopped').textContent = stats.stoppedBots;
+          
+          // Format uptime
+          let ut = stats.uptime;
+          let utStr = '';
+          if (ut > 86400) utStr += Math.floor(ut/86400) + 'd ';
+          if (ut > 3600) utStr += Math.floor((ut%86400)/3600) + 'h ';
+          utStr += Math.floor((ut%3600)/60) + 'm';
+          document.getElementById('stat-uptime').textContent = utStr;
+        }
+
+        // Fetch Bots
+        const botsRes = await fetch('/api/bots', {
+          headers: { 'X-Access-Code': currentAccessCode }
+        });
+        
+        if (botsRes.ok) {
+          const data = await botsRes.json();
+          renderBots(data.bots);
+        }
+      } catch (e) {
+        console.error('Fetch error:', e);
+      }
+    }
+
+    function renderBots(bots) {
+      const tbody = document.getElementById('bots-table-body');
+      
+      if (!bots || bots.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted)">No bots connected yet.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = '';
+      
+      bots.forEach(bot => {
+        const tr = document.createElement('tr');
+        
+        let statusBadge = \`<span class="status-badge status-\${bot.status}">\${bot.status}</span>\`;
+        if (bot.status === 'stopped' && bot.approvalStatus === 'pending') {
+            statusBadge = \`<span class="status-badge status-pending">Pending Approval</span>\`;
+        }
+
+        let actionHtml = '';
+        
+        if (bot.approvalStatus === 'pending') {
+           actionHtml += \`<button class="action-btn success" onclick="actionBot('\${bot.phone}', 'approve')">Approve</button>\`;
+        } else {
+           if (bot.status === 'running') {
+             actionHtml += \`<button class="action-btn warning" onclick="actionBot('\${bot.phone}', 'stop')">Stop</button>\`;
+             actionHtml += \`<button class="action-btn" onclick="actionBot('\${bot.phone}', 'restart')">Restart</button>\`;
+           } else {
+             actionHtml += \`<button class="action-btn success" onclick="actionBot('\${bot.phone}', 'start')">Start</button>\`;
+           }
+        }
+        actionHtml += \`<button class="action-btn" style="background: rgba(255,255,255,0.1); margin-left: 8px;" onclick="viewLogs('\${bot.phone}')">Logs</button>\`;
+        actionHtml += \`<button class="action-btn danger" style="margin-left: 8px;" onclick="deleteBot('\${bot.phone}')">Delete</button>\`;
+
+        let utStr = '-';
+        if (bot.uptime > 0) {
+            let ut = bot.uptime;
+            utStr = '';
+            if (ut > 3600) utStr += Math.floor(ut/3600) + 'h ';
+            utStr += Math.floor((ut%3600)/60) + 'm';
+        }
+
+        tr.innerHTML = \`
+          <td style="font-family: monospace">+\${bot.phone}</td>
+          <td>\${bot.name || 'Unknown'}</td>
+          <td>\${statusBadge}</td>
+          <td>\${utStr}</td>
+          <td><div class="action-group">\${actionHtml}</div></td>
+        \`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function actionBot(phone, action) {
+      try {
+        showToast(\`\${action}ing bot +\${phone}...\`);
+        
+        let endpoint = \`/api/bots/\${phone}/\${action}\`;
+        if (action === 'approve') endpoint = \`/api/bots/approve/\${phone}\`;
+
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'X-Access-Code': currentAccessCode }
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+          showToast(data.message);
+          fetchDashboardData();
+        } else {
+          showToast(data.error, true);
+        }
+      } catch (e) {
+        showToast(\`Failed to \${action} bot.\`, true);
+      }
+    }
+
+    async function deleteBot(phone) {
+      if (!confirm(\`Are you absolutely sure you want to permanently delete the session for +\${phone}?\`)) return;
+      
+      try {
+        showToast(\`Deleting bot +\${phone}...\`);
+        const res = await fetch(\`/api/bots/\${phone}\`, {
+          method: 'DELETE',
+          headers: { 'X-Access-Code': currentAccessCode }
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+          showToast(data.message);
+          fetchDashboardData();
+        } else {
+          showToast(data.error, true);
+        }
+      } catch (e) {
+        showToast(\`Failed to delete bot.\`, true);
+      }
+    }
+
+    let logsInterval = null;
+    function closeLogs() {
+      document.getElementById('logs-modal').classList.remove('active');
+      if (logsInterval) clearInterval(logsInterval);
+    }
+
+    async function viewLogs(phone) {
+      document.getElementById('logs-title').textContent = \`Console Logs: +\${phone}\`;
+      document.getElementById('logs-modal').classList.add('active');
+      document.getElementById('logs-content').textContent = 'Loading logs...';
+      
+      const fetchLogs = async () => {
+        try {
+          const res = await fetch(\`/api/bots/\${phone}/logs\`, {
+            headers: { 'X-Access-Code': currentAccessCode }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            const logBox = document.getElementById('logs-content');
+            
+            // Auto-scroll if already at bottom
+            const isAtBottom = logBox.scrollHeight - logBox.scrollTop <= logBox.clientHeight + 20;
+            
+            logBox.innerHTML = (data.logs || []).join('<br>') || 'No logs available.';
+            
+            if (isAtBottom) {
+              logBox.scrollTop = logBox.scrollHeight;
+            }
+          }
+        } catch (e) { }
+      };
+
+      await fetchLogs();
+      if (logsInterval) clearInterval(logsInterval);
+      logsInterval = setInterval(fetchLogs, 2000);
+    }
+
+  </script>
+</body>
+</html>
