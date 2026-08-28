@@ -60,6 +60,7 @@ process.on('unhandledRejection', (reason) => {
 // Retry counter cache & message store for session decryption & retries
 const msgRetryCounterCache = new NodeCache({ stdTTL: 3600, checkperiod: 600 });
 const messageStore = new Map();
+global.messageStore = messageStore;
 
 // Ensure temp/tmp directories exist
 const tmpDir = path.join(__dirname, 'tmp');

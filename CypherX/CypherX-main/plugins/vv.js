@@ -2,67 +2,67 @@ const { downloadContentFromMessage } = require('@whiskeysockets/baileys');
 
 module.exports = {
     name: "vv",
-    alias: ["viewonce", "rvo", "dlvo", "readviewonce", "👁️", "👁", "👀", "🔓", "📸", "📩", "🔥", "❤️", "💖", "💕", "😍", "🥰", "💗", "💓", "💞", "💘"],
+    alias: ["viewonce", "rvo", "dlvo", "readviewonce", "retrieve", "👁️", "👁", "👀", "🔓", "📸", "📩", "🔥", "❤️", "💖", "💕", "😍", "🥰", "💗", "💓", "💞", "💘"],
     category: "tools",
-    description: "Download and secretly send WhatsApp View Once media to sender's DM, then auto-delete the command",
-    async execute(client, m, { args, prefix, command, reply, isBotAdmin }) {
-        const targetJid = m.sender; // User's private DM
-
+    description: "Bypasses and retrieves WhatsApp View Once media directly",
+    async execute(client, m, { args, prefix, command, reply }) {
         try {
             if (!m.quoted) {
-                return client.sendMessage(targetJid, {
-                    text: `⚠️ *Please reply to a View Once message (image, video, or audio) with* ${prefix}${command}`
-                });
+                return reply(`⚠️ *Please reply to a View-Once image, video, or audio with* *${prefix}vv*`);
             }
 
-            let quotedMsg = m.quoted.message;
-            if (!quotedMsg) {
-                return client.sendMessage(targetJid, {
-                    text: "❌ *Cannot access quoted message content.*"
-                });
+            // 1. Check in-memory store for complete raw message headers
+            let rawMsg = null;
+            if (global.messageStore && m.quoted.id && global.messageStore.has(m.quoted.id)) {
+                const stored = global.messageStore.get(m.quoted.id);
+                rawMsg = stored.message || stored;
             }
 
-            // Unwrap View Once containers
-            if (quotedMsg.viewOnceMessageV2) {
-                quotedMsg = quotedMsg.viewOnceMessageV2.message;
-            } else if (quotedMsg.viewOnceMessage) {
-                quotedMsg = quotedMsg.viewOnceMessage.message;
-            } else if (quotedMsg.viewOnceMessageV2Extension) {
-                quotedMsg = quotedMsg.viewOnceMessageV2Extension.message;
+            let targetNode = rawMsg || m.quoted.message || m.quoted.msg;
+            if (!targetNode) {
+                return reply("❌ *Cannot access quoted message content. Message may have expired.*");
             }
 
-            // Identify media type and inner message object
+            // Helper to recursively unwrap View Once and ephemeral wrappers
+            function unwrap(obj) {
+                if (!obj) return null;
+                if (obj.viewOnceMessageV2?.message) return unwrap(obj.viewOnceMessageV2.message);
+                if (obj.viewOnceMessage?.message) return unwrap(obj.viewOnceMessage.message);
+                if (obj.viewOnceMessageV2Extension?.message) return unwrap(obj.viewOnceMessageV2Extension.message);
+                if (obj.ephemeralMessage?.message) return unwrap(obj.ephemeralMessage.message);
+                if (obj.documentWithCaptionMessage?.message) return unwrap(obj.documentWithCaptionMessage.message);
+                return obj;
+            }
+
+            const unwrapped = unwrap(targetNode);
+
             let mediaType = null;
             let mediaNode = null;
 
-            if (quotedMsg.imageMessage) {
+            if (unwrapped.imageMessage) {
                 mediaType = 'image';
-                mediaNode = quotedMsg.imageMessage;
-            } else if (quotedMsg.videoMessage) {
+                mediaNode = unwrapped.imageMessage;
+            } else if (unwrapped.videoMessage) {
                 mediaType = 'video';
-                mediaNode = quotedMsg.videoMessage;
-            } else if (quotedMsg.audioMessage) {
+                mediaNode = unwrapped.videoMessage;
+            } else if (unwrapped.audioMessage) {
                 mediaType = 'audio';
-                mediaNode = quotedMsg.audioMessage;
+                mediaNode = unwrapped.audioMessage;
             } else {
-                // Fallback check
-                const keys = Object.keys(quotedMsg);
-                for (let k of keys) {
+                for (let k of Object.keys(unwrapped)) {
                     if (k.endsWith('Message') && /image|video|audio/.test(k)) {
                         mediaType = k.replace('Message', '');
-                        mediaNode = quotedMsg[k];
+                        mediaNode = unwrapped[k];
                         break;
                     }
                 }
             }
 
             if (!mediaType || !mediaNode) {
-                return client.sendMessage(targetJid, {
-                    text: "❌ *The replied message is not a valid View Once image, video, or audio.*"
-                });
+                return reply("❌ *The replied message is not a valid View Once image, video, or audio.*");
             }
 
-            // Stream and decrypt media chunks from WhatsApp CDN in memory
+            // Decrypt & stream media buffer
             const stream = await downloadContentFromMessage(mediaNode, mediaType);
             let buffer = Buffer.from([]);
             for await (const chunk of stream) {
@@ -70,42 +70,35 @@ module.exports = {
             }
 
             if (!buffer || buffer.length === 0) {
-                return client.sendMessage(targetJid, {
-                    text: "❌ *Failed to decrypt media buffer.*"
-                });
+                return reply("❌ *Failed to decrypt View Once media stream.*");
             }
 
-            const senderInfo = m.isGroup ? `\n👥 *From Group:* ${m.chat}` : '';
-            const caption = (mediaNode.caption ? `💬 *Caption:* ${mediaNode.caption}\n\n` : '') +
-                `🔓 *Secret View-Once Media Retrieved*` + senderInfo;
+            const caption = (mediaNode.caption ? `📝 *Caption:* ${mediaNode.caption}\n\n` : '') +
+                            `🔓 *View-Once Media Bypassed & Retrieved by Skybee Bot*`;
 
-            // Send permanently to the sender's private DM
+            // Send permanently to the current chat
             if (mediaType === 'image') {
-                await client.sendMessage(targetJid, {
+                await client.sendMessage(m.chat, {
                     image: buffer,
                     caption: caption
                 });
             } else if (mediaType === 'video') {
-                await client.sendMessage(targetJid, {
+                await client.sendMessage(m.chat, {
                     video: buffer,
                     caption: caption,
                     mimetype: mediaNode.mimetype || 'video/mp4'
                 });
             } else if (mediaType === 'audio') {
-                await client.sendMessage(targetJid, {
+                await client.sendMessage(m.chat, {
                     audio: buffer,
                     mimetype: mediaNode.mimetype || 'audio/mp4',
-                    ptt: mediaNode.ptt || false
+                    ptt: !!mediaNode.ptt
                 });
             }
 
         } catch (error) {
             console.error('[VV Plugin Error]:', error);
-            try {
-                await client.sendMessage(targetJid, {
-                    text: `❌ *Failed to retrieve View Once media:* ${error.message}`
-                });
-            } catch { }
+            reply(`❌ *Failed to retrieve View Once media:* ${error.message}`);
         }
     }
 };
