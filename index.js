@@ -719,12 +719,12 @@ app.get(['/', '/store', '/pair', '/refer', '/client', '/connect', '/activate', '
 
 // Public client pairing code endpoint
 app.get('/api/client/pair-code', async (req, res) => {
-  const maxBots = process.env.MAX_BOTS ? parseInt(process.env.MAX_BOTS) : 3;
+  const maxBots = process.env.MAX_BOTS ? parseInt(process.env.MAX_BOTS) : 50;
   if (botManager.listBots().length >= maxBots) {
     if (process.env.NEXT_SERVER_URL) {
       return res.json({ success: false, error: 'Server full, redirecting...', redirectUrl: process.env.NEXT_SERVER_URL });
     }
-    return res.status(429).json({ success: false, error: 'Server is currently at maximum capacity (3 bots). Please try again later.' });
+    return res.status(429).json({ success: false, error: `Server is currently at maximum capacity (${maxBots} bots). Please try again later.` });
   }
 
   let phone = req.query.phone;
@@ -1147,12 +1147,12 @@ app.delete('/api/bots/:phone', requireAccessCode, (req, res) => {
 
 // Route: Get pairing code [PROTECTED]
 app.get('/api/pair-code', requireAccessCode, async (req, res) => {
-  const maxBots = process.env.MAX_BOTS ? parseInt(process.env.MAX_BOTS) : 3;
+  const maxBots = process.env.MAX_BOTS ? parseInt(process.env.MAX_BOTS) : 50;
   if (botManager.listBots().length >= maxBots) {
     if (process.env.NEXT_SERVER_URL) {
       return res.json({ success: false, error: 'Server full, redirecting...', redirectUrl: process.env.NEXT_SERVER_URL });
     }
-    return res.status(429).json({ error: 'Server is currently at maximum capacity (3 bots). Please try again later.' });
+    return res.status(429).json({ error: `Server is currently at maximum capacity (${maxBots} bots). Please try again later.` });
   }
 
   let phone = req.query.phone;
@@ -1201,12 +1201,12 @@ app.get('/api/pair-code', requireAccessCode, async (req, res) => {
 
 // Route: Start QR code session (Public for clients & admin)
 app.post(['/api/qr-start', '/api/client/qr-start'], async (req, res) => {
-  const maxBots = process.env.MAX_BOTS ? parseInt(process.env.MAX_BOTS) : 3;
+  const maxBots = process.env.MAX_BOTS ? parseInt(process.env.MAX_BOTS) : 50;
   if (botManager.listBots().length >= maxBots) {
     if (process.env.NEXT_SERVER_URL) {
       return res.json({ success: false, error: 'Server full, redirecting...', redirectUrl: process.env.NEXT_SERVER_URL });
     }
-    return res.status(429).json({ success: false, error: 'Server is currently at maximum capacity (3 bots). Please try again later.' });
+    return res.status(429).json({ success: false, error: `Server is currently at maximum capacity (${maxBots} bots). Please try again later.` });
   }
 
   const sessionId = 'qr_' + Date.now();

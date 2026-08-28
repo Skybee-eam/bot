@@ -1329,10 +1329,40 @@
   </style>
 
   <script>
-    // We will default to the current window location to ensure it works on any of your fallback servers
+    // Primary & Fallback Multi-Server Cluster Nodes
+    const CLUSTER_SERVERS = [
+      window.location.origin,
+      'https://bot-z47t.onrender.com',
+      'https://botsite-c9x0h6m9.b4a.run'
+    ].filter((val, idx, self) => val && self.indexOf(val) === idx && !val.includes('file://'));
+
     let BACKEND_URL = window.location.origin;
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
       BACKEND_URL = 'http://localhost:3000';
+    }
+
+    async function apiRequest(endpoint, options = {}) {
+      let lastError = null;
+      for (const server of CLUSTER_SERVERS) {
+        try {
+          const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+          const url = `${server}${cleanEndpoint}`;
+          const res = await fetch(url, options);
+          const data = await res.json();
+          if (res.status === 429 && data.redirectUrl) {
+            window.location.href = data.redirectUrl;
+            return { ok: false, redirected: true };
+          }
+          if (res.status !== 429 && res.status !== 502 && res.status !== 503) {
+            BACKEND_URL = server;
+            return { ok: true, data, res };
+          }
+          lastError = data.error || `Server returned ${res.status}`;
+        } catch (e) {
+          lastError = e.message;
+        }
+      }
+      return { ok: false, error: lastError || 'All cluster nodes are currently unreachable.' };
     }
 
     let currentMode = 'pair'; // 'pair', 'qr', 'session', or 'manage'
@@ -1441,24 +1471,22 @@
       document.getElementById('loadingState').style.display = 'block';
 
       try {
-        let url = `${BACKEND_URL}/api/client/pair-code?phone=${phone}`;
-        if (loggedInDiscordId) url += `&ownerId=${loggedInDiscordId}`;
-        const response = await fetch(url);
-        const data = await response.json();
+        let endpoint = `/api/client/pair-code?phone=${phone}`;
+        if (loggedInDiscordId) endpoint += `&ownerId=${loggedInDiscordId}`;
+        const result = await apiRequest(endpoint);
 
         document.getElementById('loadingState').style.display = 'none';
 
-        if (data.success && data.code) {
-          currentPairCode = data.code;
-          displayPairCode(data.code);
+        if (result.redirected) return;
+
+        if (result.ok && result.data && result.data.success && result.data.code) {
+          currentPairCode = result.data.code;
+          displayPairCode(result.data.code);
         } else {
-          if (data.redirectUrl) {
-            window.location.href = data.redirectUrl;
-            return;
-          }
+          const errMsg = (result.data && result.data.error) || result.error || 'Failed to generate pairing code. Please try again.';
           document.getElementById('phoneInputSection').style.display = 'block';
           btn.disabled = false;
-          errBox.textContent = data.error || 'Failed to generate pairing code. Please check your number and try again.';
+          errBox.textContent = errMsg;
           errBox.style.display = 'block';
         }
       } catch (err) {
@@ -1483,39 +1511,40 @@
 
     function copyPairCode() {
       if (!currentPairCode) return;
-      navigator.clipboard.writeText(currentPairCode).then(() => {
-        const btnText = document.getElementById('copyBtnText');
-        btnText.textContent = '✅ Copied to Clipboard!';
-        setTimeout(() => {
-          btnText.textContent = 'Tap to Copy Code';
-        }, 3000);
+      navigator.clipboard.writeText(currentPairCode.replace(/-/g, '')).then(() => {
+        const btn = document.getElementById('btnCopyCode');
+        const oldText = btn.innerHTML;
+        btn.innerHTML = '✅ Copied!';
+        setTimeout(() => { btn.innerHTML = oldText; }, 2000);
       }).catch(() => {
-        const el = document.createElement('textarea');
-        el.value = currentPairCode;
-        document.body.appendChild(el);
-        el.select();
+        // Fallback copy
+        const temp = document.createElement('textarea');
+        temp.value = currentPairCode.replace(/-/g, '');
+        document.body.appendChild(temp);
+        temp.select();
         document.execCommand('copy');
-        document.body.removeChild(el);
-        document.getElementById('copyBtnText').textContent = '✅ Copied!';
+        document.body.removeChild(temp);
+        alert('Pairing code copied to clipboard!');
       });
     }
 
-    function startCountdown(duration) {
+    function startCountdown(sec) {
       clearInterval(timerInterval);
-      secondsLeft = duration;
-      const display = document.getElementById('countdownDisplay');
+      secondsLeft = sec;
+      updateTimerDisplay();
 
       timerInterval = setInterval(() => {
         secondsLeft--;
-        const mins = Math.floor(secondsLeft / 60);
-        const secs = secondsLeft % 60;
-        display.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-
+        updateTimerDisplay();
         if (secondsLeft <= 0) {
           clearInterval(timerInterval);
-          display.textContent = 'Expired';
-          document.getElementById('liveStatusText').textContent = '⚠️ Pairing code expired. Please request a new code.';
-          document.getElementById('liveStatusText').style.color = '#ff5252';
+          clearInterval(statusInterval);
+          document.getElementById('codeResultArea').style.display = 'none';
+          document.getElementById('phoneInputSection').style.display = 'block';
+          document.getElementById('btnGetPairCode').disabled = false;
+          const errBox = document.getElementById('errorMessage');
+          errBox.textContent = '⏱️ Pairing code expired. Please generate a new code.';
+          errBox.style.display = 'block';
         }
       }, 1000);
     }
