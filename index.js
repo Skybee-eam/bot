@@ -237,11 +237,20 @@ async function processSessionConnection(sessionIdInput, rawPhone = '') {
 }
 
 function detectServerHost() {
-  if (process.env.RENDER || process.env.RENDER_SERVICE_ID || process.env.RENDER_EXTERNAL_URL) {
-    return { name: 'Render Cloud', icon: '🟣', badge: 'render' };
+  if (process.env.SERVER_NODE_NAME) {
+    return { name: process.env.SERVER_NODE_NAME, icon: '🌐', badge: 'custom' };
   }
   if (process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_STATIC_URL) {
     return { name: 'Railway', icon: '🚂', badge: 'railway' };
+  }
+  if (process.env.BACK4APP || process.env.CONTAINER_NAME) {
+    return { name: 'Back4App Containers', icon: '📦', badge: 'back4app' };
+  }
+  if (process.env.KOYEB_APP_NAME) {
+    return { name: 'Koyeb', icon: '⚡', badge: 'koyeb' };
+  }
+  if (process.env.FLY_APP_NAME) {
+    return { name: 'Fly.io', icon: '🎈', badge: 'fly' };
   }
   if (process.env.VERCEL || process.env.VERCEL_URL) {
     return { name: 'Vercel Serverless', icon: '▲', badge: 'vercel' };
@@ -249,14 +258,8 @@ function detectServerHost() {
   if (process.env.NETLIFY || process.env.NETLIFY_LOCAL) {
     return { name: 'Netlify Cloud', icon: '🔷', badge: 'netlify' };
   }
-  if (process.env.FLY_APP_NAME) {
-    return { name: 'Fly.io', icon: '🎈', badge: 'fly' };
-  }
-  if (process.env.KOYEB_APP_NAME) {
-    return { name: 'Koyeb', icon: '⚡', badge: 'koyeb' };
-  }
-  if (process.env.BACK4APP || process.env.CONTAINER_NAME) {
-    return { name: 'Back4App Containers', icon: '📦', badge: 'back4app' };
+  if (process.env.RENDER || process.env.RENDER_SERVICE_ID || process.env.RENDER_EXTERNAL_URL) {
+    return { name: 'Render Cloud', icon: '🟣', badge: 'render' };
   }
   return { name: 'Render Cloud', icon: '🟣', badge: 'render' };
 }
