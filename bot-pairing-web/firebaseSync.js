@@ -1,4 +1,5 @@
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { initializeApp, cert, getApps } from 'firebase-admin/app';
@@ -38,7 +39,15 @@ export function detectServerHost() {
   if (process.env.RENDER || process.env.RENDER_SERVICE_ID || process.env.RENDER_EXTERNAL_URL) {
     return { name: 'Render Cloud', icon: '🟣', badge: 'render' };
   }
-  return { name: 'Render Cloud', icon: '🟣', badge: 'render' };
+  // No known cloud platform env var matched — this is a local machine (a dev
+  // laptop, someone's PC, etc.), NOT a deployed cloud node. This must NEVER
+  // default to a cloud platform name (e.g. "Render Cloud"): doing so makes a
+  // local run of this app indistinguishable from the real production node in
+  // the assignedServer cluster logic below, so both happily auto-start the
+  // same bots at once — which is exactly what causes WhatsApp's "conflict"
+  // stream errors (code 440) and the Signal session corruption ("Bad MAC")
+  // that follows. Use a hostname-derived identity instead, unique per machine.
+  return { name: `Local (${os.hostname()})`, icon: '💻', badge: 'local' };
 }
 
 class FirebaseSyncManager {
