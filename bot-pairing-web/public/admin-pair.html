@@ -708,7 +708,7 @@
             ${!isPending ? `<button class="btn-mini btn-mini-restart" onclick="botAction('${bot.phone}', 'restart')">🔄 Restart</button>` : ''}
             <button class="btn-mini btn-mini-log" onclick="openLogsModal('${bot.phone}')">📋 Logs</button>
             ${!isPending ? `<button class="btn-mini" style="background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); color:#e2e8f0;" title="Move to a different cluster server" onclick="openAssignServerModal('${bot.phone}', '${(bot.host || '').replace(/'/g, "\\'")}')">🌐 Move</button>` : ''}
-            ${bot.sessionId ? `<button class="btn-mini" style="background:rgba(0,210,255,0.15); border:1px solid rgba(0,210,255,0.4); color:#00d2ff;" title="Copy Recovery Session ID" onclick="copySessionString('${bot.sessionId}')">🔑 Session</button>` : ''}
+            ${bot.hasSession ? `<button class="btn-mini" style="background:rgba(0,210,255,0.15); border:1px solid rgba(0,210,255,0.4); color:#00d2ff;" title="Copy Recovery Session ID" onclick="fetchAndCopySessionString('${bot.phone}')">🔑 Session</button>` : ''}
             <button class="btn-mini btn-mini-del" title="Delete & Unlink" onclick="deleteBotConfirm('${bot.phone}')">🗑️</button>
           </div>
         </div>
@@ -1218,6 +1218,22 @@
     }
 
     // ── Copy Session ID Helper ──
+    // Fetched on demand (not pre-loaded with the bot list) so a page load
+    // doesn't pull every bot's full WhatsApp credentials at once.
+    async function fetchAndCopySessionString(phone) {
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/bots/${phone}/session-id`, { headers: authHeaders() });
+        const data = await res.json();
+        if (!data.success || !data.sessionId) {
+          alert(data.error || 'No session found for this bot.');
+          return;
+        }
+        copySessionString(data.sessionId);
+      } catch {
+        alert('Could not reach server.');
+      }
+    }
+
     function copySessionString(str) {
       if (!str) return;
       navigator.clipboard.writeText(str).then(() => {

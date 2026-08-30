@@ -1653,19 +1653,16 @@
         if (result.ok && result.data && result.data.success) {
           const data = result.data;
           const statusText = document.getElementById('liveStatusText');
-          if (data.sessionId) {
-            currentActiveSessionId = data.sessionId;
-            document.getElementById('successSessionIdDisplay').textContent = data.sessionId;
-          }
 
           if (data.status === 'active') {
             clearInterval(statusInterval);
             clearInterval(timerInterval);
             document.getElementById('sectionPairMode').style.display = 'none';
             document.getElementById('successPhoneDisplay').textContent = `+${activePhone}`;
-            if (data.sessionId) {
-              document.getElementById('successSessionIdDisplay').textContent = data.sessionId;
-            }
+            // Your recovery Session ID is never sent over this API — it's
+            // delivered straight to your own WhatsApp DM once linked, which
+            // only you can read.
+            document.getElementById('successSessionIdDisplay').textContent = '✅ Sent to your WhatsApp DM — check your messages for your recovery Session ID.';
             document.getElementById('successBox').style.display = 'block';
           } else if (data.status === 'pairing') {
             if (statusText) {
@@ -1913,10 +1910,9 @@
               document.getElementById('sectionQrMode').style.display = 'none';
               document.getElementById('successPhoneDisplay').textContent = data.phone ? `+${data.phone}` : 'Connected';
               if (data.phone) activePhone = data.phone;
-              if (data.sessionId) {
-                currentActiveSessionId = data.sessionId;
-                document.getElementById('successSessionIdDisplay').textContent = data.sessionId;
-              }
+              // Your recovery Session ID is never sent over this API — it's
+              // delivered straight to your own WhatsApp DM once linked.
+              document.getElementById('successSessionIdDisplay').textContent = '✅ Sent to your WhatsApp DM — check your messages for your recovery Session ID.';
               document.getElementById('successBox').style.display = 'block';
             } else if (data.qr) {
               document.getElementById('qrLoadingBox').style.display = 'none';
@@ -2014,6 +2010,10 @@
     function copySuccessSessionId() {
       const text = document.getElementById('successSessionIdDisplay').textContent.trim();
       if (!text || text.includes('Generating')) return;
+      if (!text.startsWith('SKYBEE~')) {
+        alert('Your Session ID was sent directly to your WhatsApp DM — copy it from there.');
+        return;
+      }
       navigator.clipboard.writeText(text).then(() => {
         const btn = document.getElementById('btnCopySuccessSession');
         btn.textContent = '✅ Copied!';

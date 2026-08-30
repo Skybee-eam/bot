@@ -535,7 +535,12 @@ class MultiBotManager {
         uptime: b.startedAt && b.status === 'running' ? Math.floor((Date.now() - new Date(b.startedAt).getTime()) / 1000) : 0,
         logCount: b.logs.length,
         hasCreds: fs.existsSync(path.join(multiSessionsDir, phone, 'creds.json')),
-        sessionId: getSessionIdForPhone(phone),
+        // Not the raw credentials — just whether one exists, so the Admin
+        // Panel knows whether to show the "Session" button. The actual
+        // session ID is fetched on demand via the dedicated, admin-protected
+        // GET /api/bots/:phone/session-id endpoint when that button is
+        // clicked, instead of being embedded in every bulk list response.
+        hasSession: !!getSessionIdForPhone(phone),
         host: serverHostInfo.name,
         hostIcon: serverHostInfo.icon,
         hostBadge: serverHostInfo.badge
@@ -810,7 +815,17 @@ app.get('/api/client/pair-code', async (req, res) => {
   }
 });
 
-// Public client bot connection status checker (Includes Session ID if linked)
+// Public client bot connection status checker.
+//
+// SECURITY: this endpoint is intentionally unauthenticated (anyone polling
+// their own pairing progress has no access code yet) and only takes a phone
+// number, which is guessable/enumerable. It must NEVER include sessionId —
+// that's the complete WhatsApp auth state (private keys included), and
+// returning it here let anyone fetch full account takeover credentials for
+// ANY phone number with zero authentication. The session ID is still
+// delivered to the user through a channel only the real account owner can
+// read: sendSessionIdPrompt() sends it directly to their own WhatsApp DM
+// right after pairing completes.
 app.get('/api/client/status', (req, res) => {
   let phone = req.query.phone;
   if (!phone) return res.status(400).json({ success: false, error: 'Phone number is required.' });
@@ -818,15 +833,14 @@ app.get('/api/client/status', (req, res) => {
 
   const bot = botManager.bots.get(phone);
   const isPairingPending = activePairSockets.has(phone);
-  const sessionId = getSessionIdForPhone(phone);
+  const hasSession = !!getSessionIdForPhone(phone);
 
   if (bot && bot.status === 'running') {
     return res.json({
       success: true,
       phone,
       status: 'active',
-      sessionId: sessionId || undefined,
-      message: 'Bot is online, running, and active!'
+      message: 'Bot is online, running, and active! Check your WhatsApp DM for your recovery Session ID.'
     });
   } else if (isPairingPending) {
     return res.json({
@@ -835,7 +849,7 @@ app.get('/api/client/status', (req, res) => {
       status: 'pairing',
       message: 'Waiting for pairing code confirmation in WhatsApp...'
     });
-  } else if ((bot && bot.status === 'stopped') || sessionId) {
+  } else if ((bot && bot.status === 'stopped') || hasSession) {
     let finalStatus = 'linked';
     let message = 'Bot is linked and ready to start.';
     const vault = firebaseSync.readLocalVault();
@@ -844,19 +858,12 @@ app.get('/api/client/status', (req, res) => {
        message = 'Waiting for Admin Approval.';
     }
 
-    return res.json({
-      success: true,
-      phone,
-      status: finalStatus,
-      sessionId: sessionId || undefined,
-      message
-    });
+    return res.json({ success: true, phone, status: finalStatus, message });
   } else if ((bot && bot.status === 'pending')) {
     return res.json({
       success: true,
       phone,
       status: 'pending',
-      sessionId: sessionId || undefined,
       message: 'Waiting for Admin Approval.'
     });
   } else {
@@ -864,14 +871,17 @@ app.get('/api/client/status', (req, res) => {
       success: true,
       phone,
       status: 'linked',
-      sessionId: sessionId || undefined,
       message: 'Bot is linked and ready to start.'
     });
   }
 });
 
-// Public endpoint to retrieve Session ID for a given linked phone
-app.get('/api/client/session-id', (req, res) => {
+// Retrieve the Session ID for a phone [PROTECTED] — this used to be a fully
+// public, unauthenticated endpoint that handed out complete WhatsApp
+// credentials to anyone who supplied a phone number. Gated behind the admin
+// access code now; regular users get their session ID via their own
+// WhatsApp DM instead (see sendSessionIdPrompt).
+app.get('/api/client/session-id', requireAccessCode, (req, res) => {
   let phone = req.query.phone;
   if (!phone) return res.status(400).json({ success: false, error: 'Phone number is required.' });
   phone = phone.replace(/[^0-9]/g, '');
@@ -1159,6 +1169,19 @@ app.get('/api/bots/:phone/logs', requireAccessCode, (req, res) => {
     status: bot.status,
     logs: bot.logs
   });
+});
+
+// Fetch a specific bot's Session ID on demand [PROTECTED] — deliberately not
+// included in the bulk /api/bots list response (see MultiBotManager.listBots)
+// so a single list fetch can't hand out every bot's full credentials at once.
+app.get('/api/bots/:phone/session-id', requireAccessCode, (req, res) => {
+  const { phone } = req.params;
+  const cleanPhone = String(phone).replace(/[^0-9]/g, '');
+  const sessionId = getSessionIdForPhone(cleanPhone);
+  if (!sessionId) {
+    return res.status(404).json({ success: false, error: 'No session found for this bot.' });
+  }
+  return res.json({ success: true, phone: cleanPhone, sessionId });
 });
 
 // Start a specific bot [PROTECTED]
@@ -1487,6 +1510,10 @@ app.post(['/api/qr-start', '/api/client/qr-start'], async (req, res) => {
 });
 
 // Route: Poll QR status
+// SECURITY: does not return the WhatsApp session credentials — sessionId
+// query param here is a guessable, timestamp-based QR-flow tracking ID
+// ('qr_' + Date.now()), not proof of ownership. The real session ID is
+// delivered to the user's own WhatsApp DM once linked (sendSessionIdPrompt).
 app.get('/api/qr-status', (req, res) => {
   const { sessionId } = req.query;
   if (!sessionId) return res.status(400).json({ error: 'sessionId is required.' });
@@ -1499,7 +1526,6 @@ app.get('/api/qr-status', (req, res) => {
   return res.json({
     linked: session.linked,
     phone: session.phone,
-    sessionId: session.generatedSessionId || (session.phone ? getSessionIdForPhone(session.phone) : null),
     qr: session.qrDataUrl || null,
     error: session.error || null,
   });
