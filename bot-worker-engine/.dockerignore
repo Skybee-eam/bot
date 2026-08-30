@@ -1,0 +1,7 @@
+node_modules
+cloud_sessions
+session
+tmp
+*.log
+.env
+serviceAccountKey.json
