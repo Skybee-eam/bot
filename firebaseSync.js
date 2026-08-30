@@ -273,6 +273,24 @@ class FirebaseSyncManager {
     }, { merge: true }).catch(() => {});
   }
 
+  // Explicitly move a bot to a specific cluster node — an admin action, not
+  // automatic housekeeping. Unlike claimServerAssignment (fire-and-forget,
+  // used by the restore/backup paths), this awaits the write and throws on
+  // failure so the caller can actually tell the admin it didn't work.
+  async setServerAssignment(phone, serverId) {
+    if (!this.initialized || !this.db) {
+      throw new Error('Firebase Cloud is not connected on this node — cannot reassign clusters without it.');
+    }
+    const cleanPhone = String(phone).replace(/[^0-9]/g, '');
+    if (!cleanPhone) throw new Error('Invalid phone number.');
+    if (!serverId || !String(serverId).trim()) throw new Error('A target server name is required.');
+    await this.db.collection('bots').doc(cleanPhone).set({
+      assignedServer: String(serverId).trim(),
+      lastSync: FieldValue.serverTimestamp()
+    }, { merge: true });
+    return true;
+  }
+
   // Restore sessions from Local Vault and Firebase Cloud on server boot.
   // By default this only restores bots CLUSTER-ASSIGNED to this node (or
   // unassigned/legacy bots, which get claimed for this node) — this is what

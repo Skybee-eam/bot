@@ -390,6 +390,31 @@
     </div>
   </div>
 
+  <!-- 🌐 MODAL: Move Bot to Cluster Server 🌐 -->
+  <div class="modal-overlay" id="assignServerModal" onclick="closeOnOverlay(event, 'assignServerModal')">
+    <div class="modal-box">
+      <button class="modal-close" onclick="closeModal('assignServerModal')">✕</button>
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+        <span style="font-size:1.3rem;">🌐</span>
+        <h2 class="modal-title" style="margin:0;">Move Bot to Server</h2>
+      </div>
+      <p style="color:var(--muted); font-size:0.85rem; margin-bottom:16px;" id="assignServerBotLabel">+Phone</p>
+
+      <label style="display:block; font-size:0.8rem; color:var(--muted); margin-bottom:6px;">Target server</label>
+      <select id="assignServerSelect" style="width:100%; padding:10px; border-radius:8px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.15); color:#fff; margin-bottom:14px;"></select>
+
+      <label style="display:block; font-size:0.8rem; color:var(--muted); margin-bottom:6px;">Or type a custom node name</label>
+      <input type="text" id="assignServerCustom" placeholder="e.g. railway-worker-1" style="width:100%; padding:10px; border-radius:8px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.15); color:#fff; margin-bottom:16px; box-sizing:border-box;">
+
+      <div id="assignServerError" class="hidden" style="color:#ff5c5c; font-size:0.8rem; margin-bottom:12px;"></div>
+
+      <div style="display:flex; gap:10px; justify-content:flex-end;">
+        <button class="btn-mini btn-mini-stop" onclick="closeModal('assignServerModal')">Cancel</button>
+        <button class="btn-mini btn-mini-start" id="assignServerConfirmBtn" onclick="confirmAssignServer()">Move Bot</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 🟢 MODAL: Approval Details 🟢 -->
   <div class="modal-overlay" id="approvalModal" onclick="closeOnOverlay(event, 'approvalModal')">
     <div class="modal-box">
@@ -682,6 +707,7 @@
             }
             ${!isPending ? `<button class="btn-mini btn-mini-restart" onclick="botAction('${bot.phone}', 'restart')">🔄 Restart</button>` : ''}
             <button class="btn-mini btn-mini-log" onclick="openLogsModal('${bot.phone}')">📋 Logs</button>
+            ${!isPending ? `<button class="btn-mini" style="background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); color:#e2e8f0;" title="Move to a different cluster server" onclick="openAssignServerModal('${bot.phone}', '${(bot.host || '').replace(/'/g, "\\'")}')">🌐 Move</button>` : ''}
             ${bot.sessionId ? `<button class="btn-mini" style="background:rgba(0,210,255,0.15); border:1px solid rgba(0,210,255,0.4); color:#00d2ff;" title="Copy Recovery Session ID" onclick="copySessionString('${bot.sessionId}')">🔑 Session</button>` : ''}
             <button class="btn-mini btn-mini-del" title="Delete & Unlink" onclick="deleteBotConfirm('${bot.phone}')">🗑️</button>
           </div>
@@ -1102,6 +1128,72 @@
       } finally {
         btn.disabled = false;
         btn.textContent = 'Host Bot Instance';
+      }
+    }
+
+    // ── Move Bot to Cluster Server ──
+    let assignServerPhone = null;
+
+    async function openAssignServerModal(phone, currentHost) {
+      assignServerPhone = phone;
+      document.getElementById('assignServerBotLabel').textContent = `+${phone} • currently on ${currentHost || 'unknown'}`;
+      document.getElementById('assignServerCustom').value = '';
+      document.getElementById('assignServerError').classList.add('hidden');
+
+      const select = document.getElementById('assignServerSelect');
+      select.innerHTML = `<option value="">Loading known servers...</option>`;
+
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/servers`, { headers: authHeaders() });
+        const data = await res.json();
+        const servers = data.servers || [];
+        select.innerHTML = servers.map(s =>
+          `<option value="${s}" ${s === currentHost ? 'selected' : ''}>${s}</option>`
+        ).join('') + `<option value="">— use custom name below —</option>`;
+      } catch {
+        select.innerHTML = `<option value="">— use custom name below —</option>`;
+      }
+
+      openModal('assignServerModal');
+    }
+
+    async function confirmAssignServer() {
+      const select = document.getElementById('assignServerSelect');
+      const custom = document.getElementById('assignServerCustom').value.trim();
+      const serverName = custom || select.value;
+      const errBox = document.getElementById('assignServerError');
+      errBox.classList.add('hidden');
+
+      if (!serverName) {
+        errBox.textContent = 'Pick a server or type a custom node name.';
+        errBox.classList.remove('hidden');
+        return;
+      }
+
+      const btn = document.getElementById('assignServerConfirmBtn');
+      btn.disabled = true;
+      btn.textContent = 'Moving...';
+
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/bots/${assignServerPhone}/assign-server`, {
+          method: 'POST',
+          headers: authHeaders(),
+          body: JSON.stringify({ serverName })
+        });
+        const data = await res.json();
+        if (!data.success) {
+          errBox.textContent = data.error || 'Failed to reassign bot.';
+          errBox.classList.remove('hidden');
+        } else {
+          closeModal('assignServerModal');
+          fetchBots();
+        }
+      } catch {
+        errBox.textContent = 'Could not reach server.';
+        errBox.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Move Bot';
       }
     }
 

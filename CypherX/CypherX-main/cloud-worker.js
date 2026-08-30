@@ -9,15 +9,23 @@
  */
 
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const http = require('http');
 const { spawn } = require('child_process');
 const { initializeApp, cert, getApps } = require('firebase-admin/app');
-const { getFirestore } = require('firebase-admin/firestore');
+const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 
 const PROJECT_ID = process.env.FIREBASE_PROJECT_ID || 'chapters-eam';
 const PORT = process.env.PORT || 8080;
 const SESSIONS_ROOT = path.join(__dirname, 'cloud_sessions');
+
+// This node's identity in the cluster. Deliberately NOT a fixed/guessable
+// default (e.g. "Render Cloud") — a collision here means two nodes both
+// think they own the same bot and both connect it to WhatsApp at once,
+// which corrupts the Signal session (repeated "conflict" disconnects and
+// "Bad MAC" decrypt failures). Set SERVER_NODE_NAME explicitly per node.
+const SERVER_NODE_NAME = process.env.SERVER_NODE_NAME || `Worker (${os.hostname()})`;
 
 if (!fs.existsSync(SESSIONS_ROOT)) {
   fs.mkdirSync(SESSIONS_ROOT, { recursive: true });
@@ -29,6 +37,7 @@ const runningBots = new Map();
 // Track approval status and system mode in memory
 let currentSystemMode = 'instant'; // 'instant' | 'approval'
 const botApprovalStatus = new Map(); // phone -> 'approved' | 'pending' | 'rejected'
+const botAssignedServer = new Map(); // phone -> assignedServer name (or undefined if unassigned)
 
 // ─────────────────────────────────────────────────────────────────
 // 1. FIREBASE INITIALIZATION
@@ -91,6 +100,16 @@ function initFirebase() {
   }
 }
 
+// Best-effort: record which node owns a bot. Fire-and-forget by design —
+// callers should not block startup on this write succeeding.
+function claimServerAssignment(phone, serverId) {
+  if (!db) return;
+  db.collection('bots').doc(phone).set({
+    assignedServer: serverId,
+    lastSync: FieldValue.serverTimestamp()
+  }, { merge: true }).catch(() => {});
+}
+
 // ─────────────────────────────────────────────────────────────────
 // 2. SESSION FILE WRITER
 // ─────────────────────────────────────────────────────────────────
@@ -117,6 +136,15 @@ function startBotProcess(phone) {
   const cleanPhone = String(phone).replace(/[^0-9]/g, '');
   if (!cleanPhone) return;
 
+  // Respect cluster assignment: only start bots assigned to THIS node (or
+  // unassigned ones, which get claimed below). This is what stops multiple
+  // worker nodes from all connecting the same WhatsApp account at once.
+  const assignedTo = botAssignedServer.get(cleanPhone);
+  if (assignedTo && assignedTo !== SERVER_NODE_NAME) {
+    console.log(`[CLOUD-WORKER] ⏭️  Skipping +${cleanPhone} — assigned to "${assignedTo}", this node is "${SERVER_NODE_NAME}".`);
+    return;
+  }
+
   // Check approval if mode is 'approval'
   const approval = botApprovalStatus.get(cleanPhone);
   if (currentSystemMode === 'approval' && approval === 'pending') {
@@ -135,6 +163,13 @@ function startBotProcess(phone) {
   if (!fs.existsSync(path.join(userDir, 'creds.json'))) {
     console.warn(`[CLOUD-WORKER] Cannot start +${cleanPhone}: creds.json missing in ${userDir}`);
     return;
+  }
+
+  // Unassigned (legacy/first-seen) bot — claim it for this node so other
+  // nodes skip it from now on.
+  if (!assignedTo) {
+    botAssignedServer.set(cleanPhone, SERVER_NODE_NAME);
+    claimServerAssignment(cleanPhone, SERVER_NODE_NAME);
   }
 
   console.log(`\n[CLOUD-WORKER] 🚀 Starting Bot Instance for +${cleanPhone}...`);
@@ -247,16 +282,26 @@ function listenToFirestoreChanges() {
     console.warn(`[CLOUD-WORKER] system_settings listener note:`, err.message);
   });
 
-  // 2. Listen to bots collection for approvalStatus changes
+  // 2. Listen to bots collection for approvalStatus + cluster assignment changes
   db.collection('bots').onSnapshot((snapshot) => {
     snapshot.docChanges().forEach((change) => {
       const data = change.doc.data();
       const phone = data.phone || change.doc.id;
       const status = data.approvalStatus || 'approved';
-      const prevStatus = botApprovalStatus.get(phone);
       botApprovalStatus.set(phone, status);
 
+      const newAssigned = data.assignedServer || null;
+      if (newAssigned) botAssignedServer.set(phone, newAssigned);
+
       if (change.type === 'added' || change.type === 'modified') {
+        // Reassigned to a different node while running here — release it.
+        // The receiving node's own listener picks it up from here.
+        if (newAssigned && newAssigned !== SERVER_NODE_NAME && runningBots.has(phone)) {
+          console.log(`[CLOUD-WORKER] 🔀 Bot +${phone} reassigned to "${newAssigned}". Stopping on this node.`);
+          stopBotProcess(phone);
+          return;
+        }
+
         if (status === 'approved') {
           if (!runningBots.has(phone)) {
             console.log(`[CLOUD-WORKER] ✅ Bot +${phone} is APPROVED. Starting bot...`);
@@ -281,6 +326,13 @@ function listenToFirestoreChanges() {
       const phone = data.phone || change.doc.id;
 
       if (change.type === 'added' || change.type === 'modified') {
+        const assignedTo = botAssignedServer.get(phone);
+        if (assignedTo && assignedTo !== SERVER_NODE_NAME) {
+          // Assigned to a different node — don't even restore the session
+          // files locally, so nothing on this node can accidentally start it.
+          return;
+        }
+
         console.log(`[CLOUD-WORKER] 📥 Session sync detected for +${phone}`);
         if (data.authFiles && Object.keys(data.authFiles).length > 0) {
           const written = writeSessionFiles(phone, data.authFiles);
@@ -325,6 +377,7 @@ const server = http.createServer((req, res) => {
     return res.end(JSON.stringify({
       status: 'online',
       service: 'CypherX Cloud Bot Worker',
+      serverNodeName: SERVER_NODE_NAME,
       mode: currentSystemMode,
       activeBots: runningBots.size,
       botList: Array.from(runningBots.keys()),
@@ -342,6 +395,7 @@ const server = http.createServer((req, res) => {
 async function main() {
   console.log(`\n========================================================`);
   console.log(`🤖 CYPHER-X MULTI-BOT CLOUD WORKER`);
+  console.log(`🌐 Node identity: ${SERVER_NODE_NAME}`);
   console.log(`📦 Storage: ${SESSIONS_ROOT}`);
   console.log(`========================================================\n`);
 

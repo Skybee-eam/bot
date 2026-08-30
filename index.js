@@ -1034,8 +1034,21 @@ app.get('/api/vault', (req, res) => {
 });
 
 // List all hosted bots [PROTECTED]
-app.get('/api/bots', requireAccessCode, (req, res) => {
+app.get('/api/bots', requireAccessCode, async (req, res) => {
   const bots = botManager.listBots();
+
+  // listBots() tags every bot with THIS node's own identity, which is only
+  // accurate for bots actually running here. Overlay the real Firestore
+  // assignment so the Admin Panel shows where each bot is really assigned,
+  // not just what this particular node happens to be.
+  try {
+    const assignments = await firebaseSync.getBotServerAssignments();
+    for (const bot of bots) {
+      const assignedServer = assignments[bot.phone]?.assignedServer;
+      if (assignedServer) bot.host = assignedServer;
+    }
+  } catch {}
+
   return res.json({ success: true, bots });
 });
 
@@ -1174,6 +1187,49 @@ app.post('/api/bots/:phone/restart', requireAccessCode, async (req, res) => {
   const cleanPhone = String(phone).replace(/[^0-9]/g, '');
   await botManager.restartBot(cleanPhone);
   return res.json({ success: true, message: `Bot +${cleanPhone} restarted.` });
+});
+
+// Assign a bot to a specific cluster node (admin picks where it should run) [PROTECTED]
+app.post('/api/bots/:phone/assign-server', requireAccessCode, async (req, res) => {
+  const { phone } = req.params;
+  const cleanPhone = String(phone).replace(/[^0-9]/g, '');
+  const { serverName } = req.body || {};
+
+  if (!serverName || typeof serverName !== 'string' || !serverName.trim()) {
+    return res.status(400).json({ success: false, error: 'A target server name is required.' });
+  }
+  const targetServer = serverName.trim();
+
+  try {
+    await firebaseSync.setServerAssignment(cleanPhone, targetServer);
+
+    // If this bot is currently running on THIS node but was just handed to a
+    // different one, release it here — the receiving node picks it up on its
+    // own restore/sync cycle (or immediately, if it's listening live).
+    const localServerId = detectServerHost().name;
+    if (targetServer !== localServerId && botManager.bots.has(cleanPhone)) {
+      botManager.stopBot(cleanPhone);
+    }
+
+    return res.json({ success: true, message: `Bot +${cleanPhone} assigned to "${targetServer}".`, assignedServer: targetServer });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// List known cluster server names, for the Admin Panel's server picker [PROTECTED]
+app.get('/api/servers', requireAccessCode, async (req, res) => {
+  try {
+    const assignments = await firebaseSync.getBotServerAssignments();
+    const known = new Set();
+    known.add(detectServerHost().name);
+    for (const info of Object.values(assignments)) {
+      if (info && info.assignedServer) known.add(info.assignedServer);
+    }
+    return res.json({ success: true, servers: Array.from(known).sort() });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // Delete & unlink a specific bot [PROTECTED]
