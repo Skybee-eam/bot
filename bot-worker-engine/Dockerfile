@@ -1,4 +1,4 @@
-# Site B: dedicated 24/7 multi-bot worker (cloud-worker.js).
+# Site B (bot-worker-engine): dedicated 24/7 multi-bot worker.
 # Explicit Dockerfile so Railway (or any container host) builds this exact
 # directory deterministically, instead of relying on a builder's own project
 # auto-detection across a monorepo that has several package.json files.
