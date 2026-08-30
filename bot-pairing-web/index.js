@@ -310,7 +310,12 @@ class MultiBotManager {
       return bot;
     }
 
-    if (!fs.existsSync(BOT_ENTRY)) {
+    // PAIRING_ONLY_MODE explicitly opts this node out of running bots locally,
+    // regardless of whether bot-engine.js happens to be present on disk — for
+    // when Site A (this pairing web service) and Site B (the dedicated
+    // bot-worker-engine host) are deployed separately, so Site A never spawns
+    // a second, colliding copy of a bot Site B is already running.
+    if (process.env.PAIRING_ONLY_MODE === 'true' || !fs.existsSync(BOT_ENTRY)) {
       this.appendLog(cleanPhone, `Session synced to Firebase Cloud. Bot instance runs on Site B (bot-worker-engine).`);
       bot.status = 'running';
       return bot;
@@ -1517,8 +1522,18 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   // Initialize and auto-boot all existing user sessions
   botManager.initAllSessions();
 
-  // Start 24/7 Anti-Sleep worker
-  initKeepAliveWorker();
+  // The anti-sleep keep-alive worker exists to stop Render's free-tier 15-min
+  // idle sleep from interrupting locally-hosted bots — but forcing 24/7
+  // uptime is also what burns through Render's free-tier monthly usage
+  // allowance. In PAIRING_ONLY_MODE this node isn't running any bots, so
+  // there's nothing that needs to stay awake: let it idle-sleep normally
+  // between visits, which is what keeps a free-tier pairing site actually
+  // free.
+  if (process.env.PAIRING_ONLY_MODE !== 'true') {
+    initKeepAliveWorker();
+  } else {
+    console.log('[KEEP-ALIVE] Skipped — PAIRING_ONLY_MODE is on, this node does not need to stay always-on.');
+  }
 });
 
 server.on('error', (err) => {
