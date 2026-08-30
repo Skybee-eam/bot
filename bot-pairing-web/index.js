@@ -1241,10 +1241,16 @@ app.post('/api/bots/:phone/assign-server', requireAccessCode, async (req, res) =
 });
 
 // List known cluster server names, for the Admin Panel's server picker [PROTECTED]
+// Nodes known to actually be deployed and listening, beyond whatever this
+// node has seen bots assigned to so far. Add a name here only once a real
+// worker for it exists (matching SERVER_NODE_NAME) — listing a platform
+// with nothing actually listening lets an admin strand a bot mid-move.
+const KNOWN_PRESET_SERVERS = ['railway-worker-1'];
+
 app.get('/api/servers', requireAccessCode, async (req, res) => {
   try {
     const assignments = await firebaseSync.getBotServerAssignments();
-    const known = new Set();
+    const known = new Set(KNOWN_PRESET_SERVERS);
     known.add(detectServerHost().name);
     for (const info of Object.values(assignments)) {
       if (info && info.assignedServer) known.add(info.assignedServer);
