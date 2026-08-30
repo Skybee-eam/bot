@@ -337,6 +337,30 @@ function getArg(name) {
     }
   };
 
+  // Real cache backing `cachedGroupMetadata` below. Baileys relies on this to
+  // resolve LID <-> phone-number participant identities for group message
+  // decryption/routing, and calls it on the hot path for incoming group
+  // messages — it must return fast from cache, not hit the network on every
+  // call (that's what the previous `async (jid) => Cypher.groupMetadata(jid)`
+  // version did). This is shared with the per-message dispatch handler below
+  // so there's a single cache and a single fetch path.
+  const GROUP_METADATA_TTL_MS = 120000;
+  if (!global.groupMetadataCache) global.groupMetadataCache = new Map();
+  async function getCachedGroupMetadata(jid) {
+    const cached = global.groupMetadataCache.get(jid);
+    if (cached && (Date.now() - cached.timestamp < GROUP_METADATA_TTL_MS)) {
+      return cached.data;
+    }
+    try {
+      const data = await Cypher.groupMetadata(jid);
+      global.groupMetadataCache.set(jid, { data, timestamp: Date.now() });
+      return data;
+    } catch (err) {
+      // Serve stale cached data rather than nothing if a live refetch fails
+      return cached ? cached.data : null;
+    }
+  }
+
   const Cypher = makeWASocket({
     version,
     auth: {
@@ -353,13 +377,7 @@ function getArg(name) {
     defaultQueryTimeoutMs: 0,
     keepAliveIntervalMs: 25000,
     msgRetryCounterCache,
-    cachedGroupMetadata: async (jid) => {
-      try {
-        return await Cypher.groupMetadata(jid);
-      } catch {
-        return null;
-      }
-    },
+    cachedGroupMetadata: (jid) => getCachedGroupMetadata(jid),
     getMessage: async (key) => {
       if (messageStore.has(key.id)) {
         const item = messageStore.get(key.id);
@@ -653,16 +671,7 @@ function getArg(name) {
 
       if (m.isGroup) {
         try {
-          if (!global.groupMetadataCache) global.groupMetadataCache = new Map();
-          const cached = global.groupMetadataCache.get(m.chat);
-          const isFresh = cached && (Date.now() - cached.timestamp < 120000);
-
-          if (isFresh) {
-            groupMetadata = cached.data;
-          } else {
-            groupMetadata = await Cypher.groupMetadata(m.chat);
-            global.groupMetadataCache.set(m.chat, { data: groupMetadata, timestamp: Date.now() });
-          }
+          groupMetadata = await getCachedGroupMetadata(m.chat);
 
           participants = groupMetadata?.participants || [];
           groupAdmins = participants
