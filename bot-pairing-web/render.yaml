@@ -7,7 +7,9 @@ services:
     startCommand: node index.js
     envVars:
       - key: ACCESS_CODE
-        value: SKYBEE2026
+        sync: false
+      - key: PAIRING_ONLY_MODE
+        value: "true"
       - key: NODE_VERSION
         value: 20
       - key: PORT
