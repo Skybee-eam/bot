@@ -20,7 +20,7 @@ import firebaseSync, { detectServerHost } from './firebaseSync.js';
 import dotenv from 'dotenv';
 import axios from 'axios';
 
-dotenv.config();
+dotenv.config({ quiet: true });
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

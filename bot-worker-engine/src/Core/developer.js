@@ -6,7 +6,7 @@ const path = require('path')
 const { color } = require(path.join(__dirname, '../../lib/color'))
 
 if (fs.existsSync(path.join(__dirname, '../../.env'))) {
-    require('dotenv').config({ path: path.join(__dirname, '../../.env') })
+    require('dotenv').config({ path: path.join(__dirname, '../../.env'), quiet: true })
 }
 
 global.api = "https://xploader-apis-5f424ea8f0da.herokuapp.com";
