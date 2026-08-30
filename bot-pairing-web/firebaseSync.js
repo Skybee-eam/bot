@@ -10,6 +10,37 @@ const __dirname = path.dirname(__filename);
 const PROJECT_ID = process.env.FIREBASE_PROJECT_ID || 'chapters-eam';
 const LOCAL_VAULT_FILE = path.join(__dirname, 'sessions_vault.json');
 
+// Single source of truth for "which physical node is this" — used both to label
+// bots in the Admin Panel and to decide which node is allowed to auto-start a
+// given bot in a multi-node cluster (see assignedServer logic below).
+export function detectServerHost() {
+  if (process.env.SERVER_NODE_NAME) {
+    return { name: process.env.SERVER_NODE_NAME, icon: '🌐', badge: 'custom' };
+  }
+  if (process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_STATIC_URL) {
+    return { name: 'Railway', icon: '🚂', badge: 'railway' };
+  }
+  if (process.env.BACK4APP || process.env.CONTAINER_NAME) {
+    return { name: 'Back4App Containers', icon: '📦', badge: 'back4app' };
+  }
+  if (process.env.KOYEB_APP_NAME) {
+    return { name: 'Koyeb', icon: '⚡', badge: 'koyeb' };
+  }
+  if (process.env.FLY_APP_NAME) {
+    return { name: 'Fly.io', icon: '🎈', badge: 'fly' };
+  }
+  if (process.env.VERCEL || process.env.VERCEL_URL) {
+    return { name: 'Vercel Serverless', icon: '▲', badge: 'vercel' };
+  }
+  if (process.env.NETLIFY || process.env.NETLIFY_LOCAL) {
+    return { name: 'Netlify Cloud', icon: '🔷', badge: 'netlify' };
+  }
+  if (process.env.RENDER || process.env.RENDER_SERVICE_ID || process.env.RENDER_EXTERNAL_URL) {
+    return { name: 'Render Cloud', icon: '🟣', badge: 'render' };
+  }
+  return { name: 'Render Cloud', icon: '🟣', badge: 'render' };
+}
+
 class FirebaseSyncManager {
   constructor() {
     this.initialized = false;
@@ -158,14 +189,26 @@ class FirebaseSyncManager {
             authFiles: sessionData
           }, { merge: true });
 
-          const serverHost = process.env.SERVER_NODE_NAME || (process.env.RENDER ? 'Render Cloud' : 'Cloud Worker');
+          const localServerId = detectServerHost().name;
           const botDocRef = this.db.collection('bots').doc(cleanPhone);
+
+          // Read the CURRENT cluster assignment from Firestore (not the local vault,
+          // which never persisted this field) so a re-save never silently steals a
+          // bot that's rightfully owned by another node in the cluster.
+          let currentAssignedServer = null;
+          try {
+            const existingBotDoc = await botDocRef.get();
+            if (existingBotDoc.exists) {
+              currentAssignedServer = existingBotDoc.data().assignedServer || null;
+            }
+          } catch {}
+
           const botData = {
             phone: cleanPhone,
             name: userName,
             status: 'active',
             approvalStatus: finalApprovalStatus,
-            assignedServer: existingSession?.assignedServer || serverHost,
+            assignedServer: currentAssignedServer || localServerId,
             serverUrl: existingSession?.serverUrl || process.env.RENDER_EXTERNAL_URL || process.env.APP_URL || 'https://bot-z47t.onrender.com',
             lastSync: FieldValue.serverTimestamp()
           };
@@ -187,19 +230,64 @@ class FirebaseSyncManager {
     }
   }
 
-  // Restore sessions from Local Vault and Firebase Cloud on server boot
-  async restoreSessionsFromCloud(targetDir) {
+  // Fetch phone -> { assignedServer, approvalStatus } for every bot in the cluster.
+  // Returns {} when Firestore isn't active, which naturally disables all cluster
+  // filtering for single-node / local-vault-only deployments.
+  async getBotServerAssignments() {
+    const assignments = {};
+    if (!this.initialized || !this.db) return assignments;
+    try {
+      const botsSnapshot = await this.db.collection('bots').get();
+      for (const doc of botsSnapshot.docs) {
+        const botData = doc.data();
+        const phone = botData.phone || doc.id;
+        assignments[phone] = {
+          assignedServer: botData.assignedServer || null,
+          approvalStatus: botData.approvalStatus || null
+        };
+      }
+    } catch (err) {
+      console.log(`[FIREBASE] Could not fetch cluster assignments:`, err.message);
+    }
+    return assignments;
+  }
+
+  // Best-effort: record which node owns a bot. Fire-and-forget by design —
+  // callers should not block session restore/start on this write succeeding.
+  claimServerAssignment(phone, serverId) {
+    if (!this.initialized || !this.db) return;
+    const cleanPhone = String(phone).replace(/[^0-9]/g, '');
+    if (!cleanPhone) return;
+    this.db.collection('bots').doc(cleanPhone).set({
+      assignedServer: serverId,
+      lastSync: FieldValue.serverTimestamp()
+    }, { merge: true }).catch(() => {});
+  }
+
+  // Restore sessions from Local Vault and Firebase Cloud on server boot.
+  // By default this only restores bots CLUSTER-ASSIGNED to this node (or
+  // unassigned/legacy bots, which get claimed for this node) — this is what
+  // stops every node in a multi-node cluster from booting up and running a
+  // duplicate copy of every other node's bots. Pass `onlyPhone` for a single,
+  // explicitly user/admin-requested bot (e.g. "start my bot" from the client
+  // dashboard) — that always succeeds and re-assigns the bot to this node,
+  // which is the desired failover behavior when the owning node is down.
+  async restoreSessionsFromCloud(targetDir, { onlyPhone = null } = {}) {
     const restoredPhones = new Set();
+    const localServerId = detectServerHost().name;
 
     if (!fs.existsSync(targetDir)) {
       fs.mkdirSync(targetDir, { recursive: true });
     }
 
-    // 1. Restore from Local Vault Database
+    // 1. Restore from Local Vault Database (always local to this exact node/disk;
+    //    no cross-node collision risk since this file only holds what this node
+    //    itself has already saved).
     try {
       const vault = this.readLocalVault();
       if (vault.sessions) {
         for (const [phone, data] of Object.entries(vault.sessions)) {
+          if (onlyPhone && phone !== onlyPhone) continue;
           const userDir = path.join(targetDir, phone);
           if (!fs.existsSync(userDir) || !fs.existsSync(path.join(userDir, 'creds.json'))) {
             fs.mkdirSync(userDir, { recursive: true });
@@ -224,10 +312,22 @@ class FirebaseSyncManager {
         const vault = this.readLocalVault();
         if (!vault.sessions) vault.sessions = {};
 
+        // Fetch cluster assignments up front so we never write local files for a
+        // bot that belongs to a different node in the cluster.
+        const assignments = await this.getBotServerAssignments();
+
         const snapshot = await this.db.collection('sessions').get();
         for (const doc of snapshot.docs) {
           const data = doc.data();
           const phone = data.phone || doc.id;
+          if (onlyPhone && phone !== onlyPhone) continue;
+
+          const assignedTo = assignments[phone]?.assignedServer || null;
+          if (assignedTo && assignedTo !== localServerId && !onlyPhone) {
+            console.log(`[CLUSTER] Skipping +${phone} — assigned to node "${assignedTo}" (this node is "${localServerId}").`);
+            continue;
+          }
+
           const userDir = path.join(targetDir, phone);
 
           if (!fs.existsSync(userDir) || !fs.existsSync(path.join(userDir, 'creds.json'))) {
@@ -253,15 +353,15 @@ class FirebaseSyncManager {
               }
             }
           }
-        }
 
-        // Fetch approval status from 'bots' collection to ensure approved bots auto-start
-        const botsSnapshot = await this.db.collection('bots').get();
-        for (const doc of botsSnapshot.docs) {
-          const botData = doc.data();
-          const phone = botData.phone || doc.id;
-          if (vault.sessions[phone] && botData.approvalStatus) {
-            vault.sessions[phone].approvalStatus = botData.approvalStatus;
+          // Claim (or, for an explicit single-bot request, reclaim) this bot for
+          // the current node so future boots on other nodes skip it.
+          if (assignedTo !== localServerId) {
+            this.claimServerAssignment(phone, localServerId);
+          }
+
+          if (vault.sessions[phone] && assignments[phone]?.approvalStatus) {
+            vault.sessions[phone].approvalStatus = assignments[phone].approvalStatus;
           }
         }
 

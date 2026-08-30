@@ -16,7 +16,7 @@ import makeWASocket, {
 import pino from 'pino';
 import NodeCache from 'node-cache';
 import QRCode from 'qrcode';
-import firebaseSync from './firebaseSync.js';
+import firebaseSync, { detectServerHost } from './firebaseSync.js';
 import dotenv from 'dotenv';
 import axios from 'axios';
 
@@ -231,33 +231,9 @@ async function processSessionConnection(sessionIdInput, rawPhone = '') {
   };
 }
 
-function detectServerHost() {
-  if (process.env.SERVER_NODE_NAME) {
-    return { name: process.env.SERVER_NODE_NAME, icon: '🌐', badge: 'custom' };
-  }
-  if (process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_STATIC_URL) {
-    return { name: 'Railway', icon: '🚂', badge: 'railway' };
-  }
-  if (process.env.BACK4APP || process.env.CONTAINER_NAME) {
-    return { name: 'Back4App Containers', icon: '📦', badge: 'back4app' };
-  }
-  if (process.env.KOYEB_APP_NAME) {
-    return { name: 'Koyeb', icon: '⚡', badge: 'koyeb' };
-  }
-  if (process.env.FLY_APP_NAME) {
-    return { name: 'Fly.io', icon: '🎈', badge: 'fly' };
-  }
-  if (process.env.VERCEL || process.env.VERCEL_URL) {
-    return { name: 'Vercel Serverless', icon: '▲', badge: 'vercel' };
-  }
-  if (process.env.NETLIFY || process.env.NETLIFY_LOCAL) {
-    return { name: 'Netlify Cloud', icon: '🔷', badge: 'netlify' };
-  }
-  if (process.env.RENDER || process.env.RENDER_SERVICE_ID || process.env.RENDER_EXTERNAL_URL) {
-    return { name: 'Render Cloud', icon: '🟣', badge: 'render' };
-  }
-  return { name: 'Render Cloud', icon: '🟣', badge: 'render' };
-}
+// detectServerHost() now lives in firebaseSync.js so the identity used to LABEL
+// this node (Admin Panel) and the identity used to ENFORCE cluster assignment
+// (which bots this node is allowed to auto-start) can never drift apart.
 
 // ─────────────────────────────────────────────────────────────────
 // MULTI-TENANT BOT MANAGER
@@ -469,12 +445,20 @@ class MultiBotManager {
   async initAllSessions() {
     console.log('[MANAGER] Checking Firebase Cloud & local sessions...');
     try {
+      // No `onlyPhone` here: this is the bulk, automatic boot-time restore, so it
+      // must only pull down bots CLUSTER-ASSIGNED to this node (or unassigned
+      // legacy bots, which get claimed here). Otherwise every node in a
+      // multi-node cluster would restore and boot every other node's bots too.
       await firebaseSync.restoreSessionsFromCloud(multiSessionsDir);
     } catch (e) {
       console.log('[FIREBASE] Cloud sync note:', e.message);
     }
 
     if (!fs.existsSync(multiSessionsDir)) return;
+
+    const localServerId = detectServerHost().name;
+    const assignments = await firebaseSync.getBotServerAssignments();
+
     const entries = fs.readdirSync(multiSessionsDir, { withFileTypes: true });
 
     for (const ent of entries) {
@@ -483,6 +467,14 @@ class MultiBotManager {
         if (!phone || phone.trim() === '') continue;
         const sessionPath = path.join(multiSessionsDir, phone);
         if (fs.existsSync(path.join(sessionPath, 'creds.json'))) {
+          // Guard against stale local session folders (e.g. left over from before
+          // cluster assignment existed) that belong to a different node.
+          const assignedTo = assignments[phone]?.assignedServer || null;
+          if (assignedTo && assignedTo !== localServerId) {
+            console.log(`[MANAGER] Skipping +${phone} — cluster-assigned to "${assignedTo}", not this node ("${localServerId}").`);
+            continue;
+          }
+
           console.log(`[MANAGER] Auto-loading registered session: +${phone}`);
           this.getOrCreate(phone, sessionPath);
           try {
@@ -926,8 +918,11 @@ app.post(['/api/client/bot/start', '/api/client/start'], async (req, res) => {
   try {
     const sessionDir = path.join(multiSessionsDir, cleanPhone);
     if (!fs.existsSync(path.join(sessionDir, 'creds.json'))) {
-      // Auto-restore session from Database Vault / Firebase Cloud
-      await firebaseSync.restoreSessionsFromCloud(multiSessionsDir);
+      // Auto-restore session from Database Vault / Firebase Cloud. This is an
+      // explicit, single-bot user request, so it's allowed to pull (and
+      // re-assign) this bot to this node even if the cluster had it marked as
+      // owned by another node — e.g. the owning node is down.
+      await firebaseSync.restoreSessionsFromCloud(multiSessionsDir, { onlyPhone: cleanPhone });
     }
     if (!fs.existsSync(path.join(sessionDir, 'creds.json'))) {
       return res.status(400).json({ success: false, error: 'No saved WhatsApp session found in database for this number. Please link your bot or paste your Session ID.' });
@@ -953,7 +948,8 @@ app.post(['/api/client/bot/restart', '/api/client/restart'], async (req, res) =>
   const cleanPhone = String(phone).replace(/[^0-9]/g, '');
   const sessionDir = path.join(multiSessionsDir, cleanPhone);
   if (!fs.existsSync(path.join(sessionDir, 'creds.json'))) {
-    await firebaseSync.restoreSessionsFromCloud(multiSessionsDir);
+    // Explicit, single-bot request — always allowed to claim this bot for this node.
+    await firebaseSync.restoreSessionsFromCloud(multiSessionsDir, { onlyPhone: cleanPhone });
   }
   const bot = await botManager.restartBot(cleanPhone);
   return res.json({ success: true, message: `Bot +${cleanPhone} restarted successfully.`, status: bot ? bot.status : 'stopped' });
