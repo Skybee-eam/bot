@@ -72,7 +72,9 @@ const VERIFIED_COMMANDS = {
             { cmd: "autostatus on/off", desc: "Toggle 24/7 automatic status viewing" },
             { cmd: "statusreact on/off", desc: "Toggle automatic emoji reactions on statuses" },
             { cmd: "setstatusemoji <emoji>", desc: "Customize auto reaction emoji (e.g. 💚)" },
-            { cmd: "vv", desc: "Retrieve View-Once media permanently to DM" },
+            { cmd: "vv", desc: "Retrieve View-Once photo, video, or audio" },
+            { cmd: "vv dm [on/off]", desc: "Set View-Once delivery to Private DM or Chat" },
+            { cmd: "vv status", desc: "Check current View-Once delivery destination" },
             { cmd: "sticker", desc: "Convert image/video into WhatsApp sticker" },
             { cmd: "react <emoji>", desc: "React to message with custom emoji" }
         ]
