@@ -249,17 +249,28 @@ async function serializeMessage(Cypher, m) {
 
   m.reply = async (text, options = {}) => {
     try {
-      let quoteObj = m;
-      if (m.isGroup && m.key && m.realSender) {
-        quoteObj = {
-          ...m,
-          key: {
-            ...m.key,
-            participant: m.realSender
-          }
-        };
+      const sendOpts = { ...options };
+      if (m.isGroup) {
+        sendOpts.useCachedGroupMetadata = true;
+        // In groups, avoid quoting by default unless explicitly requested as true.
+        // Quoting in groups attaches contextInfo that triggers E2EE decryption deadlocks ("Waiting for this message") on recipients' devices.
+        if (options.quoted === true) {
+          sendOpts.quoted = m;
+        } else if (options.quoted && typeof options.quoted === 'object') {
+          sendOpts.quoted = options.quoted;
+        }
+        // Mention the user so they are tagged cleanly
+        const userMentions = [m.sender, m.realSender].filter(Boolean);
+        if (userMentions.length) {
+          sendOpts.mentions = [...new Set([...(sendOpts.mentions || []), ...userMentions])];
+        }
+      } else {
+        // In private chats (DM), quoting is always safe
+        if (!('quoted' in sendOpts)) {
+          sendOpts.quoted = m;
+        }
       }
-      return await Cypher.sendMessage(m.chat, { text: String(text), ...options }, { quoted: quoteObj });
+      return await Cypher.sendMessage(m.chat, { text: String(text), ...sendOpts }, sendOpts);
     } catch (err) {
       try {
         return await Cypher.sendMessage(m.chat, { text: String(text), ...options });
@@ -408,11 +419,13 @@ function getArg(name) {
     },
     getMessage: async (key) => {
       const id = typeof key === 'string' ? key : (key?.id || key?.key?.id);
-      if (id && messageStore.has(id)) {
-        const item = messageStore.get(id);
-        const msg = item?.message || item;
-        if (msg?.message) return msg.message;
-        return msg;
+      if (id) {
+        const item = messageStore.get(id) || messageStore.get(id.toUpperCase()) || messageStore.get(id.toLowerCase());
+        if (item) {
+          const msg = item?.message || item;
+          if (msg?.message) return msg.message;
+          return msg;
+        }
       }
       return undefined;
     }
@@ -422,22 +435,55 @@ function getArg(name) {
   Cypher.downloadMediaMessage = downloadMediaMessage;
   Cypher.downloadAndSaveMediaMessage = downloadAndSaveMediaMessage;
 
-  // Resilient sendMessage wrapper (auto-recovers from LID Signal session missing errors)
+  // Track sender-key distribution timestamps per group
+  const lastSenderKeyDist = new Map();
+
+  // Resilient sendMessage wrapper with guaranteed group sender-key distribution and caching
   const rawSendMessage = Cypher.sendMessage.bind(Cypher);
   Cypher.sendMessage = async (jid, content, options = {}) => {
+    const opts = { ...options };
+
+    if (jid && jid.endsWith('@g.us')) {
+      // Mandatory for Baileys: forces socket to use cached participants instead of failing on network metadata
+      opts.useCachedGroupMetadata = true;
+
+      // Ensure group metadata is in memory before Baileys encodes the message
+      let groupMeta = global.groupMetadataCache?.get(jid)?.data;
+      if (!groupMeta || !Array.isArray(groupMeta.participants) || groupMeta.participants.length === 0) {
+        groupMeta = await getCachedGroupMetadata(jid);
+      }
+
+      // In groups, omit quoted message with LID or when not explicitly requested as true
+      // This eliminates the contextInfo Signal session deadlock that causes "Waiting for this message"
+      if (opts.quoted && (opts.quoted.key?.participant?.includes('@lid') || options.quoted !== true)) {
+        delete opts.quoted;
+      }
+
+      // Every 5 minutes (or on first send), reset sender-key-memory for this group
+      // This forces Baileys to include senderKeyDistributionMessage with the group message stanza,
+      // guaranteeing all group members have the key to decrypt and never see "Waiting for this message"
+      const lastDist = lastSenderKeyDist.get(jid) || 0;
+      if (Date.now() - lastDist > 5 * 60 * 1000) {
+        lastSenderKeyDist.set(jid, Date.now());
+        try {
+          await signalKeys.set({ 'sender-key-memory': { [jid]: null } });
+        } catch {}
+      }
+    }
+
     let sent;
     try {
-      sent = await rawSendMessage(jid, content, options);
+      sent = await rawSendMessage(jid, content, opts);
     } catch (sendErr) {
       const msg = sendErr ? (sendErr.message || String(sendErr)) : '';
-      if (msg.includes('No sessions') || msg.includes('SessionEntry') || msg.includes('lid') || options.quoted) {
+      if (msg.includes('No sessions') || msg.includes('SessionEntry') || msg.includes('lid') || opts.quoted) {
         try {
-          const fallbackOptions = { ...options };
+          const fallbackOptions = { ...opts };
           delete fallbackOptions.quoted;
           sent = await rawSendMessage(jid, content, fallbackOptions);
         } catch (retryErr) {
           if (content && content.text) {
-            sent = await rawSendMessage(jid, { text: content.text });
+            sent = await rawSendMessage(jid, { text: content.text }, { useCachedGroupMetadata: true });
           } else {
             throw retryErr;
           }
