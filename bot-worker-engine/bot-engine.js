@@ -239,10 +239,6 @@ async function serializeMessage(Cypher, m) {
 
   m.reply = async (text, options = {}) => {
     try {
-      const isLid = (m.sender && m.sender.includes('@lid')) || (m.quoted?.sender && m.quoted.sender.includes('@lid'));
-      if (m.isGroup && isLid) {
-        return await Cypher.sendMessage(m.chat, { text: String(text), ...options });
-      }
       return await Cypher.sendMessage(m.chat, { text: String(text), ...options }, { quoted: m });
     } catch (err) {
       try {
@@ -345,20 +341,28 @@ function getArg(name) {
   // call (that's what the previous `async (jid) => Cypher.groupMetadata(jid)`
   // version did). This is shared with the per-message dispatch handler below
   // so there's a single cache and a single fetch path.
-  const GROUP_METADATA_TTL_MS = 120000;
+  const GROUP_METADATA_TTL_MS = 300000; // 5 minutes cache
   if (!global.groupMetadataCache) global.groupMetadataCache = new Map();
   async function getCachedGroupMetadata(jid) {
+    if (!jid || !jid.endsWith('@g.us')) return undefined;
     const cached = global.groupMetadataCache.get(jid);
     if (cached && (Date.now() - cached.timestamp < GROUP_METADATA_TTL_MS)) {
       return cached.data;
     }
     try {
-      const data = await Cypher.groupMetadata(jid);
-      global.groupMetadataCache.set(jid, { data, timestamp: Date.now() });
-      return data;
+      if (!Cypher || typeof Cypher.groupMetadata !== 'function') {
+        return cached ? cached.data : undefined;
+      }
+      const fetchPromise = Cypher.groupMetadata(jid);
+      const timeoutPromise = new Promise(resolve => setTimeout(() => resolve(undefined), 3000));
+      const data = await Promise.race([fetchPromise, timeoutPromise]);
+      if (data && data.participants) {
+        global.groupMetadataCache.set(jid, { data, timestamp: Date.now() });
+        return data;
+      }
+      return cached ? cached.data : undefined;
     } catch (err) {
-      // Serve stale cached data rather than nothing if a live refetch fails
-      return cached ? cached.data : null;
+      return cached ? cached.data : undefined;
     }
   }
 
@@ -378,7 +382,14 @@ function getArg(name) {
     defaultQueryTimeoutMs: 0,
     keepAliveIntervalMs: 25000,
     msgRetryCounterCache,
-    cachedGroupMetadata: (jid) => getCachedGroupMetadata(jid),
+    cachedGroupMetadata: async (jid) => {
+      if (!jid) return undefined;
+      const cached = global.groupMetadataCache?.get(jid);
+      if (cached && cached.data && (Date.now() - cached.timestamp < GROUP_METADATA_TTL_MS)) {
+        return cached.data;
+      }
+      return undefined;
+    },
     getMessage: async (key) => {
       if (key?.id && messageStore.has(key.id)) {
         const item = messageStore.get(key.id);
@@ -710,9 +721,21 @@ function getArg(name) {
       const m = await serializeMessage(Cypher, rawMsg);
       if (!m || !m.body) return;
 
-      const body = m.body.trim();
+      let body = m.body.trim();
+      const botNumber = jidNormalizedUser(Cypher.user.id);
+      const botCleanNumber = botNumber.split('@')[0].split(':')[0];
+
+      // In group chats, if message starts with @bot mention, strip it
+      if (m.isGroup) {
+        const botMentionRegex = new RegExp(`^@(${botCleanNumber}|${botNumber.split('@')[0]})\\s*`, 'i');
+        if (botMentionRegex.test(body)) {
+          body = body.replace(botMentionRegex, '').trim();
+        }
+      }
+
+      const configuredPrefix = global.db?.settings?.prefix || '.';
       const prefixMatch = body.match(/^[./!#$?]/);
-      const prefix = prefixMatch ? prefixMatch[0] : '.';
+      const prefix = prefixMatch ? prefixMatch[0] : (body.startsWith(configuredPrefix) ? configuredPrefix : '.');
       let isCmd = body.startsWith(prefix);
 
       let command = isCmd ? body.slice(prefix.length).trim().split(/\s+/)[0].toLowerCase() : '';
@@ -735,38 +758,54 @@ function getArg(name) {
       if (m.isGroup) {
         try {
           groupMetadata = await getCachedGroupMetadata(m.chat);
-
           participants = groupMetadata?.participants || [];
-          groupAdmins = participants
-            .filter(p => p.admin === 'admin' || p.admin === 'superadmin' || p.admin)
-            .map(p => jidNormalizedUser(p.id));
+
+          // Map LID to actual phone JID for m.sender if sender is an LID
+          if (m.sender && m.sender.includes('@lid') && participants.length) {
+            const matchedPart = participants.find(p => p.lid === m.sender || p.id === m.sender);
+            if (matchedPart?.id && !matchedPart.id.includes('@lid')) {
+              m.realSender = jidNormalizedUser(matchedPart.id);
+            }
+          }
+
+          // Build comprehensive admin sets (both phone JIDs, LIDs, and raw digits)
+          const adminJidSet = new Set();
+          for (const p of participants) {
+            if (p.admin === 'admin' || p.admin === 'superadmin' || p.admin) {
+              if (p.id) adminJidSet.add(jidNormalizedUser(p.id));
+              if (p.lid) adminJidSet.add(jidNormalizedUser(p.lid));
+              const cleanDigits = (p.id || '').split('@')[0].replace(/[^0-9]/g, '');
+              if (cleanDigits) adminJidSet.add(cleanDigits);
+            }
+          }
+          groupAdmins = Array.from(adminJidSet);
 
           const botId = jidNormalizedUser(Cypher.user.id);
-          const botClean = botId.replace(/[^0-9]/g, '');
-          isBotAdmin = groupAdmins.some(adminJid => {
-            const clean = adminJid.replace(/[^0-9]/g, '');
-            return adminJid === botId || clean === botClean || (botClean && clean.includes(botClean));
-          });
+          const botLid = Cypher.user?.lid ? jidNormalizedUser(Cypher.user.lid) : null;
+          isBotAdmin = adminJidSet.has(botId) ||
+                       adminJidSet.has(botCleanNumber) ||
+                       (botLid && adminJidSet.has(botLid));
 
           const senderNormalized = jidNormalizedUser(m.sender || '');
-          const senderClean = senderNormalized.replace(/[^0-9]/g, '');
-          isAdmin = groupAdmins.some(adminJid => {
-            const clean = adminJid.replace(/[^0-9]/g, '');
-            return adminJid === senderNormalized || clean === senderClean || (senderClean && clean.includes(senderClean));
-          });
+          const realSenderNormalized = m.realSender ? jidNormalizedUser(m.realSender) : null;
+          const senderDigits = (realSenderNormalized || senderNormalized).split('@')[0].replace(/[^0-9]/g, '');
+
+          isAdmin = adminJidSet.has(senderNormalized) ||
+                    (realSenderNormalized && adminJidSet.has(realSenderNormalized)) ||
+                    (senderDigits && adminJidSet.has(senderDigits));
+
         } catch (groupErr) {
           console.warn(`[GROUP-META Fetch Note in ${m.chat}]:`, groupErr.message);
         }
       }
 
-      const botNumber = jidNormalizedUser(Cypher.user.id);
-      const botCleanNumber = botNumber.split('@')[0].split(':')[0];
-
-      // Auto-set the linked WhatsApp account as owner of its own bot instance
+      // Check owner status with full support for LID mapping and phone numbers
+      const senderPhone = (m.realSender || m.sender || '').split('@')[0].replace(/[^0-9]/g, '');
       m.isOwner = m.fromMe ||
-                  m.sender.replace(/[^0-9]/g, '') === botCleanNumber ||
+                  senderPhone === botCleanNumber ||
                   m.sender === botNumber ||
-                  (global.ownerNumber && global.ownerNumber.includes(m.sender.split('@')[0]));
+                  (m.realSender && m.realSender === botNumber) ||
+                  (global.ownerNumber && (global.ownerNumber.includes(senderPhone) || global.ownerNumber.includes(m.sender.split('@')[0])));
 
       if (m.isOwner) {
         isAdmin = true;
