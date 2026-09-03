@@ -59,11 +59,12 @@ module.exports = {
             let bytesFreed = 0;
 
             for (const file of files) {
-                // CRITICAL SAFETY CHECK: NEVER delete creds.json or sync keys
+                // CRITICAL SAFETY CHECK: NEVER delete creds.json, sync keys, or group encryption sender-keys
                 if (
                     file === 'creds.json' ||
-                    file.startsWith('app-state-sync-key') ||
-                    file.startsWith('app-state-sync-version')
+                    file.startsWith('app-state-sync') ||
+                    file.startsWith('sender-key') ||
+                    file.startsWith('session-')
                 ) {
                     activeCount++;
                     continue;
@@ -72,11 +73,8 @@ module.exports = {
                 const filePath = path.join(authDir, file);
                 try {
                     const stats = fs.statSync(filePath);
-                    const isPreKey = file.startsWith('pre-key-');
-                    const isSenderKey = file.startsWith('sender-key-');
-                    const isSession = file.startsWith('session-');
-
-                    if (isPreKey || isSenderKey || isSession) {
+                    // Only safely clean consumed pre-keys (pre-key-*.json)
+                    if (file.startsWith('pre-key-')) {
                         if (isForceAll || (now - stats.mtimeMs > MAX_AGE_MS)) {
                             bytesFreed += stats.size;
                             fs.unlinkSync(filePath);

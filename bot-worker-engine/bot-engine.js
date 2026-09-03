@@ -78,22 +78,32 @@ function cleanInactiveSessions(authDir) {
     let purgedCount = 0;
 
     for (const file of files) {
-      // NEVER delete creds.json or sync keys
-      if (file === 'creds.json' || file.startsWith('app-state-sync-key')) continue;
+      // CRITICAL: NEVER delete creds.json, sync keys, group sender-keys, or active sessions
+      if (
+        file === 'creds.json' ||
+        file.startsWith('app-state-sync') ||
+        file.startsWith('sender-key') ||
+        file.startsWith('session-')
+      ) {
+        continue;
+      }
       
-      const filePath = path.join(authDir, file);
-      try {
-        const stats = fs.statSync(filePath);
-        if (now - stats.mtimeMs > TWO_DAYS_MS) {
-          fs.unlinkSync(filePath);
-          purgedCount++;
-          console.log(`[SESSION-CLEANER] Auto-purged inactive session file: ${file}`);
-        }
-      } catch {}
+      // Only clean old pre-keys (pre-key-*.json) older than 2 days
+      if (file.startsWith('pre-key-')) {
+        const filePath = path.join(authDir, file);
+        try {
+          const stats = fs.statSync(filePath);
+          if (now - stats.mtimeMs > TWO_DAYS_MS) {
+            fs.unlinkSync(filePath);
+            purgedCount++;
+            console.log(`[SESSION-CLEANER] Auto-purged expired pre-key: ${file}`);
+          }
+        } catch {}
+      }
     }
 
     if (purgedCount > 0) {
-      console.log(`[SESSION-CLEANER] Successfully removed ${purgedCount} inactive session file(s) older than 2 days.`);
+      console.log(`[SESSION-CLEANER] Safely removed ${purgedCount} expired pre-key file(s).`);
     }
     return purgedCount;
   } catch (err) {
@@ -239,7 +249,17 @@ async function serializeMessage(Cypher, m) {
 
   m.reply = async (text, options = {}) => {
     try {
-      return await Cypher.sendMessage(m.chat, { text: String(text), ...options }, { quoted: m });
+      let quoteObj = m;
+      if (m.isGroup && m.key && m.realSender) {
+        quoteObj = {
+          ...m,
+          key: {
+            ...m.key,
+            participant: m.realSender
+          }
+        };
+      }
+      return await Cypher.sendMessage(m.chat, { text: String(text), ...options }, { quoted: quoteObj });
     } catch (err) {
       try {
         return await Cypher.sendMessage(m.chat, { text: String(text), ...options });
@@ -379,21 +399,20 @@ function getArg(name) {
     syncFullHistory: false,
     markOnlineOnConnect: true,
     connectTimeoutMs: 60000,
-    defaultQueryTimeoutMs: 0,
+    defaultQueryTimeoutMs: 60000,
     keepAliveIntervalMs: 25000,
     msgRetryCounterCache,
     cachedGroupMetadata: async (jid) => {
-      if (!jid) return undefined;
-      const cached = global.groupMetadataCache?.get(jid);
-      if (cached && cached.data && (Date.now() - cached.timestamp < GROUP_METADATA_TTL_MS)) {
-        return cached.data;
-      }
-      return undefined;
+      if (!jid || !jid.endsWith('@g.us')) return undefined;
+      return await getCachedGroupMetadata(jid);
     },
     getMessage: async (key) => {
-      if (key?.id && messageStore.has(key.id)) {
-        const item = messageStore.get(key.id);
-        return item.message || item;
+      const id = typeof key === 'string' ? key : (key?.id || key?.key?.id);
+      if (id && messageStore.has(id)) {
+        const item = messageStore.get(id);
+        const msg = item?.message || item;
+        if (msg?.message) return msg.message;
+        return msg;
       }
       return undefined;
     }
@@ -429,9 +448,10 @@ function getArg(name) {
     }
 
     // Cache sent messages in messageStore so WhatsApp retry receipts (E2EE sync) succeed
-    if (sent?.key?.id && sent?.message) {
+    if (sent?.key?.id) {
+      const storedMessage = sent.message || (content && typeof content === 'object' && content.text ? { extendedTextMessage: { text: content.text } } : content);
       messageStore.set(sent.key.id, {
-        message: sent.message,
+        message: storedMessage,
         key: sent.key,
         chat: jid,
         timestamp: Math.floor(Date.now() / 1000)
