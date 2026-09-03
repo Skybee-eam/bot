@@ -127,7 +127,7 @@ const VERIFIED_COMMANDS = {
             { cmd: "store", desc: "Share bot referral link with friends" },
             { cmd: "ping", desc: "Check server latency & ping response" },
             { cmd: "alive", desc: "Display bot health & system status" },
-            { cmd: "clearsessions", desc: "Purge temporary cache files" },
+            { cmd: "clearsession", desc: "Purge stale session keys & temporary cache" },
             { cmd: "menu", desc: "Display the main control dashboard" }
         ]
     }

@@ -306,6 +306,7 @@ function getArg(name) {
   }
 
   console.log(`[CYPHER-X] Using session directory: ${authDir}`);
+  global.authDir = authDir;
   
   // Safe auto-purge of stale session peer/prekey files older than 2 days
   cleanInactiveSessions(authDir);
