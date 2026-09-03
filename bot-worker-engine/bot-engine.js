@@ -555,19 +555,62 @@ function getArg(name) {
           const botOwnerJid = jidNormalizedUser(Cypher.user.id);
           const targetChat = (antiDeleteSetting === 'chat' && cached.chat) ? cached.chat : botOwnerJid;
 
-          const senderJid = cached.sender || '';
-          const senderName = cached.pushName || senderJid.split('@')[0] || 'User';
-          const senderTag = `@${senderJid.split('@')[0]}`;
-          const isGrp = cached.isGroup;
-          const chatLocation = isGrp ? `👥 Group Chat` : `👤 Private DM`;
+          const isGrp = cached.isGroup || (cached.chat && cached.chat.endsWith('@g.us'));
+          let groupMeta = null;
+          if (isGrp) {
+            try {
+              groupMeta = await getCachedGroupMetadata(cached.chat);
+            } catch {}
+          }
+
+          const rawDeleterJid = protoMsg.key?.participant || rawMsg.key?.participant || rawMsg.participant || (rawMsg.key?.fromMe ? Cypher.user.id : rawMsg.key?.remoteJid) || cached.sender || '';
+          const deleterPushName = rawMsg.pushName || '';
+
+          let realDeleterJid = rawDeleterJid;
+          if (isGrp && realDeleterJid.includes('@lid') && groupMeta?.participants) {
+            const p = groupMeta.participants.find(part => part.lid === realDeleterJid || part.id === realDeleterJid);
+            if (p?.id && !p.id.includes('@lid')) {
+              realDeleterJid = p.id;
+            }
+          }
+
+          let realSenderJid = cached.sender || '';
+          if (isGrp && realSenderJid.includes('@lid') && groupMeta?.participants) {
+            const p = groupMeta.participants.find(part => part.lid === realSenderJid || part.id === realSenderJid);
+            if (p?.id && !p.id.includes('@lid')) {
+              realSenderJid = p.id;
+            }
+          }
+
+          const deleterDigits = realDeleterJid.split('@')[0].replace(/[^0-9]/g, '');
+          const deleterTag = deleterDigits ? `@${deleterDigits}` : 'User';
+          const deleterDisplay = deleterPushName ? `${deleterTag} (${deleterPushName})` : `${deleterTag}`;
+
+          const senderDigits = realSenderJid.split('@')[0].replace(/[^0-9]/g, '');
+          const senderTag = senderDigits ? `@${senderDigits}` : 'User';
+          const senderDisplay = cached.pushName ? `${senderTag} (${cached.pushName})` : `${senderTag}`;
+
+          const isSelfDelete = (!deleterDigits && !senderDigits) || (deleterDigits === senderDigits);
           const timeStr = new Date((cached.timestamp || Date.now() / 1000) * 1000).toLocaleTimeString();
 
-          const headerText =
-            `╭━━━〔 🗑️ *ANTI-DELETE RECOVERY* 〕━━━╮\n` +
-            `│ 👤 *Deleted By:* ${senderTag} (${senderName})\n` +
-            `│ 💬 *Chat:* ${chatLocation}\n` +
-            `│ ⏱️ *Sent At:* ${timeStr}\n` +
-            `╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯\n\n`;
+          let headerText = `╭━━━〔 🗑️ *ANTI-DELETE RECOVERY* 〕━━━╮\n`;
+          if (isGrp) {
+            const groupName = groupMeta?.subject || 'Group Chat';
+            headerText += `│ 👥 *Group Name:* ${groupName}\n`;
+          } else {
+            const chatNumber = (cached.chat || '').split('@')[0].replace(/[^0-9]/g, '');
+            const chatDisplay = chatNumber ? `+${chatNumber}` : (cached.chat || 'Private DM');
+            headerText += `│ 💬 *Chat Number:* ${chatDisplay}\n`;
+          }
+
+          headerText += `│ 👤 *Deleted By:* ${deleterDisplay}\n`;
+          if (!isSelfDelete && senderDigits) {
+            headerText += `│ ✍️ *Sent By:* ${senderDisplay}\n`;
+          }
+          headerText += `│ ⏱️ *Sent At:* ${timeStr}\n`;
+          headerText += `╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯\n\n`;
+
+          const mentionsList = [...new Set([realDeleterJid, realSenderJid, cached.sender, rawDeleterJid].filter(j => j && typeof j === 'string'))];
 
           try {
             const inner = unwrapMessage(cached.message);
@@ -577,7 +620,7 @@ function getArg(name) {
               const textContent = inner.conversation || inner.extendedTextMessage?.text || '';
               await Cypher.sendMessage(targetChat, {
                 text: `${headerText}📝 *Deleted Message Content:*\n${textContent}`,
-                mentions: [senderJid]
+                mentions: mentionsList
               });
             } else if (msgType === 'imageMessage') {
               const mediaBuf = await downloadMediaMessage(inner);
@@ -585,7 +628,7 @@ function getArg(name) {
               await Cypher.sendMessage(targetChat, {
                 image: mediaBuf,
                 caption: `${headerText}${caption ? `📝 *Caption:* ${caption}` : ''}`,
-                mentions: [senderJid]
+                mentions: mentionsList
               });
             } else if (msgType === 'videoMessage') {
               const mediaBuf = await downloadMediaMessage(inner);
@@ -593,20 +636,20 @@ function getArg(name) {
               await Cypher.sendMessage(targetChat, {
                 video: mediaBuf,
                 caption: `${headerText}${caption ? `📝 *Caption:* ${caption}` : ''}`,
-                mentions: [senderJid]
+                mentions: mentionsList
               });
             } else if (msgType === 'stickerMessage') {
               const mediaBuf = await downloadMediaMessage(inner);
               await Cypher.sendMessage(targetChat, {
                 text: `${headerText}🎨 *Recovered Deleted Sticker:*`,
-                mentions: [senderJid]
+                mentions: mentionsList
               });
               await Cypher.sendMessage(targetChat, { sticker: mediaBuf });
             } else if (msgType === 'audioMessage') {
               const mediaBuf = await downloadMediaMessage(inner);
               await Cypher.sendMessage(targetChat, {
                 text: `${headerText}🎵 *Recovered Deleted Voice Note / Audio:*`,
-                mentions: [senderJid]
+                mentions: mentionsList
               });
               await Cypher.sendMessage(targetChat, {
                 audio: mediaBuf,
@@ -621,14 +664,14 @@ function getArg(name) {
                 fileName,
                 caption: `${headerText}📁 *Recovered Deleted File:* ${fileName}`,
                 mimetype: inner.documentMessage?.mimetype || 'application/octet-stream',
-                mentions: [senderJid]
+                mentions: mentionsList
               });
             } else {
               const rawTxt = getMessageText({ message: cached.message });
               if (rawTxt) {
                 await Cypher.sendMessage(targetChat, {
                   text: `${headerText}📝 *Deleted Content:*\n${rawTxt}`,
-                  mentions: [senderJid]
+                  mentions: mentionsList
                 });
               }
             }
