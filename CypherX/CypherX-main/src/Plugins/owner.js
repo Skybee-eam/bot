@@ -120,46 +120,64 @@ module.exports = [
 },
 {
   command: ['dlvo', 'vv', 'rvo'],
-  operate: async ({ Cypher, m, reply, isCreator, mess }) => {
-    if (!isCreator) return reply(mess.owner);
+  operate: async ({ Cypher, m, reply, mess }) => {
     if (!m.quoted) return reply('*Please reply to a view once message!*');
 
-    let msg = m.msg?.contextInfo?.quotedMessage;
-    let type = Object.keys(msg)[0];
-
-    if (type === 'viewOnceMessageV2') {
-      const innerMsg = msg[type]?.message;
-      if (!innerMsg) return reply('*Unsupported view-once message format.*');
-
-      type = Object.keys(innerMsg)[0];
-      msg = innerMsg;
+    const quotedId = m.quoted.id || m.quoted.key?.id;
+    let rawMsg = null;
+    if (global.messageStore && quotedId && global.messageStore.has(quotedId)) {
+      const stored = global.messageStore.get(quotedId);
+      rawMsg = stored.message || stored;
     }
 
-    if (!/imageMessage|videoMessage|audioMessage/.test(type)) {
+    let msg = rawMsg || m.quoted.message || m.quoted.msg || m.msg?.contextInfo?.quotedMessage;
+    if (!msg) return reply('*Cannot access quoted message content.*');
+
+    function unwrap(obj) {
+      if (!obj) return null;
+      if (obj.message) return unwrap(obj.message);
+      if (obj.viewOnceMessageV2?.message) return unwrap(obj.viewOnceMessageV2.message);
+      if (obj.viewOnceMessage?.message) return unwrap(obj.viewOnceMessage.message);
+      if (obj.viewOnceMessageV2Extension?.message) return unwrap(obj.viewOnceMessageV2Extension.message);
+      if (obj.ephemeralMessage?.message) return unwrap(obj.ephemeralMessage.message);
+      if (obj.documentWithCaptionMessage?.message) return unwrap(obj.documentWithCaptionMessage.message);
+      return obj;
+    }
+
+    const unwrapped = unwrap(msg);
+    if (!unwrapped) return reply('*Unsupported view-once message format.*');
+
+    let type = null;
+    let mediaNode = null;
+
+    if (unwrapped.imageMessage) {
+      type = 'imageMessage';
+      mediaNode = unwrapped.imageMessage;
+    } else if (unwrapped.videoMessage) {
+      type = 'videoMessage';
+      mediaNode = unwrapped.videoMessage;
+    } else if (unwrapped.audioMessage) {
+      type = 'audioMessage';
+      mediaNode = unwrapped.audioMessage;
+    } else if (unwrapped.mimetype && (unwrapped.url || unwrapped.mediaKey || unwrapped.directPath)) {
+      if (unwrapped.mimetype.startsWith('image/')) type = 'imageMessage';
+      else if (unwrapped.mimetype.startsWith('video/')) type = 'videoMessage';
+      else if (unwrapped.mimetype.startsWith('audio/')) type = 'audioMessage';
+      mediaNode = unwrapped;
+    }
+
+    if (!type || !mediaNode) {
       return reply('*Only view once images, videos, and audio messages are supported!*');
     }
 
     try {
-      let media;
-      let filename;
-      let caption = msg[type]?.caption || global.wm;
-
-      if (type === 'imageMessage') {
-        media = await downloadContentFromMessage(msg[type], 'image');
-        filename = 'media.jpg';
-      } else if (type === 'videoMessage') {
-        media = await downloadContentFromMessage(msg[type], 'video');
-        filename = 'media.mp4';
-      } else if (type === 'audioMessage') {
-        media = await downloadContentFromMessage(msg[type], 'audio');
-        filename = 'audio.mp3';
-      }
-
+      let media = await downloadContentFromMessage(mediaNode, type.replace('Message', ''));
       let bufferArray = [];
       for await (const chunk of media) {
         bufferArray.push(chunk);
       }
       let buffer = Buffer.concat(bufferArray);
+      let caption = mediaNode.caption || (global.wm ? String(global.wm) : '🔓 *View-Once Media Retrieved*');
 
       if (type === 'audioMessage') {
         await Cypher.sendMessage(
@@ -167,8 +185,18 @@ module.exports = [
           { audio: buffer, mimetype: 'audio/ogg; codecs=opus', ptt: true },
           { quoted: m }
         );
+      } else if (type === 'videoMessage') {
+        await Cypher.sendMessage(
+          m.chat,
+          { video: buffer, caption, mimetype: mediaNode.mimetype || 'video/mp4' },
+          { quoted: m }
+        );
       } else {
-        await Cypher.sendFile(m.chat, buffer, filename, caption, m);
+        await Cypher.sendMessage(
+          m.chat,
+          { image: buffer, caption },
+          { quoted: m }
+        );
       }
 
     } catch (error) {

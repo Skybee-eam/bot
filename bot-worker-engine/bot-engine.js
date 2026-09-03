@@ -379,11 +379,11 @@ function getArg(name) {
     msgRetryCounterCache,
     cachedGroupMetadata: (jid) => getCachedGroupMetadata(jid),
     getMessage: async (key) => {
-      if (messageStore.has(key.id)) {
+      if (key?.id && messageStore.has(key.id)) {
         const item = messageStore.get(key.id);
         return item.message || item;
       }
-      return proto.Message.fromObject({});
+      return undefined;
     }
   });
 
@@ -394,24 +394,43 @@ function getArg(name) {
   // Resilient sendMessage wrapper (auto-recovers from LID Signal session missing errors)
   const rawSendMessage = Cypher.sendMessage.bind(Cypher);
   Cypher.sendMessage = async (jid, content, options = {}) => {
+    let sent;
     try {
-      return await rawSendMessage(jid, content, options);
+      sent = await rawSendMessage(jid, content, options);
     } catch (sendErr) {
       const msg = sendErr ? (sendErr.message || String(sendErr)) : '';
       if (msg.includes('No sessions') || msg.includes('SessionEntry') || msg.includes('lid') || options.quoted) {
         try {
           const fallbackOptions = { ...options };
           delete fallbackOptions.quoted;
-          return await rawSendMessage(jid, content, fallbackOptions);
+          sent = await rawSendMessage(jid, content, fallbackOptions);
         } catch (retryErr) {
           if (content && content.text) {
-            return await rawSendMessage(jid, { text: content.text });
+            sent = await rawSendMessage(jid, { text: content.text });
+          } else {
+            throw retryErr;
           }
-          throw retryErr;
         }
+      } else {
+        throw sendErr;
       }
-      throw sendErr;
     }
+
+    // Cache sent messages in messageStore so WhatsApp retry receipts (E2EE sync) succeed
+    if (sent?.key?.id && sent?.message) {
+      messageStore.set(sent.key.id, {
+        message: sent.message,
+        key: sent.key,
+        chat: jid,
+        timestamp: Math.floor(Date.now() / 1000)
+      });
+      if (messageStore.size > 3000) {
+        const firstKey = messageStore.keys().next().value;
+        messageStore.delete(firstKey);
+      }
+    }
+
+    return sent;
   };
 
   // sendFile compatibility helper
@@ -831,15 +850,16 @@ function getArg(name) {
           if (cachedMsg) {
             const simulatedM = {
               quoted: {
-                message: cachedMsg,
-                key: key
+                message: cachedMsg.message || cachedMsg,
+                key: key,
+                id: key.id
               },
               key: key,
               chat: key.remoteJid,
               sender: reactorJid,
               isGroup: key.remoteJid.endsWith('@g.us'),
               fromReaction: true,
-              reply: (text) => Cypher.sendMessage(reactorJid, { text })
+              reply: (text) => Cypher.sendMessage(key.remoteJid, { text })
             };
 
             await pluginManager.executePlugin({
